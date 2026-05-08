@@ -71,7 +71,10 @@ describe('App routes', () => {
 
     const hero = screen.getByRole('region', { name: /games and videos/i })
 
-    expect(within(hero).getByTestId('ocean-animation')).toBeInTheDocument()
+    expect(within(hero).getByTestId('ocean-animation')).toHaveAttribute(
+      'data-ocean-style',
+      'raymarched-heightfield',
+    )
     expect(
       within(hero).getByRole('heading', { name: 'Games and videos' }),
     ).toBeInTheDocument()
