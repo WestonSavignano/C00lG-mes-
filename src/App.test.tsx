@@ -1,0 +1,81 @@
+import { render, screen, within } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
+import { describe, expect, it } from 'vitest'
+import App from './App'
+
+function renderRoute(route: string) {
+  render(
+    <MemoryRouter initialEntries={[route]}>
+      <App />
+    </MemoryRouter>,
+  )
+}
+
+describe('App routes', () => {
+  it('links from the home page to the videos and games sections', () => {
+    renderRoute('/')
+
+    expect(screen.getByRole('link', { name: /videos/i })).toHaveAttribute(
+      'href',
+      '/videos',
+    )
+    expect(screen.getByRole('link', { name: /games/i })).toHaveAttribute(
+      'href',
+      '/games',
+    )
+  })
+
+  it('renders video placeholders as reusable list cards', () => {
+    renderRoute('/videos')
+
+    expect(screen.getByRole('heading', { name: 'Videos' })).toBeInTheDocument()
+
+    const cards = screen.getAllByTestId('content-card')
+    expect(cards).toHaveLength(1)
+    expect(within(cards[0]).getByRole('heading', { name: 'Video Placeholder' }))
+      .toBeInTheDocument()
+    expect(
+      within(cards[0]).getByRole('link', { name: /open video placeholder/i }),
+    ).toHaveAttribute('href', '/videos/video-placeholder')
+  })
+
+  it('renders game placeholders as reusable list cards', () => {
+    renderRoute('/games')
+
+    expect(screen.getByRole('heading', { name: 'Games' })).toBeInTheDocument()
+
+    const cards = screen.getAllByTestId('content-card')
+    expect(cards).toHaveLength(1)
+    expect(within(cards[0]).getByRole('heading', { name: 'Game Placeholder' }))
+      .toBeInTheDocument()
+    expect(
+      within(cards[0]).getByRole('link', { name: /open game placeholder/i }),
+    ).toHaveAttribute('href', '/games/game-placeholder')
+  })
+
+  it('renders a reusable detail page for individual videos', () => {
+    renderRoute('/videos/video-placeholder')
+
+    expect(
+      screen.getByRole('heading', { name: 'Video Placeholder' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Video')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /back to videos/i })).toHaveAttribute(
+      'href',
+      '/videos',
+    )
+  })
+
+  it('renders a reusable detail page for individual games', () => {
+    renderRoute('/games/game-placeholder')
+
+    expect(
+      screen.getByRole('heading', { name: 'Game Placeholder' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Game')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /back to games/i })).toHaveAttribute(
+      'href',
+      '/games',
+    )
+  })
+})
