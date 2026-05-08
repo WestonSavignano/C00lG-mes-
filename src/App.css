@@ -1,3 +1,102 @@
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: blur(14px);
+}
+
+.site-header__inner {
+  width: min(100%, 1040px);
+  min-height: 72px;
+  margin: 0 auto;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.brand-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  color: var(--text-h);
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.brand-link__icon {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+}
+
+.brand-link span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.desktop-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.nav-link,
+.mobile-nav__link {
+  color: var(--text-h);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.nav-link {
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+.nav-link.active,
+.nav-link:hover,
+.mobile-nav__link.active,
+.mobile-nav__link:hover {
+  color: var(--accent);
+}
+
+.menu-button {
+  display: none;
+  width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-h);
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.menu-button svg {
+  width: 22px;
+  height: 22px;
+  stroke-width: 2.25;
+}
+
+.mobile-nav {
+  width: min(100%, 1040px);
+  margin: 0 auto;
+  padding: 0 18px 18px;
+}
+
+.mobile-nav__link {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  border-top: 1px solid var(--border);
+}
+
 .page {
   width: min(100%, 1040px);
   margin: 0 auto;
@@ -6,7 +105,7 @@
 }
 
 .page--home {
-  min-height: 100svh;
+  min-height: calc(100svh - 73px);
   display: grid;
   align-content: center;
   gap: 36px;
@@ -122,13 +221,27 @@
 }
 
 @media (max-width: 720px) {
+  .site-header__inner {
+    min-height: 64px;
+    padding: 0 18px;
+  }
+
+  .desktop-nav {
+    display: none;
+  }
+
+  .menu-button {
+    display: inline-flex;
+  }
+
   .page {
     padding: 36px 18px;
   }
 
   .page--home {
     align-content: start;
-    padding-top: 72px;
+    min-height: calc(100svh - 65px);
+    padding-top: 44px;
   }
 
   .home-links {

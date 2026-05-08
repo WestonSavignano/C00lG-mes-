@@ -12,7 +12,7 @@ function HomePage({ collections }: HomePageProps) {
         <p className="eyebrow">C00lG-mes</p>
         <h1>Games and videos</h1>
       </section>
-      <nav className="home-links" aria-label="Primary sections">
+      <nav className="home-links" aria-label="Home sections">
         <Link className="section-link" to={collections.videos.basePath}>
           <span>Videos</span>
           <span>{collections.videos.description}</span>
