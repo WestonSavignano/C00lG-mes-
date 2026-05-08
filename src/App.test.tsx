@@ -66,6 +66,17 @@ describe('App routes', () => {
     )
   })
 
+  it('renders the ocean hero on the home page', () => {
+    renderRoute('/')
+
+    const hero = screen.getByRole('region', { name: /games and videos/i })
+
+    expect(within(hero).getByTestId('ocean-animation')).toBeInTheDocument()
+    expect(
+      within(hero).getByRole('heading', { name: 'Games and videos' }),
+    ).toBeInTheDocument()
+  })
+
   it('renders video placeholders as reusable list cards', () => {
     renderRoute('/videos')
 
@@ -97,11 +108,13 @@ describe('App routes', () => {
   it('renders a reusable detail page for individual videos', () => {
     renderRoute('/videos/video-placeholder')
 
-    expect(
-      screen.getByRole('heading', { name: 'Video Placeholder' }),
-    ).toBeInTheDocument()
-    expect(screen.getByText('Video')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /back to videos/i })).toHaveAttribute(
+    const hero = screen.getByRole('region', { name: /video placeholder/i })
+
+    expect(within(hero).getByTestId('ocean-animation')).toBeInTheDocument()
+    expect(within(hero).getByRole('heading', { name: 'Video Placeholder' }))
+      .toBeInTheDocument()
+    expect(within(hero).getByText('Video')).toBeInTheDocument()
+    expect(within(hero).getByRole('link', { name: /back to videos/i })).toHaveAttribute(
       'href',
       '/videos',
     )
@@ -110,11 +123,13 @@ describe('App routes', () => {
   it('renders a reusable detail page for individual games', () => {
     renderRoute('/games/game-placeholder')
 
-    expect(
-      screen.getByRole('heading', { name: 'Game Placeholder' }),
-    ).toBeInTheDocument()
-    expect(screen.getByText('Game')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /back to games/i })).toHaveAttribute(
+    const hero = screen.getByRole('region', { name: /game placeholder/i })
+
+    expect(within(hero).getByTestId('ocean-animation')).toBeInTheDocument()
+    expect(within(hero).getByRole('heading', { name: 'Game Placeholder' }))
+      .toBeInTheDocument()
+    expect(within(hero).getByText('Game')).toBeInTheDocument()
+    expect(within(hero).getByRole('link', { name: /back to games/i })).toHaveAttribute(
       'href',
       '/games',
     )
