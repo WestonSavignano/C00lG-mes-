@@ -25,8 +25,8 @@ describe('App routes', () => {
     const desktopNav = within(header).getByRole('navigation', {
       name: 'Primary',
     })
-    expect(within(desktopNav).getByRole('link', { name: 'Videos' }))
-      .toHaveAttribute('href', '/videos')
+    expect(within(desktopNav).getByRole('link', { name: 'Soundboard' }))
+      .toHaveAttribute('href', '/soundboard')
     expect(within(desktopNav).getByRole('link', { name: 'Games' }))
       .toHaveAttribute('href', '/games')
 
@@ -49,16 +49,16 @@ describe('App routes', () => {
     expect(menuButton).toHaveAttribute('aria-expanded', 'false')
   })
 
-  it('links from the home page to the videos and games sections', () => {
+  it('links from the home page to the soundboard and games sections', () => {
     renderRoute('/')
 
     const homeSections = screen.getByRole('navigation', {
       name: 'Home sections',
     })
 
-    expect(within(homeSections).getByRole('link', { name: /videos/i })).toHaveAttribute(
+    expect(within(homeSections).getByRole('link', { name: /soundboard/i })).toHaveAttribute(
       'href',
-      '/videos',
+      '/soundboard',
     )
     expect(within(homeSections).getByRole('link', { name: /games/i })).toHaveAttribute(
       'href',
@@ -66,75 +66,78 @@ describe('App routes', () => {
     )
   })
 
-  it('renders the ocean hero on the home page', () => {
+  it('renders a low-power ocean hero on the home page', () => {
     renderRoute('/')
 
-    const hero = screen.getByRole('region', { name: /games and videos/i })
+    const hero = screen.getByRole('region', { name: /games and sounds/i })
 
     expect(within(hero).getByTestId('ocean-animation')).toHaveAttribute(
       'data-ocean-style',
-      'raymarched-heightfield',
+      'css-layered-ocean',
     )
     expect(
-      within(hero).getByRole('heading', { name: 'Games and videos' }),
+      within(hero).getByRole('heading', { name: 'Games and sounds' }),
     ).toBeInTheDocument()
   })
 
-  it('renders video placeholders as reusable list cards', () => {
-    renderRoute('/videos')
+  it('renders soundboard placeholders as composable cards', () => {
+    renderRoute('/soundboard')
 
-    expect(screen.getByRole('heading', { name: 'Videos' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Soundboard' })).toBeInTheDocument()
 
-    const cards = screen.getAllByTestId('content-card')
+    const cards = screen.getAllByTestId('card')
     expect(cards).toHaveLength(1)
-    expect(within(cards[0]).getByRole('heading', { name: 'Video Placeholder' }))
+    expect(within(cards[0]).getByText('Sound')).toBeInTheDocument()
+    expect(within(cards[0]).getByRole('heading', { name: 'Sound Placeholder' }))
       .toBeInTheDocument()
     expect(
-      within(cards[0]).getByRole('link', { name: /open video placeholder/i }),
-    ).toHaveAttribute('href', '/videos/video-placeholder')
+      within(cards[0]).getByRole('link', { name: /open sound placeholder/i }),
+    ).toHaveAttribute('href', '/soundboard/sound')
   })
 
-  it('renders game placeholders as reusable list cards', () => {
+  it('renders game placeholders as composable cards', () => {
     renderRoute('/games')
 
     expect(screen.getByRole('heading', { name: 'Games' })).toBeInTheDocument()
 
-    const cards = screen.getAllByTestId('content-card')
+    const cards = screen.getAllByTestId('card')
     expect(cards).toHaveLength(1)
-    expect(within(cards[0]).getByRole('heading', { name: 'Game Placeholder' }))
+    expect(within(cards[0]).getByText('Game')).toBeInTheDocument()
+    expect(within(cards[0]).getByRole('heading', { name: 'Bit Planes' }))
       .toBeInTheDocument()
     expect(
-      within(cards[0]).getByRole('link', { name: /open game placeholder/i }),
-    ).toHaveAttribute('href', '/games/game-placeholder')
+      within(cards[0]).getByRole('link', { name: /open bit planes/i }),
+    ).toHaveAttribute('href', '/games/bit-planes')
   })
 
-  it('renders a reusable detail page for individual videos', () => {
-    renderRoute('/videos/video-placeholder')
+  it('renders a reusable detail page for individual sounds', () => {
+    renderRoute('/soundboard/sound')
 
-    const hero = screen.getByRole('region', { name: /video placeholder/i })
+    const hero = screen.getByRole('region', { name: /sound placeholder/i })
 
     expect(within(hero).getByTestId('ocean-animation')).toBeInTheDocument()
-    expect(within(hero).getByRole('heading', { name: 'Video Placeholder' }))
+    expect(within(hero).getByRole('heading', { name: 'Sound Placeholder' }))
       .toBeInTheDocument()
-    expect(within(hero).getByText('Video')).toBeInTheDocument()
-    expect(within(hero).getByRole('link', { name: /back to videos/i })).toHaveAttribute(
+    expect(within(hero).getByText('Sound')).toBeInTheDocument()
+    expect(within(hero).getByRole('link', { name: /back to soundboard/i })).toHaveAttribute(
       'href',
-      '/videos',
+      '/soundboard',
     )
   })
 
-  it('renders a reusable detail page for individual games', () => {
-    renderRoute('/games/game-placeholder')
+  it('renders the Bit Planes game as the primary page content', () => {
+    renderRoute('/games/bit-planes')
 
-    const hero = screen.getByRole('region', { name: /game placeholder/i })
-
-    expect(within(hero).getByTestId('ocean-animation')).toBeInTheDocument()
-    expect(within(hero).getByRole('heading', { name: 'Game Placeholder' }))
+    expect(screen.getByRole('heading', { level: 1, name: 'Bit Planes' }))
       .toBeInTheDocument()
-    expect(within(hero).getByText('Game')).toBeInTheDocument()
-    expect(within(hero).getByRole('link', { name: /back to games/i })).toHaveAttribute(
-      'href',
-      '/games',
+    expect(
+      screen.queryByRole('region', { name: /bit planes/i }),
+    ).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Playground' }))
+      .not.toBeInTheDocument()
+    expect(screen.getByTestId('game-viewport')).toHaveAttribute(
+      'data-game',
+      'bit-planes',
     )
   })
 })

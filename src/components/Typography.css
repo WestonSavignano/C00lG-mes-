@@ -1,0 +1,20 @@
+.heading {
+  margin: 0;
+  color: var(--text-h);
+  font-weight: 750;
+  line-height: 1.08;
+  letter-spacing: 0;
+}
+
+.heading--h1 {
+  font-size: clamp(2rem, 5vw, 3rem);
+}
+
+.heading--h2 {
+  font-size: 1.35rem;
+}
+
+.text {
+  margin: 0;
+  color: var(--text);
+}

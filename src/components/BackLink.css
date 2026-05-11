@@ -1,0 +1,6 @@
+.page-back-link {
+  justify-self: start;
+  color: var(--link);
+  font-weight: 700;
+  text-decoration: none;
+}

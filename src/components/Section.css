@@ -1,0 +1,15 @@
+.section {
+  display: flex;
+  flex-flow: var(--section-flex-flow, row wrap);
+  gap: var(--section-gap, 16px);
+  padding: var(--section-padding, 20px);
+  box-sizing: border-box;
+}
+
+.section + .section {
+  margin-top: 28px;
+}
+
+.section > * {
+  min-width: 0;
+}

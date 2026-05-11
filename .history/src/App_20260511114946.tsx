@@ -14,8 +14,8 @@ function App() {
       <HeaderNav />
       <Routes>
         <Route path="/" element={<HomePage />} />
-        <Route path="/soundboard" element={<SoundboardPage />} />
-        <Route path="/soundboard/sound" element={<PlaceholderPage />} />
+        <Route path="/videos" element={<SoundboardPage />} />
+        <Route path="/videos/video-placeholder" element={<PlaceholderPage />} />
         <Route path="/games" element={<GamesPage />} />
         <Route path="/games/bit-planes" element={<BitPlanesPage />} />
         <Route path="*" element={<NotFoundPage />} />

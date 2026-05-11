@@ -5,8 +5,8 @@ import BitPlanesPage from './games/bit-planes/BitPlanesPage'
 import GamesPage from './pages/GamesPage'
 import HomePage from './pages/HomePage'
 import NotFoundPage from './pages/NotFoundPage'
-import PlaceholderPage from './pages/PlaceholderPage'
-import SoundboardPage from './pages/SoundboardPage'
+import VideoPlaceholderPage from './pages/VideoPlaceholderPage'
+import VideosPage from './pages/VideosPage'
 
 function App() {
   return (
@@ -14,8 +14,8 @@ function App() {
       <HeaderNav />
       <Routes>
         <Route path="/" element={<HomePage />} />
-        <Route path="/soundboard" element={<SoundboardPage />} />
-        <Route path="/soundboard/sound" element={<PlaceholderPage />} />
+        <Route path="/videos" element={<VideosPage />} />
+        <Route path="/videos/video-placeholder" element={<VideoPlaceholderPage />} />
         <Route path="/games" element={<GamesPage />} />
         <Route path="/games/bit-planes" element={<BitPlanesPage />} />
         <Route path="*" element={<NotFoundPage />} />

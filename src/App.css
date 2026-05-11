@@ -123,7 +123,8 @@
 }
 
 .ocean-animation,
-.ocean-animation__canvas,
+.ocean-animation__sky,
+.ocean-animation__water,
 .hero__surface {
   position: absolute;
   inset: 0;
@@ -131,12 +132,39 @@
 
 .ocean-animation {
   z-index: -3;
+  overflow: hidden;
 }
 
-.ocean-animation__canvas {
-  width: 100%;
-  height: 100%;
-  display: block;
+.ocean-animation__sky {
+  background:
+    radial-gradient(circle at 26% 22%, rgba(255, 255, 255, 0.72), transparent 8%),
+    radial-gradient(circle at 68% 18%, rgba(125, 211, 252, 0.32), transparent 24%),
+    linear-gradient(180deg, #67b8d8 0%, #87d7e5 36%, #0b4262 62%, #052439 100%);
+}
+
+.ocean-animation__water {
+  top: 42%;
+  background-repeat: repeat-x;
+  background-size: 520px 100%;
+  opacity: 0.8;
+  transform: translate3d(0, 0, 0);
+}
+
+.ocean-animation__water--back {
+  animation: ocean-drift 24s linear infinite;
+  background-image:
+    radial-gradient(60% 32% at 50% 0%, rgba(226, 246, 255, 0.42), transparent 60%),
+    repeating-radial-gradient(ellipse at 50% 0%, rgba(125, 211, 252, 0.34) 0 8px, transparent 9px 28px),
+    linear-gradient(180deg, rgba(8, 145, 178, 0.54), rgba(4, 24, 39, 0.9));
+}
+
+.ocean-animation__water--front {
+  top: 54%;
+  animation: ocean-drift 18s linear infinite reverse;
+  background-image:
+    radial-gradient(55% 26% at 50% 0%, rgba(248, 250, 252, 0.46), transparent 58%),
+    repeating-radial-gradient(ellipse at 50% 0%, rgba(240, 249, 255, 0.28) 0 6px, transparent 8px 24px),
+    linear-gradient(180deg, rgba(6, 95, 125, 0.62), rgba(2, 8, 23, 0.88));
 }
 
 .hero__surface {
@@ -190,21 +218,7 @@
   margin-top: 32px;
 }
 
-.page {
-  width: min(100%, 1040px);
-  margin: 0 auto;
-  padding: 56px 24px;
-  box-sizing: border-box;
-}
-
-.page-header,
-.empty-state {
-  display: grid;
-  gap: 12px;
-}
-
 .eyebrow,
-.content-card__label,
 .detail__label {
   color: var(--accent);
   font-size: 0.78rem;
@@ -220,16 +234,12 @@
   max-width: 680px;
 }
 
-.section-link,
-.content-card {
+.section-link {
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
   color: inherit;
   box-shadow: var(--shadow);
-}
-
-.section-link {
   display: grid;
   gap: 10px;
   min-height: 126px;
@@ -259,39 +269,6 @@
   max-width: 32rem;
 }
 
-.page-header {
-  margin-bottom: 28px;
-}
-
-.content-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
-  gap: 16px;
-}
-
-.content-card {
-  display: grid;
-  min-height: 220px;
-  padding: 22px;
-}
-
-.content-card h2 {
-  margin-top: 8px;
-}
-
-.content-card p {
-  margin: 0 0 24px;
-}
-
-.content-card a,
-.empty-state a {
-  align-self: end;
-  justify-self: start;
-  color: var(--link);
-  font-weight: 700;
-  text-decoration: none;
-}
-
 .detail {
   display: grid;
   gap: 28px;
@@ -309,6 +286,132 @@
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
+}
+
+.game-shell {
+  display: grid;
+  gap: 18px;
+}
+
+.game-shell__header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 320px);
+  gap: 24px;
+  align-items: start;
+}
+
+.game-shell__header h2 {
+  margin: 8px 0;
+}
+
+.game-controls {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.game-controls div {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 10px;
+  align-items: baseline;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.game-controls dt {
+  color: var(--text-h);
+  font-weight: 800;
+}
+
+.game-controls dd {
+  margin: 0;
+}
+
+.game-viewport {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  min-height: 280px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 18% 22%, rgba(94, 234, 212, 0.2), transparent 20%),
+    linear-gradient(180deg, #071421 0%, #0f2638 100%);
+  box-shadow: var(--shadow);
+}
+
+.game-viewport:fullscreen {
+  width: 100vw;
+  height: 100dvh;
+  aspect-ratio: auto;
+  border: 0;
+  border-radius: 0;
+  background: #071421;
+  box-shadow: none;
+}
+
+.game-viewport canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.game-viewport__fullscreen {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 5;
+  display: inline-grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border: 1px solid rgba(219, 234, 254, 0.36);
+  border-radius: 8px;
+  color: #dbeafe;
+  background: rgba(7, 20, 33, 0.74);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+  cursor: pointer;
+}
+
+.game-viewport__fullscreen:hover,
+.game-viewport__fullscreen:focus-visible {
+  color: #ffffff;
+  border-color: rgba(219, 234, 254, 0.72);
+  background: rgba(15, 38, 56, 0.9);
+}
+
+.game-viewport__fullscreen svg {
+  width: 22px;
+  height: 22px;
+}
+
+.game-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #dbeafe;
+  font-weight: 800;
+}
+
+@keyframes ocean-drift {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+
+  to {
+    transform: translate3d(-520px, 0, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ocean-animation__water {
+    animation: none;
+  }
 }
 
 @media (max-width: 720px) {
@@ -348,11 +451,15 @@
     font-size: clamp(2.35rem, 13vw, 3.75rem);
   }
 
-  .page {
-    padding: 36px 18px;
+  .home-links {
+    grid-template-columns: 1fr;
   }
 
-  .home-links {
+  .game-shell__header {
+    grid-template-columns: 1fr;
+  }
+
+  .game-controls div {
     grid-template-columns: 1fr;
   }
 }

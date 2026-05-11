@@ -5,14 +5,14 @@ function HomePage() {
   return (
     <main className="home-page">
       <Hero
-        description="A tidepool for playful sounds, experiments, and games."
+        description="A tidepool for playful videos, experiments, and games."
         eyebrow="C00lG-mes"
-        title="Games and sounds"
+        title="Games and videos"
       >
         <nav className="home-links" aria-label="Home sections">
-          <Link className="section-link" to="/soundboard">
-            <span>Soundboard</span>
-            <span>A growing library of sound effects.</span>
+          <Link className="section-link" to="/videos">
+            <span>Videos</span>
+            <span>A growing library of video placeholders.</span>
           </Link>
           <Link className="section-link" to="/games">
             <span>Games</span>

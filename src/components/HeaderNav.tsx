@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { Link, NavLink } from 'react-router-dom'
 
 const navItems = [
-  { label: 'Videos', to: '/videos' },
+  { label: 'Soundboard', to: '/soundboard' },
   { label: 'Games', to: '/games' },
 ]
 
