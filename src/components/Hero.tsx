@@ -1,5 +1,4 @@
 import { useId, type ReactNode } from 'react'
-import OceanAnimation from './OceanAnimation'
 
 type HeroProps = {
   children?: ReactNode
