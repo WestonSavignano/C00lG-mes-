@@ -1,17 +1,17 @@
 import H1 from '../../components/H1'
 import Page from '../../components/Page'
 import PageHeader from '../../components/PageHeader'
-import BitPlanesGame from './BitPlanesGame'
+import DonutRun from './DonutRun'
 
-function BitPlanesPage() {
+function DonutRunPage() {
   return (
     <Page className="game-page">
       <PageHeader>
-        <H1>Plane Blaster</H1>
+        <H1>Donut Run</H1>
       </PageHeader>
-      <BitPlanesGame />
+      <DonutRun />
     </Page>
   )
 }
 
-export default BitPlanesPage
+export default DonutRunPage

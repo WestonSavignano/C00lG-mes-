@@ -24,7 +24,7 @@ function Hero({
       className={`hero hero--${variant}`}
       role="region"
     >
-      <OceanAnimation />
+      
       <div className="hero__surface" />
       <div className="hero__content">
         {eyebrow ? <p className="hero__eyebrow">{eyebrow}</p> : null}

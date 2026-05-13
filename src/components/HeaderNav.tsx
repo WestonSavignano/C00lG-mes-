@@ -9,7 +9,7 @@ const navItems = [
 
 function HeaderNav() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const brandIcon = `${import.meta.env.BASE_URL}favicon.svg`
+  const brandIcon = `${import.meta.env.BASE_URL}favicon2.png`
 
   const closeMenu = () => {
     setIsMenuOpen(false)
@@ -19,13 +19,13 @@ function HeaderNav() {
     <header className="site-header">
       <div className="site-header__inner">
         <Link
-          aria-label="C00lG-mes home"
+          aria-label="C00lG@mes+ home"
           className="brand-link"
           onClick={closeMenu}
           to="/"
         >
           <img alt="" className="brand-link__icon" src={brandIcon} />
-          <span>C00lG-mes</span>
+          <span>C00lG@mes+</span>
         </Link>
 
         <nav aria-label="Primary" className="desktop-nav">

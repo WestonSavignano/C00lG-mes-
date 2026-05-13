@@ -18,11 +18,17 @@ function GamesPage() {
         <P>A place for browser games, experiments, and game-engine practice.</P>
       </PageHeader>
       <Section>
-        <Card to="/games/bit-planes">
+        <Card to="/games/plane-blaster ">
           <CardLabel>Game</CardLabel>
-          <H2>Bit Planes</H2>
+          <H2>Plane Blaster</H2>
           <P>A Phaser-powered starter dogfight with arcade plane controls.</P>
-          <CardAction>Open Bit Planes</CardAction>
+          <CardAction>Open Plane Blaster</CardAction>
+        </Card>
+        <Card to="/games/donut-run">
+          <CardLabel>Game</CardLabel>
+          <H2>Donut Run</H2>
+          <P>A fast-paced platformer with a twist.</P>
+          <CardAction>Open Donut Run</CardAction>
         </Card>
       </Section>
     </Page>
