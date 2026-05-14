@@ -30,7 +30,7 @@ function WormBattles() {
   const lastHudRef = useRef<number>(0);
   const bestRef = useRef<number>(Number(localStorage.getItem("worm-arena-best") ?? 0));
 
-  const [hud, setHud] = useState<HudState>({
+  const [_, setHud] = useState<HudState>({
     score: 0,
     best: bestRef.current,
     length: 180,
