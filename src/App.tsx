@@ -8,6 +8,7 @@ import NotFoundPage from './pages/NotFoundPage'
 import PlaceholderPage from './pages/PlaceholderPage'
 import SoundboardPage from './pages/SoundboardPage'
 import DonutRunPage from './games/donut-run/DonutRunPage'
+import WormBattlesPage from './games/worm-battles/WormBattlesPage'
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
         <Route path="/games" element={<GamesPage />} />
         <Route path="/games/plane-blaster" element={<BitPlanesPage />} />
         <Route path="/games/donut-run" element={<DonutRunPage />} />
+        <Route path="/games/worm-battles" element={<WormBattlesPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </>

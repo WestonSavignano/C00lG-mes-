@@ -30,6 +30,12 @@ function GamesPage() {
           <P>A fast-paced platformer with a twist.</P>
           <CardAction>Open Donut Run</CardAction>
         </Card>
+        <Card to="/games/worm-battles">
+          <CardLabel>Game</CardLabel>
+          <H2>Worm Battles</H2>
+          <P>A strategic multiplayer game where you control a worm and battle against opponents.</P>
+          <CardAction>Open Worm Battles</CardAction>
+        </Card>
       </Section>
     </Page>
   )
