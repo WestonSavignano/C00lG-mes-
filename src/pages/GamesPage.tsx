@@ -36,6 +36,12 @@ function GamesPage() {
           <P>A strategic multiplayer game where you control a worm and battle against opponents.</P>
           <CardAction>Open Worm Battles</CardAction>
         </Card>
+        <Card to="/games/warrior">
+          <CardLabel>Game</CardLabel>
+          <H2>Warrior</H2>
+          <P>A hand-drawn stick-figure action game ported into the app.</P>
+          <CardAction>Open Warrior</CardAction>
+        </Card>
       </Section>
     </Page>
   )
