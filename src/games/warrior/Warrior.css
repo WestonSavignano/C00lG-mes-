@@ -1,0 +1,40 @@
+.game-viewport[data-game='warrior'] {
+  aspect-ratio: 1000 / 650;
+  min-height: 0;
+  border: 0;
+  border-radius: 0;
+  background: #f3f0e8;
+  box-shadow: none;
+}
+
+.game-viewport[data-game='warrior'] canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1000 / 650;
+  background: #fffdf7;
+  touch-action: none;
+}
+
+.game-viewport[data-game='warrior']
+  .game-viewport__fullscreen {
+  top: auto;
+  right: 12px;
+  bottom: 12px;
+}
+
+.game-viewport[data-game='warrior']:fullscreen {
+  display: grid;
+  width: 100vw;
+  height: 100dvh;
+  place-items: center;
+  background: #f3f0e8;
+}
+
+.game-viewport[data-game='warrior']:fullscreen
+  canvas {
+  width: min(100vw, 153.8462dvh);
+  height: auto;
+  max-width: 100vw;
+  max-height: 100dvh;
+}
