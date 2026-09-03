@@ -10,6 +10,7 @@ import SoundboardPage from './pages/SoundboardPage'
 import DonutRunPage from './games/donut-run/DonutRunPage'
 import WormBattlesPage from './games/worm-battles/WormBattlesPage'
 import WarriorPage from './games/warrior/WarriorPage'
+import Warrior2Page from './games/warrior2/WarriorPage'
 
 function App() {
   return (
@@ -24,6 +25,7 @@ function App() {
         <Route path="/games/donut-run" element={<DonutRunPage />} />
         <Route path="/games/worm-battles" element={<WormBattlesPage />} />
         <Route path="/games/warrior" element={<WarriorPage />} />
+        <Route path="/games/warrior2" element={<Warrior2Page />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </>

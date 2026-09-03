@@ -42,6 +42,12 @@ function GamesPage() {
           <P>A hand-drawn stick-figure action game ported into the app.</P>
           <CardAction>Open Warrior</CardAction>
         </Card>
+                <Card to="/games/warrior2">
+          <CardLabel>Game</CardLabel>
+          <H2>Warrior2</H2>
+          <P>Battle Dark Matter and protect the village.</P>
+          <CardAction>Open Warrior2</CardAction>
+        </Card>
       </Section>
     </Page>
   )
