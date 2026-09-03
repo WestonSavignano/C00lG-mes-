@@ -1,3 +1,110 @@
+// STRICT-FIX-V3 — typed Warrior engine for the React project
+type Player = {
+  x: number
+  y: number
+  speed: number
+  hp: number
+  facing: 1 | -1
+  attackTimer: number
+  attackCooldown: number
+  invuln: number
+  isMoving: boolean
+  walkCycle: number
+  shielding: boolean
+}
+
+type HelperPatrol = {
+  minX: number
+  maxX: number
+  y: number
+}
+
+type Helper = {
+  x: number
+  y: number
+  speed: number
+  facing: 1 | -1
+  attackTimer: number
+  attackCooldown: number
+  walkCycle: number
+  isMoving: boolean
+  shielding: boolean
+  patrolMinX: number
+  patrolMaxX: number
+  patrolY: number
+  patrolDirection: 1 | -1
+}
+
+type Monster = {
+  id: string
+  x: number
+  y: number
+  r: number
+  speed: number
+  hp: number
+  maxHp: number
+  hitCooldown: number
+  villageAttackCooldown: number
+  shieldBumpCooldown: number
+  knockbackX: number
+  knockbackY: number
+}
+
+type Particle = {
+  x: number
+  y: number
+  vx: number
+  vy: number
+  life: number
+  color: string
+}
+
+type ThrownCleaver = {
+  active: boolean
+  returning: boolean
+  x: number
+  y: number
+  vx: number
+  vy: number
+  angle: number
+  distance: number
+  maxDistance: number
+  hitIds: Set<string>
+}
+
+type BananaBoss = {
+  active: boolean
+  triggerScore: number | null
+  x: number
+  y: number
+  hp: number
+  maxHp: number
+  speed: number
+  hitCooldown: number
+  villageAttackCooldown: number
+  knockbackX: number
+  knockbackY: number
+}
+
+type Andrewsous = {
+  active: boolean
+  spawned: boolean
+  x: number
+  y: number
+  hp: number
+  maxHp: number
+  speed: number
+  hitCooldown: number
+  villageAttackCooldown: number
+  knockbackX: number
+  knockbackY: number
+}
+
+type EnemyTarget =
+  | { type: 'monster'; target: Monster; distance: number }
+  | { type: 'banana'; target: BananaBoss; distance: number }
+  | { type: 'andrewsous'; target: Andrewsous; distance: number }
+
 export type WarriorGameController = {
   destroy: () => void
   restart: () => void
@@ -25,7 +132,7 @@ export function createWarriorGame(
   let gameWon = false;
   let score = 0;
   let frame = 0;
-  function rand(min, max) {
+  function rand(min: number, max: number) {
     return Math.random() * (max - min) + min;
   }
 
@@ -39,7 +146,7 @@ export function createWarriorGame(
   let swordUpgradeOwned = false;
   let shieldUpgradeOwned = false;
 
-  function damageVillage(amount) {
+  function damageVillage(amount: number) {
     if (gameOver || gameWon || villageHp <= 0) return;
 
     villageHp = Math.max(0, villageHp - amount);
@@ -88,7 +195,7 @@ export function createWarriorGame(
     shieldUpgradeOwned = true;
   }
 
-  const player = {
+  const player: Player = {
     x: 180,
     y: 360,
     speed: 3,
@@ -104,13 +211,13 @@ export function createWarriorGame(
 
   // Three invincible NPC helpers. Each patrols its own section of the
   // dirt path, stops to fight nearby enemies, then resumes patrolling.
-  const helperPatrols = [
+  const helperPatrols: HelperPatrol[] = [
     { minX: 175, maxX: 385, y: 315 },
     { minX: 390, maxX: 610, y: 375 },
     { minX: 615, maxX: 830, y: 440 }
   ];
 
-  const helpers = helperPatrols.map((patrol, index) => ({
+  const helpers: Helper[] = helperPatrols.map((patrol, index) => ({
     x: patrol.minX + 18,
     y: patrol.y,
     speed: 2.25,
@@ -126,10 +233,10 @@ export function createWarriorGame(
     patrolDirection: 1
   }));
 
-  let monsters = [];
-  let particles = [];
+  let monsters: Monster[] = [];
+  let particles: Particle[] = [];
 
-  let thrownCleaver = {
+  const thrownCleaver: ThrownCleaver = {
     active: false,
     returning: false,
     x: 0,
@@ -139,7 +246,7 @@ export function createWarriorGame(
     angle: 0,
     distance: 0,
     maxDistance: 430,
-    hitIds: new Set()
+    hitIds: new Set<string>()
   };
 
   const DARK_MATTER_PER_WAVE = 30;
@@ -150,7 +257,7 @@ export function createWarriorGame(
   let intermission = false;
   let nextWaveAt = 0;
 
-  let bananaBoss = {
+  const bananaBoss: BananaBoss = {
     active: false,
     triggerScore: null,
     x: 0,
@@ -164,7 +271,7 @@ export function createWarriorGame(
     knockbackY: 0
   };
 
-  let andrewsous = {
+  const andrewsous: Andrewsous = {
     active: false,
     spawned: false,
     x: 0,
@@ -202,7 +309,7 @@ export function createWarriorGame(
     });
   }
 
-  function startWave(wave) {
+  function startWave(wave: number) {
     waveNumber = wave;
     waveActive = true;
     intermission = false;
@@ -231,7 +338,7 @@ export function createWarriorGame(
     );
   }
 
-  function updateWaveState(now) {
+  function updateWaveState(now: number) {
     if (gameOver || gameWon) return;
 
     if (isWaveCleared()) {
@@ -292,7 +399,7 @@ export function createWarriorGame(
     thrownCleaver.active = false;
     thrownCleaver.returning = false;
     thrownCleaver.distance = 0;
-    thrownCleaver.hitIds = new Set();
+    thrownCleaver.hitIds = new Set<string>();
 
     waveNumber = 1;
     waveActive = false;
@@ -342,7 +449,7 @@ export function createWarriorGame(
     };
   }
 
-  function createImpactParticles(x, y) {
+  function createImpactParticles(x: number, y: number) {
     for (let i = 0; i < 12; i++) {
       particles.push({
         x,
@@ -364,7 +471,7 @@ export function createWarriorGame(
     thrownCleaver.vy = 0;
     thrownCleaver.angle = 0;
     thrownCleaver.distance = 0;
-    thrownCleaver.hitIds = new Set();
+    thrownCleaver.hitIds = new Set<string>();
   }
 
   function updateThrownCleaver() {
@@ -479,7 +586,7 @@ export function createWarriorGame(
     bananaBoss.knockbackY = 0;
   }
 
-  function hitBananaBoss(hitX, hitY, knockStrength = 12) {
+  function hitBananaBoss(hitX: number, hitY: number, knockStrength = 12) {
     if (!bananaBoss.active || bananaBoss.hitCooldown > 0) return;
 
     bananaBoss.hp--;
@@ -611,7 +718,7 @@ export function createWarriorGame(
     andrewsous.knockbackY = 0;
   }
 
-  function hitAndrewsous(hitX, hitY, knockStrength = 10) {
+  function hitAndrewsous(hitX: number, hitY: number, knockStrength = 10) {
     if (!andrewsous.active || andrewsous.hitCooldown > 0) return;
 
     andrewsous.hp--;
@@ -722,8 +829,8 @@ export function createWarriorGame(
     }
   }
 
-  function getNearestEnemy(x, y) {
-    let nearest = null;
+  function getNearestEnemy(x: number, y: number): EnemyTarget | null {
+    let nearest: EnemyTarget | null = null;
     let nearestDistance = Infinity;
 
     for (const monster of monsters) {
@@ -754,7 +861,7 @@ export function createWarriorGame(
     return nearest;
   }
 
-  function hitMonsterFromHelper(monster, helper) {
+  function hitMonsterFromHelper(monster: Monster, helper: Helper) {
     if (monster.hitCooldown > 0 || monster.hp <= 0) return;
 
     monster.hp--;
@@ -778,9 +885,8 @@ export function createWarriorGame(
       if (helper.attackTimer > 0) helper.attackTimer--;
 
       const nearest = getNearestEnemy(helper.x, helper.y);
-      const enemyNearby = Boolean(nearest && nearest.distance < 165);
 
-      if (enemyNearby) {
+      if (nearest && nearest.distance < 165) {
         // Combat mode: stop patrolling and face the nearby threat.
         helper.facing = nearest.target.x >= helper.x ? 1 : -1;
         helper.isMoving = false;
@@ -1090,7 +1196,7 @@ export function createWarriorGame(
     drawCloud(770, 80, 60);
   }
 
-  function drawCloud(x, y, size) {
+  function drawCloud(x: number, y: number, size: number) {
     ctx.save();
 
     // Pencil-like blue cloud scribbles.
@@ -1171,7 +1277,7 @@ export function createWarriorGame(
     drawGrassPatch(965, 550, 90, 42);
   }
 
-  function drawGrassPatch(x, y, w, h) {
+  function drawGrassPatch(x: number, y: number, w: number, h: number) {
     ctx.save();
 
     ctx.fillStyle = "rgba(137,188,91,0.58)";
@@ -1612,7 +1718,7 @@ export function createWarriorGame(
     ctx.restore();
   }
 
-  function drawShield(x, y, facing, raised, glowing = false) {
+  function drawShield(x: number, y: number, facing: 1 | -1, raised: boolean, glowing = false) {
     ctx.save();
 
     const forward = raised ? 18 * facing : -12 * facing;
@@ -1661,7 +1767,7 @@ export function createWarriorGame(
     ctx.restore();
   }
 
-  function drawHelper(helper) {
+  function drawHelper(helper: Helper) {
     ctx.save();
 
     const x = helper.x;
@@ -1813,7 +1919,7 @@ export function createWarriorGame(
     ctx.restore();
   }
 
-  function drawBlackCleaver(handX, handY, angle, glowing = false) {
+  function drawBlackCleaver(handX: number, handY: number, angle: number, glowing = false) {
     ctx.save();
 
     ctx.translate(handX, handY);
@@ -2129,7 +2235,7 @@ export function createWarriorGame(
     ctx.restore();
   }
 
-  function drawMonster(m) {
+  function drawMonster(m: Monster) {
     ctx.save();
 
     // Slight reaction flash when hit.
@@ -2284,7 +2390,7 @@ export function createWarriorGame(
     );
   }
 
-  function drawGooglyEye(x, y, radius, pupilOffsetX, pupilOffsetY) {
+  function drawGooglyEye(x: number, y: number, radius: number, pupilOffsetX: number, pupilOffsetY: number) {
     ctx.save();
 
     ctx.fillStyle = "#fff";
