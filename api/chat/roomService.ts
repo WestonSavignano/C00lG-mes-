@@ -41,11 +41,11 @@ type RoomServiceErrorCode =
   | 'conflict'
 
 export class RoomServiceError extends Error {
-  constructor(
-    public readonly code: RoomServiceErrorCode,
-    message: string,
-  ) {
+  readonly code: RoomServiceErrorCode
+
+  constructor(code: RoomServiceErrorCode, message: string) {
     super(message)
+    this.code = code
     this.name = 'RoomServiceError'
   }
 }
@@ -94,10 +94,13 @@ function memberView(member: StoredRoomMember, now: number): RoomMemberView {
 }
 
 export class RoomService {
-  constructor(
-    private readonly store: RoomStore,
-    private readonly clock: () => number = Date.now,
-  ) {}
+  private readonly store: RoomStore
+  private readonly clock: () => number
+
+  constructor(store: RoomStore, clock: () => number = Date.now) {
+    this.store = store
+    this.clock = clock
+  }
 
   async createRoom(): Promise<CreateRoomResult> {
     for (let attempt = 0; attempt < MAX_MUTATION_ATTEMPTS; attempt += 1) {
