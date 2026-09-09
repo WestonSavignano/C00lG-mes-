@@ -50,7 +50,8 @@ The prototype uses manual, non-trickle WebRTC signaling:
 - The host's complete WebRTC offer is encoded into the invite URL fragment (`#offer=...`).
 - The guest creates a complete WebRTC answer and returns it as a copyable code.
 - Each browser waits for ICE gathering to finish before sharing its session description.
-- The invite fragment is decoded client-side and removed from the visible URL after it is captured in memory.
+- The invite fragment deliberately remains in the guest URL so refreshing or reopening the invite can recover the same offer and return to the Join flow.
+- Selecting **Restart chat** clears the invite fragment and returns to a fresh `/chat` session.
 
 This lets us prove the browser-to-browser transport without introducing a signaling backend yet.
 
@@ -60,7 +61,7 @@ The peer connection uses public STUN discovery but intentionally does not use a 
 
 A failed direct connection should be treated as connectivity evidence for a future TURN/signaling decision, not as a reason to move game traffic to a conventional application server prematurely.
 
-Refreshing or closing either browser tab ends the ephemeral session. Messages are kept only in browser memory and are capped in the UI rather than persisted.
+The invite URL is durable across a guest page refresh, but an active WebRTC connection is not: refreshing either browser destroys that browser's in-memory `RTCPeerConnection` and message history. A refreshed guest can recover the invite and create a fresh answer; the peers must negotiate a new connection. Full connected-session/message persistence would require additional state/signaling beyond the invite URL.
 
 ## Multiplayer direction
 
