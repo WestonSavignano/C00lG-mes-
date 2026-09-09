@@ -2,14 +2,12 @@ import { describe, expect, it } from 'vitest'
 import vercelConfigSource from '../vercel.json?raw'
 
 describe('Vercel routing', () => {
-  it('rewrites fresh client-side routes to the SPA entry point', () => {
+  it('preserves Functions before falling back client-side routes to the SPA', () => {
     const config = JSON.parse(vercelConfigSource) as {
-      rewrites?: Array<{ source?: string; destination?: string }>
+      routes?: Array<{ handle?: string; src?: string; dest?: string }>
     }
 
-    expect(config.rewrites).toContainEqual({
-      source: '/(.*)',
-      destination: '/index.html',
-    })
+    expect(config.routes?.[0]).toEqual({ handle: 'filesystem' })
+    expect(config.routes?.[1]).toEqual({ src: '/.*', dest: '/index.html' })
   })
 })
