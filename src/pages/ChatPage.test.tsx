@@ -1,187 +1,224 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
-import { parseChatMessage, serializeChatMessage, type ChatMessage } from '../chat/chatProtocol'
+import type { RoomCoordinatorClient } from '../networking/room/RoomClient'
+import type { RoomPeerEvent, RoomPeerManagerClient } from '../networking/room/RoomPeerManager'
 import type {
-  PeerMessageHandler,
-  PeerSessionClient,
-  PeerStateHandler,
-} from '../networking/webrtc/PeerSession'
-import { decodeSignal, encodeSignal } from '../networking/webrtc/signalingCodec'
-import type { PeerConnectionState } from '../networking/webrtc/types'
+  ConnectionSignal,
+  HostAuth,
+  RoomAuth,
+  RoomState,
+} from '../networking/room/roomProtocol'
 import ChatPage from './ChatPage'
 
-const OFFER: RTCSessionDescriptionInit = {
-  type: 'offer',
-  sdp: 'v=0\r\na=ice-ufrag:host\r\n',
+const ROOM_ID = 'room123456789012'
+const HOST_SECRET = 'hostsecret1234567890123456'
+const INVITE_SECRET = 'invitesecret12345678901234'
+const MEMBER_ID = 'member1234567890'
+const MEMBER_SECRET = 'membersecret1234567890123'
+
+function emptyState(): RoomState {
+  return {
+    version: 1,
+    roomId: ROOM_ID,
+    locked: false,
+    revision: 1,
+    members: [],
+  }
 }
 
-const ANSWER: RTCSessionDescriptionInit = {
-  type: 'answer',
-  sdp: 'v=0\r\na=ice-ufrag:guest\r\n',
-}
+class FakeRoomClient implements RoomCoordinatorClient {
+  state = emptyState()
+  joinCalls = 0
+  removeCalls: string[] = []
+  closeCalls = 0
 
-class FakePeerSession implements PeerSessionClient {
-  sent: string[] = []
-  appliedAnswers: RTCSessionDescriptionInit[] = []
-  acceptedOffers: RTCSessionDescriptionInit[] = []
-  closed = false
-  private messageHandlers = new Set<PeerMessageHandler>()
-  private stateHandlers = new Set<PeerStateHandler>()
-
-  async createOffer() {
-    return OFFER
+  async createRoom() {
+    return {
+      version: 1 as const,
+      roomId: ROOM_ID,
+      hostSecret: HOST_SECRET,
+      inviteSecret: INVITE_SECRET,
+    }
   }
 
-  async acceptOffer(offer: RTCSessionDescriptionInit) {
-    this.acceptedOffers.push(offer)
-    return ANSWER
+  async joinOrResume(roomId: string, inviteSecret: string) {
+    this.joinCalls += 1
+    expect(roomId).toBe(ROOM_ID)
+    expect(inviteSecret).toBe(INVITE_SECRET)
+    return {
+      version: 1 as const,
+      roomId,
+      memberId: MEMBER_ID,
+      memberSecret: MEMBER_SECRET,
+      label: 'Guest 1',
+      resumed: this.joinCalls > 1,
+    }
   }
 
-  async applyAnswer(answer: RTCSessionDescriptionInit) {
-    this.appliedAnswers.push(answer)
+  async getState() {
+    return this.state
   }
 
-  send(data: string) {
-    this.sent.push(data)
+  async setLocked(auth: HostAuth, locked: boolean) {
+    void auth
+    this.state = { ...this.state, locked, revision: this.state.revision + 1 }
+    return this.state
+  }
+
+  async removeMember(auth: HostAuth, memberId: string) {
+    void auth
+    this.removeCalls.push(memberId)
+    this.state = {
+      ...this.state,
+      revision: this.state.revision + 1,
+      members: this.state.members.map((member) => (
+        member.memberId === memberId ? { ...member, removed: true } : member
+      )),
+    }
+    return this.state
+  }
+
+  async announceGeneration() {}
+  async publishSignal() {}
+
+  async getSignal(
+    auth: RoomAuth,
+    memberId: string,
+    generation: string,
+    kind: 'offer' | 'answer',
+  ): Promise<ConnectionSignal | null> {
+    void auth
+    void memberId
+    void generation
+    void kind
+    return null
   }
 
   close() {
-    this.closed = true
+    this.closeCalls += 1
+  }
+}
+
+class FakePeers implements RoomPeerManagerClient {
+  private readonly handlers = new Set<(event: RoomPeerEvent) => void>()
+  hostAuth: HostAuth | null = null
+  guestStarted = false
+  removedPeers: string[] = []
+  broadcasts: string[] = []
+
+  startHost(auth: HostAuth) { this.hostAuth = auth }
+  startGuest() { this.guestStarted = true }
+  sendToHost() {}
+  sendToMember() {}
+  broadcast(data: string) { this.broadcasts.push(data) }
+  removePeer(memberId: string) { this.removedPeers.push(memberId) }
+  close() {}
+
+  onEvent(handler: (event: RoomPeerEvent) => void) {
+    this.handlers.add(handler)
+    return () => this.handlers.delete(handler)
   }
 
-  onMessage(handler: PeerMessageHandler) {
-    this.messageHandlers.add(handler)
-    return () => this.messageHandlers.delete(handler)
-  }
-
-  onStateChange(handler: PeerStateHandler) {
-    this.stateHandlers.add(handler)
-    return () => this.stateHandlers.delete(handler)
-  }
-
-  emitMessage(message: ChatMessage) {
-    const serialized = serializeChatMessage(message)
-    for (const handler of this.messageHandlers) {
-      handler(serialized)
-    }
-  }
-
-  emitState(state: PeerConnectionState) {
-    for (const handler of this.stateHandlers) {
-      handler(state)
+  emit(event: RoomPeerEvent) {
+    for (const handler of this.handlers) {
+      handler(event)
     }
   }
 }
 
-function remoteMessage(text: string): ChatMessage {
-  return {
-    version: 1,
-    type: 'chat.message',
-    id: `remote-${text}`,
-    sentAt: '2026-09-08T18:00:00.000Z',
-    payload: { text },
-  }
+function LocationProbe() {
+  const location = useLocation()
+  return <output data-testid="location">{`${location.pathname}${location.hash}`}</output>
 }
 
-function renderChat(route = '/chat') {
-  const session = new FakePeerSession()
-  const view = render(
+function renderChat(route: string, client: FakeRoomClient, peers: FakePeers) {
+  return render(
     <MemoryRouter initialEntries={[route]}>
       <Routes>
         <Route
           path="/chat"
-          element={<ChatPage peerSessionFactory={() => session} />}
+          element={(
+            <>
+              <ChatPage
+                roomClientFactory={() => client}
+                peerManagerFactory={() => peers}
+              />
+              <LocationProbe />
+            </>
+          )}
         />
       </Routes>
     </MemoryRouter>,
   )
-
-  return { ...view, session }
 }
 
-describe('ChatPage', () => {
-  it('starts with a host create-chat flow', () => {
-    renderChat()
+describe('ChatPage durable rooms', () => {
+  it('starts a room and navigates the current tab to the durable private host URL', async () => {
+    const user = userEvent.setup()
+    const client = new FakeRoomClient()
+    const peers = new FakePeers()
+    renderChat('/chat', client, peers)
 
-    expect(screen.getByRole('heading', { level: 1, name: 'Chat' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Create chat' })).toBeEnabled()
+    await user.click(screen.getByRole('button', { name: 'Start Chat' }))
+
+    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent(`#room=${ROOM_ID}`))
+    expect(screen.getByTestId('location')).toHaveTextContent(`host=${HOST_SECRET}`)
+    expect(screen.getByTestId('location')).toHaveTextContent(`invite=${INVITE_SECRET}`)
+    expect(await screen.findByRole('heading', { name: 'Your room' })).toBeInTheDocument()
   })
 
-  it('creates a shareable offer URL for the host', async () => {
-    const user = userEvent.setup()
-    renderChat()
+  it('shows a guest-only share link from the private host page', async () => {
+    const client = new FakeRoomClient()
+    const peers = new FakePeers()
+    renderChat(`/chat#room=${ROOM_ID}&host=${HOST_SECRET}&invite=${INVITE_SECRET}`, client, peers)
 
-    await user.click(screen.getByRole('button', { name: 'Create chat' }))
-
-    const inviteLink = await screen.findByRole('textbox', { name: 'Invite link' })
-    const inviteValue = (inviteLink as HTMLInputElement).value
-    expect(inviteValue).toContain('/chat#offer=')
-
-    const encodedOffer = new URL(inviteValue).hash.slice('#offer='.length)
-    expect(decodeSignal(encodedOffer, 'offer')).toEqual(OFFER)
+    const invite = await screen.findByRole('textbox', { name: 'Guest invite' })
+    const value = (invite as HTMLInputElement).value
+    expect(value).toContain(`room=${ROOM_ID}`)
+    expect(value).toContain(`invite=${INVITE_SECRET}`)
+    expect(value).not.toContain('host=')
   })
 
-  it('recognizes an invite fragment and creates a guest answer code', async () => {
-    const user = userEvent.setup()
-    const encodedOffer = encodeSignal(OFFER)
-    const { session } = renderChat(`/chat#offer=${encodedOffer}`)
+  it('automatically joins a guest invite without an answer-code ceremony', async () => {
+    const client = new FakeRoomClient()
+    const peers = new FakePeers()
+    renderChat(`/chat#room=${ROOM_ID}&invite=${INVITE_SECRET}`, client, peers)
 
-    await user.click(screen.getByRole('button', { name: 'Join chat' }))
-
-    expect(session.acceptedOffers).toEqual([OFFER])
-    const answerCode = await screen.findByRole('textbox', { name: 'Answer code' })
-    expect(decodeSignal((answerCode as HTMLTextAreaElement).value, 'answer')).toEqual(ANSWER)
+    await waitFor(() => expect(client.joinCalls).toBe(1))
+    expect(peers.guestStarted).toBe(true)
+    expect(screen.queryByRole('button', { name: /join chat/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('textbox', { name: /answer code/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Reconnecting…' })).toBeInTheDocument()
   })
 
-  it('lets the host apply the guest answer exactly once while connecting', async () => {
+  it('lets the host lock the room and remove a member', async () => {
     const user = userEvent.setup()
-    const { session } = renderChat()
+    const client = new FakeRoomClient()
+    const peers = new FakePeers()
+    renderChat(`/chat#room=${ROOM_ID}&host=${HOST_SECRET}&invite=${INVITE_SECRET}`, client, peers)
 
-    await user.click(screen.getByRole('button', { name: 'Create chat' }))
-    await user.type(
-      await screen.findByRole('textbox', { name: 'Answer code from your friend' }),
-      encodeSignal(ANSWER),
-    )
+    await waitFor(() => expect(peers.hostAuth?.roomId).toBe(ROOM_ID))
+    const state: RoomState = {
+      ...emptyState(),
+      members: [{
+        memberId: MEMBER_ID,
+        label: 'Guest 1',
+        present: true,
+        removed: false,
+        connectionGeneration: 'generation123456',
+      }],
+    }
+    client.state = state
+    act(() => peers.emit({ type: 'room-state', state }))
 
-    const connectButton = screen.getByRole('button', { name: 'Connect' })
-    await user.click(connectButton)
+    expect(screen.getByText('Guest 1')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Lock room' }))
+    expect(await screen.findByRole('button', { name: 'Unlock room' })).toBeInTheDocument()
 
-    expect(session.appliedAnswers).toEqual([ANSWER])
-    expect(connectButton).toBeDisabled()
-
-    await user.click(connectButton)
-    expect(session.appliedAnswers).toEqual([ANSWER])
-  })
-
-  it('sends local messages and renders valid remote messages once connected', async () => {
-    const user = userEvent.setup()
-    const { session } = renderChat()
-
-    await user.click(screen.getByRole('button', { name: 'Create chat' }))
-    session.emitState('connected')
-
-    const messageInput = await screen.findByRole('textbox', { name: 'Message' })
-    await user.type(messageInput, 'hello guest')
-    await user.click(screen.getByRole('button', { name: 'Send' }))
-
-    expect(session.sent).toHaveLength(1)
-    expect(parseChatMessage(session.sent[0])?.payload.text).toBe('hello guest')
-    expect(screen.getByText('hello guest')).toBeInTheDocument()
-
-    session.emitMessage(remoteMessage('hello host'))
-
-    expect(await screen.findByText('hello host')).toBeInTheDocument()
-  })
-
-  it('closes the active peer session when the page unmounts', async () => {
-    const user = userEvent.setup()
-    const { session, unmount } = renderChat()
-
-    await user.click(screen.getByRole('button', { name: 'Create chat' }))
-    unmount()
-
-    await waitFor(() => expect(session.closed).toBe(true))
+    await user.click(screen.getByRole('button', { name: 'Remove' }))
+    expect(client.removeCalls).toEqual([MEMBER_ID])
+    expect(peers.removedPeers).toEqual([MEMBER_ID])
   })
 })

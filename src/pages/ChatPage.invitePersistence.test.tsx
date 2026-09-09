@@ -1,12 +1,53 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
-import { describe, expect, it } from 'vitest'
-import { encodeSignal } from '../networking/webrtc/signalingCodec'
+import { describe, expect, it, vi } from 'vitest'
+import type { RoomCoordinatorClient } from '../networking/room/RoomClient'
+import type { RoomPeerEvent, RoomPeerManagerClient } from '../networking/room/RoomPeerManager'
 import ChatPage from './ChatPage'
 
-const OFFER: RTCSessionDescriptionInit = {
-  type: 'offer',
-  sdp: 'v=0\r\na=ice-ufrag:host\r\n',
+const ROOM_ID = 'room123456789012'
+const INVITE_SECRET = 'invitesecret12345678901234'
+
+function createClient(joinOrResume: ReturnType<typeof vi.fn>): RoomCoordinatorClient {
+  return {
+    createRoom: vi.fn(async () => ({
+      version: 1 as const,
+      roomId: ROOM_ID,
+      hostSecret: 'hostsecret1234567890123456',
+      inviteSecret: INVITE_SECRET,
+    })),
+    joinOrResume,
+    getState: vi.fn(async () => ({
+      version: 1 as const,
+      roomId: ROOM_ID,
+      locked: false,
+      members: [],
+      revision: 1,
+    })),
+    setLocked: vi.fn(),
+    removeMember: vi.fn(),
+    announceGeneration: vi.fn(async () => undefined),
+    publishSignal: vi.fn(async () => undefined),
+    getSignal: vi.fn(async () => null),
+    close: vi.fn(),
+  }
+}
+
+function createPeers(): RoomPeerManagerClient {
+  const handlers = new Set<(event: RoomPeerEvent) => void>()
+  return {
+    startHost: vi.fn(),
+    startGuest: vi.fn(),
+    sendToHost: vi.fn(),
+    sendToMember: vi.fn(),
+    broadcast: vi.fn(),
+    removePeer: vi.fn(),
+    close: vi.fn(),
+    onEvent(handler) {
+      handlers.add(handler)
+      return () => handlers.delete(handler)
+    },
+  }
 }
 
 function LocationHash() {
@@ -14,7 +55,8 @@ function LocationHash() {
   return <output data-testid="location-hash">{location.hash}</output>
 }
 
-function renderInvite(route: string) {
+function renderInvite(client: RoomCoordinatorClient, peers: RoomPeerManagerClient) {
+  const route = `/chat#room=${ROOM_ID}&invite=${INVITE_SECRET}`
   return render(
     <MemoryRouter initialEntries={[route]}>
       <Routes>
@@ -22,7 +64,10 @@ function renderInvite(route: string) {
           path="/chat"
           element={(
             <>
-              <ChatPage />
+              <ChatPage
+                roomClientFactory={() => client}
+                peerManagerFactory={() => peers}
+              />
               <LocationHash />
             </>
           )}
@@ -32,21 +77,26 @@ function renderInvite(route: string) {
   )
 }
 
-describe('Chat invite persistence', () => {
-  it('keeps the encoded offer in the URL so the invite survives a page refresh', () => {
-    const encodedOffer = encodeSignal(OFFER)
-    const route = `/chat#offer=${encodedOffer}`
-    const expectedHash = `#offer=${encodedOffer}`
+describe('Chat room invite persistence', () => {
+  it('keeps the room invite in the URL so a refreshed page can rejoin automatically', async () => {
+    const joinOrResume = vi.fn(async () => ({
+      version: 1 as const,
+      roomId: ROOM_ID,
+      memberId: 'member1234567890',
+      memberSecret: 'membersecret1234567890123',
+      label: 'Guest 1',
+      resumed: true,
+    }))
+    const expectedHash = `#room=${ROOM_ID}&invite=${INVITE_SECRET}`
 
-    const firstRender = renderInvite(route)
-
-    expect(screen.getByRole('heading', { name: 'Join this private chat' })).toBeInTheDocument()
+    const first = renderInvite(createClient(joinOrResume), createPeers())
+    await waitFor(() => expect(joinOrResume).toHaveBeenCalledTimes(1))
     expect(screen.getByTestId('location-hash')).toHaveTextContent(expectedHash)
 
-    firstRender.unmount()
-    renderInvite(route)
+    first.unmount()
+    renderInvite(createClient(joinOrResume), createPeers())
 
-    expect(screen.getByRole('heading', { name: 'Join this private chat' })).toBeInTheDocument()
+    await waitFor(() => expect(joinOrResume).toHaveBeenCalledTimes(2))
     expect(screen.getByTestId('location-hash')).toHaveTextContent(expectedHash)
   })
 })
