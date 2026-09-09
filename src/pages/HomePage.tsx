@@ -9,9 +9,9 @@ function HomePage() {
         title="C00lG@mes+"
       >
         <nav className="home-links" aria-label="Home sections">
-          <Link className="section-link" to="/soundboard">
-            <span>Soundboard</span>
-            <span>A growing library of sound effects.</span>
+          <Link className="section-link" to="/chat">
+            <span>Chat</span>
+            <span>Private peer-to-peer browser chat with a friend.</span>
           </Link>
           <Link className="section-link" to="/games">
             <span>Games</span>
