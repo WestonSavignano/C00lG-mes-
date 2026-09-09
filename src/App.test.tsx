@@ -19,7 +19,7 @@ describe('App routes', () => {
 
     const header = screen.getByRole('banner')
     expect(
-      within(header).getByRole('link', { name: /C00lG-mes home/i }),
+      within(header).getByRole('link', { name: /C00lG@mes\+ home/i }),
     ).toHaveAttribute('href', '/')
 
     const desktopNav = within(header).getByRole('navigation', {
@@ -66,18 +66,14 @@ describe('App routes', () => {
     )
   })
 
-  it('renders a low-power ocean hero on the home page', () => {
+  it('renders the home hero', () => {
     renderRoute('/')
 
-    const hero = screen.getByRole('region', { name: /games and sounds/i })
+    const hero = screen.getByRole('region', { name: 'C00lG@mes+' })
 
-    expect(within(hero).getByTestId('ocean-animation')).toHaveAttribute(
-      'data-ocean-style',
-      'css-layered-ocean',
-    )
-    expect(
-      within(hero).getByRole('heading', { name: 'Games and sounds' }),
-    ).toBeInTheDocument()
+    expect(within(hero).getByRole('heading', { name: 'C00lG@mes+' }))
+      .toBeInTheDocument()
+    expect(within(hero).getByText('A site for real gamers.')).toBeInTheDocument()
   })
 
   it('renders soundboard placeholders as composable cards', () => {
@@ -95,19 +91,17 @@ describe('App routes', () => {
     ).toHaveAttribute('href', '/soundboard/sound')
   })
 
-  it('renders game placeholders as composable cards', () => {
+  it('renders the current game cards', () => {
     renderRoute('/games')
 
     expect(screen.getByRole('heading', { name: 'Games' })).toBeInTheDocument()
 
     const cards = screen.getAllByTestId('card')
-    expect(cards).toHaveLength(1)
-    expect(within(cards[0]).getByText('Game')).toBeInTheDocument()
-    expect(within(cards[0]).getByRole('heading', { name: 'Bit Planes' }))
+    expect(cards).toHaveLength(5)
+    expect(within(cards[0]).getByRole('heading', { name: 'Plane Blaster' }))
       .toBeInTheDocument()
-    expect(
-      within(cards[0]).getByRole('link', { name: /open bit planes/i }),
-    ).toHaveAttribute('href', '/games/bit-planes')
+    expect(within(cards[4]).getByRole('heading', { name: 'Warrior2' }))
+      .toBeInTheDocument()
   })
 
   it('renders a reusable detail page for individual sounds', () => {
@@ -115,7 +109,6 @@ describe('App routes', () => {
 
     const hero = screen.getByRole('region', { name: /sound placeholder/i })
 
-    expect(within(hero).getByTestId('ocean-animation')).toBeInTheDocument()
     expect(within(hero).getByRole('heading', { name: 'Sound Placeholder' }))
       .toBeInTheDocument()
     expect(within(hero).getByText('Sound')).toBeInTheDocument()
@@ -125,16 +118,11 @@ describe('App routes', () => {
     )
   })
 
-  it('renders the Bit Planes game as the primary page content', () => {
-    renderRoute('/games/bit-planes')
+  it('renders Plane Blaster as the primary page content', () => {
+    renderRoute('/games/plane-blaster')
 
-    expect(screen.getByRole('heading', { level: 1, name: 'Bit Planes' }))
+    expect(screen.getByRole('heading', { level: 1, name: 'Plane Blaster' }))
       .toBeInTheDocument()
-    expect(
-      screen.queryByRole('region', { name: /bit planes/i }),
-    ).not.toBeInTheDocument()
-    expect(screen.queryByRole('heading', { name: 'Playground' }))
-      .not.toBeInTheDocument()
     expect(screen.getByTestId('game-viewport')).toHaveAttribute(
       'data-game',
       'bit-planes',
