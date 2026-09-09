@@ -1,16 +1,15 @@
-import { Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes } from 'react-router-dom'
 import './App.css'
 import HeaderNav from './components/HeaderNav'
 import BitPlanesPage from './games/bit-planes/BitPlanesPage'
+import DonutRunPage from './games/donut-run/DonutRunPage'
+import WarriorPage from './games/warrior/WarriorPage'
+import Warrior2Page from './games/warrior2/WarriorPage'
+import WormBattlesPage from './games/worm-battles/WormBattlesPage'
+import ChatPage from './pages/ChatPage'
 import GamesPage from './pages/GamesPage'
 import HomePage from './pages/HomePage'
 import NotFoundPage from './pages/NotFoundPage'
-import PlaceholderPage from './pages/PlaceholderPage'
-import SoundboardPage from './pages/SoundboardPage'
-import DonutRunPage from './games/donut-run/DonutRunPage'
-import WormBattlesPage from './games/worm-battles/WormBattlesPage'
-import WarriorPage from './games/warrior/WarriorPage'
-import Warrior2Page from './games/warrior2/WarriorPage'
 
 function App() {
   return (
@@ -18,8 +17,9 @@ function App() {
       <HeaderNav />
       <Routes>
         <Route path="/" element={<HomePage />} />
-        <Route path="/soundboard" element={<SoundboardPage />} />
-        <Route path="/soundboard/sound" element={<PlaceholderPage />} />
+        <Route path="/chat" element={<ChatPage />} />
+        <Route path="/soundboard" element={<Navigate replace to="/chat" />} />
+        <Route path="/soundboard/sound" element={<Navigate replace to="/chat" />} />
         <Route path="/games" element={<GamesPage />} />
         <Route path="/games/plane-blaster" element={<BitPlanesPage />} />
         <Route path="/games/donut-run" element={<DonutRunPage />} />
