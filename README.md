@@ -19,56 +19,96 @@ npm run build
 
 Pull requests run the same test, lint, and build checks through GitHub Actions.
 
-## Peer-to-peer Chat
+## Durable peer-to-peer Chat rooms
 
-`/chat` is a two-browser WebRTC experiment that also serves as the networking foundation for future multiplayer games.
+`/chat` is a small-group WebRTC room system that also serves as the networking foundation for future multiplayer games.
 
-The current prototype intentionally uses no C00lG@mes+ application server, database, account system, matchmaking service, or persistent message history. Once connected, Chat messages travel directly between the two browsers over an encrypted WebRTC `RTCDataChannel`.
+Room identity survives refreshes, while WebRTC connections are intentionally disposable. When a host or guest refreshes, the page returns to the same room and automatically negotiates fresh WebRTC connections. Visible message history is intentionally ephemeral and may clear on refresh.
+
+Chat uses a host-star topology with a v1 limit of 8 total members. Each guest maintains one WebRTC `RTCDataChannel` connection to the host. Guest messages travel to the host over WebRTC, and the host broadcasts canonical messages to the other connected guests. Chat-message payloads are never relayed or persisted by the room coordinator.
 
 ### Host flow
 
 1. Open `/chat`.
-2. Select **Create chat**.
-3. Copy the generated invite link and send it to one friend.
-4. Keep the original browser tab open.
-5. Your friend opens the invite and returns an answer code.
-6. Paste that answer code into the original tab and select **Connect**.
-7. When the peer connection opens, both browsers can send real-time messages.
+2. Select **Start Chat**.
+3. The current tab navigates to the private durable host URL.
+4. Copy the separate **Guest invite** shown in the room UI and share it with the group.
+5. Guests join automatically when they open that URL; nobody returns an answer code or token.
+6. The host can lock/unlock admission and remove individual guests.
+
+The private host URL contains the room ID plus host and invite credentials so the host can refresh and still reconstruct the share link:
+
+```text
+/chat#room=<roomId>&host=<hostSecret>&invite=<inviteSecret>
+```
+
+Do not share the private host URL. The UI exposes a guest-only invite:
+
+```text
+/chat#room=<roomId>&invite=<inviteSecret>
+```
 
 ### Guest flow
 
-1. Open the invite link from the host.
-2. Select **Join chat**.
-3. Copy the generated answer code and send it back to the host.
-4. Keep the tab open while the host applies the answer.
-5. When the connection opens, Chat becomes available automatically.
+1. Open the guest invite.
+2. The browser automatically joins the room.
+3. A random member ID and member secret are stored in `localStorage` for that room only.
+4. WebRTC negotiation happens automatically through the coordinator.
+5. Refreshing the browser resumes the same member identity and creates a fresh WebRTC connection.
 
-### How signaling works
+If the room is locked, existing non-removed members can reconnect, but a new browser cannot create a new member identity. If the host removes a member, that member credential can no longer resume.
 
-The prototype uses manual, non-trickle WebRTC signaling:
+### Signaling and room coordination
 
-- The host's complete WebRTC offer is encoded into the invite URL fragment (`#offer=...`).
-- The guest creates a complete WebRTC answer and returns it as a copyable code.
-- Each browser waits for ICE gathering to finish before sharing its session description.
-- The invite fragment deliberately remains in the guest URL so refreshing or reopening the invite can recover the same offer and return to the Join flow.
-- Selecting **Restart chat** clears the invite fragment and returns to a fresh `/chat` session.
+Vercel Functions and Upstash Redis provide only room membership/control state and short-lived WebRTC signaling:
 
-This lets us prove the browser-to-browser transport without introducing a signaling backend yet.
+- Rooms expire after 7 days of inactivity.
+- Offer/answer signaling records expire after 120 seconds.
+- Connection generations prevent stale signaling from an old page instance from being reused.
+- Host/invite/member secrets are stored in Redis as hashes rather than plaintext.
+- Coordinator credentials are sent in HTTPS POST bodies, not query strings.
+- `/api/chat` contains only Vercel Function entrypoints; shared server code lives under `server/chat`.
+
+Chat messages themselves remain WebRTC-only.
+
+### Environment variables
+
+Room creation/joining requires the following server-only Vercel environment variables:
+
+```text
+UPSTASH_REDIS_REST_URL=<Upstash REST URL>
+UPSTASH_REDIS_REST_TOKEN=<Upstash REST token>
+```
+
+If Redis is not configured or unavailable, the rest of C00lG@mes+ still loads normally and Chat reports that rooms are temporarily unavailable.
+
+Optional local profanity/phrase masking is configured with:
+
+```text
+CHAT_MODERATION_TERMS=<comma-separated words and phrases>
+```
+
+`CHAT_MODERATION_TERMS` is intentionally not a `VITE_*` variable. The build normalizes the configured terms and injects only hashed lookup data into the browser bundle. No moderation vocabulary is checked into this public repository. If the variable is missing or empty, moderation is a safe no-op and Chat continues normally.
+
+Moderation runs only when messages are sent, relayed, or rendered—not on every keystroke. The lookup is indexed by phrase length and uses local hash-set checks to keep the UX lightweight on older devices.
 
 ### Current networking limits
 
-The peer connection uses public STUN discovery but intentionally does not use a TURN relay in this first version. Most ordinary home/mobile network combinations should be testable, but restrictive corporate networks, carrier networks, or certain NAT combinations may fail to establish a direct connection.
+The peer connection uses public STUN discovery but intentionally does not use a TURN relay yet. Restrictive corporate networks, carrier networks, or certain NAT combinations may therefore fail to establish a direct WebRTC connection even when room coordination succeeds.
 
-A failed direct connection should be treated as connectivity evidence for a future TURN/signaling decision, not as a reason to move game traffic to a conventional application server prematurely.
-
-The invite URL is durable across a guest page refresh, but an active WebRTC connection is not: refreshing either browser destroys that browser's in-memory `RTCPeerConnection` and message history. A refreshed guest can recover the invite and create a fresh answer; the peers must negotiate a new connection. Full connected-session/message persistence would require additional state/signaling beyond the invite URL.
+TURN remains a separate follow-up decision based on real-network testing.
 
 ## Multiplayer direction
 
-The WebRTC implementation is separated from the Chat protocol and React UI under `src/networking/webrtc`. Future Warrior multiplayer can reuse `PeerSession` while defining a game-specific wire protocol for player input, authoritative snapshots, and game events.
+The room architecture is intentionally aligned with future Warrior multiplayer:
 
-The likely first multiplayer model is host-authoritative: one browser owns canonical game state while the other sends inputs. Matchmaking, TURN, persistence, anti-cheat, and larger player counts remain separate follow-on decisions.
+- The room coordinator provides durable lobby/member identity and reconnect semantics.
+- Host-star WebRTC provides the initial host-authoritative topology.
+- A player refresh can return to the same room/player slot with a fresh transport.
+- Warrior can define game-specific input/snapshot/event messages while reusing `PeerSession`, room membership, signaling, reconnect generations, and host controls.
+
+Matchmaking, TURN, persistent accounts, anti-cheat, spectators, and larger player counts remain separate follow-on decisions.
 
 ## Deployment
 
-The site is deployed on Vercel. `vercel.json` rewrites fresh client-side routes to `index.html`, so invite URLs such as `/chat#offer=...` can be opened directly rather than only through in-app navigation.
+The site is deployed on Vercel. `vercel.json` preserves `/api/*` as Vercel Functions first and falls back other fresh client-side routes to `index.html`, so durable `/chat#room=...` URLs can be opened directly or refreshed.
