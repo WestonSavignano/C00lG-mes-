@@ -16,8 +16,11 @@ function signalKey({ roomId, memberId, generation, kind }: SignalKey) {
 export class InMemoryRoomStore implements RoomStore {
   private readonly rooms = new Map<string, StoredRoom>()
   private readonly signals = new Map<string, StoredSignal>()
+  private readonly clock: () => number
 
-  constructor(private readonly clock: () => number = Date.now) {}
+  constructor(clock: () => number = Date.now) {
+    this.clock = clock
+  }
 
   async createRoom(record: StoredRoom) {
     if (this.rooms.has(record.roomId)) {
