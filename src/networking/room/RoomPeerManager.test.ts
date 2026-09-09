@@ -5,7 +5,7 @@ import type {
   HostAuth,
   RoomState,
 } from './roomProtocol'
-import type { RoomCoordinatorClient } from './RoomClient'
+import type { RoomCoordinatorClient, RoomPollMode } from './RoomClient'
 import { RoomClientError } from './RoomClient'
 import { RoomPeerManager } from './RoomPeerManager'
 import type {
@@ -30,19 +30,26 @@ const GUEST_AUTH: GuestAuth = {
 
 class ManualPoller {
   task: (() => Promise<void>) | null = null
+  getMode: (() => RoomPollMode) | null = null
   onError: ((error: unknown) => void) | null = null
+  startCount = 0
+  stopCount = 0
 
   start(
     task: () => Promise<void>,
-    _getMode: () => 'negotiating' | 'hostConnected' | 'guestConnected',
+    getMode: () => RoomPollMode,
     onError: (error: unknown) => void,
   ) {
+    this.startCount += 1
     this.task = task
+    this.getMode = getMode
     this.onError = onError
   }
 
   stop() {
+    this.stopCount += 1
     this.task = null
+    this.getMode = null
   }
 
   async run() {
@@ -311,6 +318,98 @@ describe('RoomPeerManager host mode', () => {
     expect(sessions[0]?.closeCount).toBe(1)
     expect(sessions[1]?.closeCount).toBe(0)
   })
+
+  it('keeps a slow membership poll while an open room can accept new guests', async () => {
+    const coordinator = new FakeCoordinator()
+    coordinator.state = roomWithMember('generation_111111111')
+    const poller = new ManualPoller()
+    const session = new FakePeerSession(1)
+    const manager = new RoomPeerManager(
+      coordinator,
+      () => session,
+      () => 'unused_generation',
+      poller,
+    )
+
+    manager.startHost(HOST_AUTH)
+    await poller.run()
+    session.emitState('connected')
+
+    expect(poller.task).not.toBeNull()
+    expect(poller.getMode?.()).toBe('hostConnected')
+  })
+
+  it('stops coordinator polling for a locked room once every member has a connected peer', async () => {
+    const coordinator = new FakeCoordinator()
+    coordinator.state = { ...roomWithMember('generation_111111111'), locked: true }
+    const poller = new ManualPoller()
+    const session = new FakePeerSession(1)
+    const manager = new RoomPeerManager(
+      coordinator,
+      () => session,
+      () => 'unused_generation',
+      poller,
+    )
+
+    manager.startHost(HOST_AUTH)
+    await poller.run()
+    session.emitState('connected')
+
+    expect(poller.task).toBeNull()
+  })
+
+  it('restarts locked-room polling when a connected peer disconnects', async () => {
+    const coordinator = new FakeCoordinator()
+    coordinator.state = { ...roomWithMember('generation_111111111'), locked: true }
+    const poller = new ManualPoller()
+    const session = new FakePeerSession(1)
+    const manager = new RoomPeerManager(
+      coordinator,
+      () => session,
+      () => 'unused_generation',
+      poller,
+    )
+
+    manager.startHost(HOST_AUTH)
+    await poller.run()
+    session.emitState('connected')
+    expect(poller.task).toBeNull()
+    const startCount = poller.startCount
+
+    session.emitState('disconnected')
+
+    expect(poller.startCount).toBe(startCount + 1)
+    expect(poller.task).not.toBeNull()
+    expect(poller.getMode?.()).toBe('negotiating')
+  })
+
+  it('restarts discovery polling when the host unlocks a settled room', async () => {
+    const coordinator = new FakeCoordinator()
+    coordinator.state = { ...roomWithMember('generation_111111111'), locked: true }
+    const poller = new ManualPoller()
+    const session = new FakePeerSession(1)
+    const manager = new RoomPeerManager(
+      coordinator,
+      () => session,
+      () => 'unused_generation',
+      poller,
+    )
+
+    manager.startHost(HOST_AUTH)
+    await poller.run()
+    session.emitState('connected')
+    expect(poller.task).toBeNull()
+
+    const setRoomLocked = Reflect.get(manager, 'setRoomLocked')
+    expect(setRoomLocked).toBeTypeOf('function')
+    if (typeof setRoomLocked !== 'function') {
+      return
+    }
+    setRoomLocked.call(manager, false)
+
+    expect(poller.task).not.toBeNull()
+    expect(poller.getMode?.()).toBe('hostConnected')
+  })
 })
 
 describe('RoomPeerManager guest mode', () => {
@@ -350,7 +449,37 @@ describe('RoomPeerManager guest mode', () => {
     })
   })
 
-  it('announces another generation after its peer disconnects', async () => {
+  it('stops coordinator polling once the WebRTC peer is connected', async () => {
+    const coordinator = new FakeCoordinator()
+    coordinator.state = roomWithMember('old_generation_123')
+    const poller = new ManualPoller()
+    const session = new FakePeerSession(1)
+    const manager = new RoomPeerManager(
+      coordinator,
+      () => session,
+      () => 'generation_333333333',
+      poller,
+    )
+    coordinator.signals.set(
+      `${GUEST_AUTH.memberId}:generation_333333333:offer`,
+      {
+        version: 1,
+        roomId: ROOM_ID,
+        memberId: GUEST_AUTH.memberId,
+        generation: 'generation_333333333',
+        kind: 'offer',
+        description: { type: 'offer', sdp: 'host-offer' },
+      },
+    )
+
+    manager.startGuest(GUEST_AUTH)
+    await poller.run()
+    session.emitState('connected')
+
+    expect(poller.task).toBeNull()
+  })
+
+  it('announces another generation after its connected peer disconnects', async () => {
     const coordinator = new FakeCoordinator()
     coordinator.state = roomWithMember('old_generation_123')
     const poller = new ManualPoller()
@@ -381,7 +510,11 @@ describe('RoomPeerManager guest mode', () => {
 
     manager.startGuest(GUEST_AUTH)
     await poller.run()
+    sessions[0]?.emitState('connected')
+    expect(poller.task).toBeNull()
+
     sessions[0]?.emitState('disconnected')
+    expect(poller.task).not.toBeNull()
     await poller.run()
 
     expect(coordinator.announced).toEqual([
