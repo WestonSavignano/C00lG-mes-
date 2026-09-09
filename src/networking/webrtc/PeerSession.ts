@@ -211,7 +211,7 @@ export class PeerSession implements PeerSessionClient {
       case 'connecting':
         return 'connecting'
       case 'connected':
-        return 'connected'
+        return this.dataChannel?.readyState === 'open' ? 'connected' : 'connecting'
       case 'disconnected':
         return 'disconnected'
       case 'failed':
