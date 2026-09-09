@@ -105,11 +105,13 @@ class FakePeers implements RoomPeerManagerClient {
   private readonly handlers = new Set<(event: RoomPeerEvent) => void>()
   hostAuth: HostAuth | null = null
   guestStarted = false
+  lockStates: boolean[] = []
   removedPeers: string[] = []
   broadcasts: string[] = []
 
   startHost(auth: HostAuth) { this.hostAuth = auth }
   startGuest() { this.guestStarted = true }
+  setRoomLocked(locked: boolean) { this.lockStates.push(locked) }
   sendToHost() {}
   sendToMember() {}
   broadcast(data: string) { this.broadcasts.push(data) }
@@ -216,6 +218,11 @@ describe('ChatPage durable rooms', () => {
     expect(screen.getByText('Guest 1')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Lock room' }))
     expect(await screen.findByRole('button', { name: 'Unlock room' })).toBeInTheDocument()
+    expect(peers.lockStates).toEqual([true])
+
+    await user.click(screen.getByRole('button', { name: 'Unlock room' }))
+    expect(await screen.findByRole('button', { name: 'Lock room' })).toBeInTheDocument()
+    expect(peers.lockStates).toEqual([true, false])
 
     await user.click(screen.getByRole('button', { name: 'Remove' }))
     expect(client.removeCalls).toEqual([MEMBER_ID])
