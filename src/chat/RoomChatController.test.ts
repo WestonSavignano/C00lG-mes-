@@ -28,6 +28,25 @@ class FakePeers implements RoomPeerManagerClient {
   }
 }
 
+function emitGuestOneState(peers: FakePeers) {
+  peers.emit({
+    type: 'room-state',
+    state: {
+      version: 1,
+      roomId: 'room_1234567890123456',
+      locked: false,
+      revision: 1,
+      members: [{
+        memberId: 'member_1234567890',
+        label: 'Guest 1',
+        present: true,
+        removed: false,
+        connectionGeneration: 'generation_123456',
+      }],
+    },
+  })
+}
+
 describe('RoomChatController', () => {
   it('sends guest submissions to the host without sender authority', () => {
     const peers = new FakePeers()
@@ -43,22 +62,7 @@ describe('RoomChatController', () => {
     const controller = new RoomChatController(peers, 'host')
     const received: unknown[] = []
     controller.onMessage((message) => received.push(message))
-    peers.emit({
-      type: 'room-state',
-      state: {
-        version: 1,
-        roomId: 'room_1234567890123456',
-        locked: false,
-        revision: 1,
-        members: [{
-          memberId: 'member_1234567890',
-          label: 'Guest 1',
-          present: true,
-          removed: false,
-          connectionGeneration: 'generation_123456',
-        }],
-      },
-    })
+    emitGuestOneState(peers)
 
     const submit = createRoomChatSubmit('hello room')
     peers.emit({
@@ -86,5 +90,24 @@ describe('RoomChatController', () => {
       sender: { memberId: 'host', label: 'Host' },
       payload: { text: 'hello guests' },
     })
+  })
+
+  it('moderates guest text at the authoritative host relay boundary', () => {
+    const peers = new FakePeers()
+    const controller = new RoomChatController(
+      peers,
+      'host',
+      (text) => text.replace('spoiler', '*******'),
+    )
+    emitGuestOneState(peers)
+
+    peers.emit({
+      type: 'message',
+      memberId: 'member_1234567890',
+      data: serializeRoomChatSubmit(createRoomChatSubmit('a spoiler appears')),
+    })
+
+    expect(parseCanonicalRoomChatMessage(peers.broadcasts[0] ?? '')?.payload.text)
+      .toBe('a ******* appears')
   })
 })

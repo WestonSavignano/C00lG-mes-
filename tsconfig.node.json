@@ -20,5 +20,9 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["vite.config.ts"]
+  "include": [
+    "vite.config.ts",
+    "src/moderation/buildModerationConfig.ts",
+    "src/moderation/moderationCore.ts"
+  ]
 }

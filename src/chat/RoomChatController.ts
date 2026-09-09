@@ -3,6 +3,7 @@ import type {
   RoomPeerEvent,
   RoomPeerManagerClient,
 } from '../networking/room/RoomPeerManager'
+import { moderateChatText } from '../moderation/moderationConfig'
 import {
   createCanonicalRoomChatMessage,
   createRoomChatSubmit,
@@ -31,13 +32,14 @@ export class RoomChatController implements RoomChatControllerClient {
   constructor(
     private readonly peers: RoomPeerManagerClient,
     private readonly role: RoomChatRole,
-    private readonly moderateText: ModerateRoomText = (text) => text,
+    private readonly moderateText: ModerateRoomText = moderateChatText,
   ) {
     this.unsubscribePeer = peers.onEvent((event) => this.handlePeerEvent(event))
   }
 
   send(text: string) {
-    const submission = createRoomChatSubmit(this.moderateText(text))
+    const moderated = this.moderateText(text)
+    const submission = createRoomChatSubmit(moderated)
 
     if (this.role === 'guest') {
       this.peers.sendToHost(serializeRoomChatSubmit(submission))
@@ -47,7 +49,7 @@ export class RoomChatController implements RoomChatControllerClient {
     const canonical = createCanonicalRoomChatMessage(
       submission,
       { memberId: 'host', label: 'Host' },
-      this.moderateText(submission.payload.text),
+      moderated,
     )
     const serialized = serializeCanonicalRoomChatMessage(canonical)
     this.peers.broadcast(serialized)
