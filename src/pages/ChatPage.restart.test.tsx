@@ -3,7 +3,6 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
 import type {
-  PeerMessageHandler,
   PeerSessionClient,
   PeerStateHandler,
 } from '../networking/webrtc/PeerSession'
@@ -50,7 +49,7 @@ class PendingOfferSession implements PeerSessionClient {
     this.closed = true
   }
 
-  onMessage(_handler: PeerMessageHandler) {
+  onMessage() {
     return () => undefined
   }
 
