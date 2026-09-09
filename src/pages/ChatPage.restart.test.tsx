@@ -33,11 +33,11 @@ class PendingOfferSession implements PeerSessionClient {
     return this.offer.promise
   }
 
-  async acceptOffer() {
+  async acceptOffer(): Promise<RTCSessionDescriptionInit> {
     throw new Error('Not used in this test')
   }
 
-  async applyAnswer() {
+  async applyAnswer(): Promise<void> {
     throw new Error('Not used in this test')
   }
 
