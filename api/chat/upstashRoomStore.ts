@@ -46,11 +46,15 @@ function signalKey({ roomId, memberId, generation, kind }: SignalKey) {
 }
 
 export class UpstashRoomStore implements RoomStore {
-  constructor(
-    private readonly url: string,
-    private readonly token: string,
-    private readonly fetcher: FetchLike = fetch,
-  ) {}
+  private readonly url: string
+  private readonly token: string
+  private readonly fetcher: FetchLike
+
+  constructor(url: string, token: string, fetcher: FetchLike = fetch) {
+    this.url = url
+    this.token = token
+    this.fetcher = fetcher
+  }
 
   static fromEnv(fetcher: FetchLike = fetch) {
     const url = process.env.UPSTASH_REDIS_REST_URL?.trim()

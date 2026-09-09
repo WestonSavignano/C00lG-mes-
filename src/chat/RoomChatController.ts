@@ -28,12 +28,18 @@ export class RoomChatController implements RoomChatControllerClient {
   private readonly messageHandlers = new Set<RoomChatMessageHandler>()
   private roomState: RoomState | null = null
   private readonly unsubscribePeer: () => void
+  private readonly peers: RoomPeerManagerClient
+  private readonly role: RoomChatRole
+  private readonly moderateText: ModerateRoomText
 
   constructor(
-    private readonly peers: RoomPeerManagerClient,
-    private readonly role: RoomChatRole,
-    private readonly moderateText: ModerateRoomText = moderateChatText,
+    peers: RoomPeerManagerClient,
+    role: RoomChatRole,
+    moderateText: ModerateRoomText = moderateChatText,
   ) {
+    this.peers = peers
+    this.role = role
+    this.moderateText = moderateText
     this.unsubscribePeer = peers.onEvent((event) => this.handlePeerEvent(event))
   }
 

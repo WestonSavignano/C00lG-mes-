@@ -32,12 +32,13 @@ type ErrorResponse = {
 }
 
 export class RoomClientError extends Error {
-  constructor(
-    public readonly code: string,
-    message: string,
-    public readonly status: number,
-  ) {
+  readonly code: string
+  readonly status: number
+
+  constructor(code: string, message: string, status: number) {
     super(message)
+    this.code = code
+    this.status = status
     this.name = 'RoomClientError'
   }
 }
@@ -61,11 +62,13 @@ export interface RoomCoordinatorClient {
 
 export class RoomClient implements RoomCoordinatorClient {
   private readonly controllers = new Set<AbortController>()
+  private readonly fetcher: FetchLike
+  private readonly apiBase: string
 
-  constructor(
-    private readonly fetcher: FetchLike = fetch,
-    private readonly apiBase = '/api/chat',
-  ) {}
+  constructor(fetcher: FetchLike = fetch, apiBase = '/api/chat') {
+    this.fetcher = fetcher
+    this.apiBase = apiBase
+  }
 
   createRoom() {
     return this.post<CreateRoomResult>('create', {})

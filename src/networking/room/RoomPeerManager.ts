@@ -13,7 +13,6 @@ import {
 import type { PeerConnectionState } from '../webrtc/types'
 
 type PeerSessionFactory = () => PeerSessionClient
-
 type PollerLike = Pick<RoomPoller, 'start' | 'stop'>
 
 export type RoomPeerEvent =
@@ -65,6 +64,10 @@ function asError(error: unknown) {
 export class RoomPeerManager implements RoomPeerManagerClient {
   private readonly handlers = new Set<(event: RoomPeerEvent) => void>()
   private readonly hostPeers = new Map<string, ManagedPeer>()
+  private readonly coordinator: RoomCoordinatorClient
+  private readonly sessionFactory: PeerSessionFactory
+  private readonly generationFactory: () => string
+  private readonly poller: PollerLike
   private hostAuth: HostAuth | null = null
   private guestAuth: GuestAuth | null = null
   private guestGeneration: string | null = null
@@ -73,11 +76,16 @@ export class RoomPeerManager implements RoomPeerManagerClient {
   private closed = false
 
   constructor(
-    private readonly coordinator: RoomCoordinatorClient,
-    private readonly sessionFactory: PeerSessionFactory = defaultSessionFactory,
-    private readonly generationFactory: () => string = defaultGenerationFactory,
-    private readonly poller: PollerLike = new RoomPoller(),
-  ) {}
+    coordinator: RoomCoordinatorClient,
+    sessionFactory: PeerSessionFactory = defaultSessionFactory,
+    generationFactory: () => string = defaultGenerationFactory,
+    poller: PollerLike = new RoomPoller(),
+  ) {
+    this.coordinator = coordinator
+    this.sessionFactory = sessionFactory
+    this.generationFactory = generationFactory
+    this.poller = poller
+  }
 
   onEvent(handler: (event: RoomPeerEvent) => void) {
     this.handlers.add(handler)
@@ -177,14 +185,13 @@ export class RoomPeerManager implements RoomPeerManagerClient {
       }
     }
 
-    const work = [...active.values()].map(async (member) => {
+    await Promise.all([...active.values()].map(async (member) => {
       try {
         await this.ensureHostPeer(auth, member)
       } catch (error) {
         this.emit({ type: 'error', error: asError(error) })
       }
-    })
-    await Promise.all(work)
+    }))
   }
 
   private async ensureHostPeer(auth: HostAuth, member: RoomMemberView) {

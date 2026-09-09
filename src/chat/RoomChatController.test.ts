@@ -94,7 +94,7 @@ describe('RoomChatController', () => {
 
   it('moderates guest text at the authoritative host relay boundary', () => {
     const peers = new FakePeers()
-    const controller = new RoomChatController(
+    new RoomChatController(
       peers,
       'host',
       (text) => text.replace('spoiler', '*******'),
