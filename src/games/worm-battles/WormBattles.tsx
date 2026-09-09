@@ -26,13 +26,13 @@ function WormBattles() {
   const pointerRef = useRef<Point>({ x: 0, y: 0 });
   const cameraRef = useRef<Point>({ x: WORLD.width / 2, y: WORLD.height / 2 });
   const animationRef = useRef<number | null>(null);
-  const lastTimeRef = useRef<number>(performance.now());
+  const lastTimeRef = useRef<number>(0);
   const lastHudRef = useRef<number>(0);
-  const bestRef = useRef<number>(Number(localStorage.getItem("worm-arena-best") ?? 0));
+  const bestRef = useRef<number>(0);
 
-  const [_, setHud] = useState<HudState>({
+  const [, setHud] = useState<HudState>({
     score: 0,
-    best: bestRef.current,
+    best: 0,
     length: 180,
     rank: 1,
     worms: AI_COUNT + 1,
@@ -48,6 +48,10 @@ function WormBattles() {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+
+    const storedBest = Number(localStorage.getItem("worm-arena-best") ?? 0);
+    bestRef.current = Number.isFinite(storedBest) ? storedBest : 0;
+    setHud((current) => ({ ...current, best: bestRef.current }));
 
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
@@ -77,6 +81,7 @@ function WormBattles() {
     resize();
     const rect = canvas.getBoundingClientRect();
     pointerRef.current = { x: rect.width / 2 + 160, y: rect.height / 2 };
+    lastTimeRef.current = performance.now();
 
     window.addEventListener("resize", resize);
     canvas.addEventListener("pointermove", handlePointerMove);
@@ -95,7 +100,7 @@ function WormBattles() {
 
       if (game.status === "playing") {
         for (const worm of aliveWorms) {
-          let angle = worm.angle;
+          let angle: number;
 
           if (worm.isPlayer) {
             const pointer = pointerRef.current;
@@ -235,11 +240,9 @@ function WormBattles() {
   }, []);
 
   return (
-
-          <GameViewport game="worm-battles" label="Worm Arena">
-            <canvas ref={canvasRef} className="w-full cursor-crosshair touch-none" />
-          </GameViewport>
-
+    <GameViewport game="worm-battles" label="Worm Arena">
+      <canvas ref={canvasRef} className="w-full cursor-crosshair touch-none" />
+    </GameViewport>
   );
 }
 
