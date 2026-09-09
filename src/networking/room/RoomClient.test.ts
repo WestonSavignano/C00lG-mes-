@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { loadMemberCredentials, saveMemberCredentials } from './memberStorage'
 import { RoomClient, RoomClientError, RoomPoller } from './RoomClient'
 
@@ -21,6 +21,36 @@ describe('RoomClient', () => {
   beforeEach(() => {
     localStorage.clear()
     vi.useRealTimers()
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('calls the default browser fetch with the global receiver', async () => {
+    const browserFetch = vi.fn(function (
+      this: unknown,
+      input: string | URL | Request,
+      init?: RequestInit,
+    ) {
+      if (this !== globalThis) {
+        throw new TypeError('Illegal invocation')
+      }
+      expect(input).toBe('/api/chat/create')
+      expect(init?.method).toBe('POST')
+      return okJson({
+        version: 1,
+        roomId: ROOM_ID,
+        hostSecret: 'host_123456789012345678901234',
+        inviteSecret: INVITE,
+      }, 201)
+    })
+    vi.stubGlobal('fetch', browserFetch)
+
+    const client = new RoomClient()
+
+    await expect(client.createRoom()).resolves.toMatchObject({ roomId: ROOM_ID })
+    expect(browserFetch).toHaveBeenCalledTimes(1)
   })
 
   it('joins with the invite once and persists the issued member credentials', async () => {

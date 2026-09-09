@@ -65,7 +65,10 @@ export class RoomClient implements RoomCoordinatorClient {
   private readonly fetcher: FetchLike
   private readonly apiBase: string
 
-  constructor(fetcher: FetchLike = fetch, apiBase = '/api/chat') {
+  constructor(
+    fetcher: FetchLike = (...args) => globalThis.fetch(...args),
+    apiBase = '/api/chat',
+  ) {
     this.fetcher = fetcher
     this.apiBase = apiBase
   }
