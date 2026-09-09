@@ -1,6 +1,9 @@
 export const MAX_CHAT_MESSAGE_LENGTH = 1_000
 export const MAX_CHAT_HISTORY = 200
-export const MAX_SERIALIZED_CHAT_MESSAGE_LENGTH = 2_048
+// JSON may expand one accepted character to a six-character escape sequence.
+// 8 KiB keeps the full 1,000-character text contract serializable while
+// preserving a strict pre-parse bound for untrusted peer messages.
+export const MAX_SERIALIZED_CHAT_MESSAGE_LENGTH = 8_192
 
 const MAX_CHAT_MESSAGE_ID_LENGTH = 128
 const MAX_CHAT_SENT_AT_LENGTH = 64
