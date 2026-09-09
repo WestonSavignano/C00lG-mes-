@@ -135,7 +135,7 @@ describe('ChatPage', () => {
     expect(decodeSignal((answerCode as HTMLTextAreaElement).value, 'answer')).toEqual(ANSWER)
   })
 
-  it('lets the host apply the guest answer', async () => {
+  it('lets the host apply the guest answer exactly once while connecting', async () => {
     const user = userEvent.setup()
     const { session } = renderChat()
 
@@ -144,8 +144,14 @@ describe('ChatPage', () => {
       await screen.findByRole('textbox', { name: 'Answer code from your friend' }),
       encodeSignal(ANSWER),
     )
-    await user.click(screen.getByRole('button', { name: 'Connect' }))
 
+    const connectButton = screen.getByRole('button', { name: 'Connect' })
+    await user.click(connectButton)
+
+    expect(session.appliedAnswers).toEqual([ANSWER])
+    expect(connectButton).toBeDisabled()
+
+    await user.click(connectButton)
     expect(session.appliedAnswers).toEqual([ANSWER])
   })
 
