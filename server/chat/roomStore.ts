@@ -1,4 +1,4 @@
-import type { ConnectionSignal } from '../../src/networking/room/roomProtocol'
+import type { ConnectionSignal } from '../../src/networking/room/roomProtocol.js'
 
 export type StoredRoomMember = {
   memberId: string

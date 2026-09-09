@@ -15,13 +15,13 @@ import {
   type RoomAuth,
   type RoomMemberView,
   type RoomState,
-} from '../../src/networking/room/roomProtocol'
+} from '../../src/networking/room/roomProtocol.js'
 import type {
   RoomStore,
   SignalKey,
   StoredRoom,
   StoredRoomMember,
-} from './roomStore'
+} from './roomStore.js'
 
 export const ROOM_TTL_MS = 7 * 24 * 60 * 60 * 1_000
 export const SIGNAL_TTL_SECONDS = 120

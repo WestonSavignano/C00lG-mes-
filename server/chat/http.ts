@@ -1,5 +1,5 @@
-import { RoomServiceError } from './roomService'
-import { CoordinatorUnavailableError } from './upstashRoomStore'
+import { RoomServiceError } from './roomService.js'
+import { CoordinatorUnavailableError } from './upstashRoomStore.js'
 
 export const MAX_COORDINATOR_BODY_BYTES = 64 * 1_024
 

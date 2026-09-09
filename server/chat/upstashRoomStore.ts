@@ -1,10 +1,10 @@
-import { ROOM_TTL_MS } from './roomService'
+import { ROOM_TTL_MS } from './roomService.js'
 import type {
   RoomStore,
   SignalKey,
   StoredRoom,
   StoredSignal,
-} from './roomStore'
+} from './roomStore.js'
 
 const ROOM_TTL_SECONDS = Math.floor(ROOM_TTL_MS / 1_000)
 const ROOM_PREFIX = 'c00lgames:chat:room:'

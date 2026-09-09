@@ -3,9 +3,9 @@ import type {
   GuestAuth,
   HostAuth,
   RoomAuth,
-} from '../../src/networking/room/roomProtocol'
-import { HttpRequestError, json, readJson, roomErrorResponse } from './http'
-import type { JoinInput, RoomService } from './roomService'
+} from '../../src/networking/room/roomProtocol.js'
+import { HttpRequestError, json, readJson, roomErrorResponse } from './http.js'
+import type { JoinInput, RoomService } from './roomService.js'
 
 function methodNotAllowed() {
   return new Response(null, {

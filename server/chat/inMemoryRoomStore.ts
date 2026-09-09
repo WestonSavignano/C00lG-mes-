@@ -3,7 +3,7 @@ import type {
   SignalKey,
   StoredRoom,
   StoredSignal,
-} from './roomStore'
+} from './roomStore.js'
 
 function cloneRoom(room: StoredRoom): StoredRoom {
   return structuredClone(room)
