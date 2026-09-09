@@ -38,6 +38,7 @@ function createPeers(): RoomPeerManagerClient {
   return {
     startHost: vi.fn(),
     startGuest: vi.fn(),
+    setRoomLocked: vi.fn(),
     sendToHost: vi.fn(),
     sendToMember: vi.fn(),
     broadcast: vi.fn(),

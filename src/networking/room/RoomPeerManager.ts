@@ -14,6 +14,7 @@ import type { PeerConnectionState } from '../webrtc/types'
 
 type PeerSessionFactory = () => PeerSessionClient
 type PollerLike = Pick<RoomPoller, 'start' | 'stop'>
+type PollingRole = 'host' | 'guest' | null
 
 export type RoomPeerEvent =
   | { type: 'peer-state'; memberId: string; state: PeerConnectionState }
@@ -25,6 +26,7 @@ export type RoomPeerEvent =
 export interface RoomPeerManagerClient {
   startHost(auth: HostAuth): void
   startGuest(auth: GuestAuth): void
+  setRoomLocked(locked: boolean): void
   sendToHost(data: string): void
   sendToMember(memberId: string, data: string): void
   broadcast(data: string, exceptMemberId?: string): void
@@ -73,6 +75,8 @@ export class RoomPeerManager implements RoomPeerManagerClient {
   private guestGeneration: string | null = null
   private guestGenerationAnnounced = false
   private guestPeer: GuestPeer | null = null
+  private latestRoomState: RoomState | null = null
+  private pollingRole: PollingRole = null
   private closed = false
 
   constructor(
@@ -96,11 +100,7 @@ export class RoomPeerManager implements RoomPeerManagerClient {
     this.resetMode()
     this.hostAuth = auth
     this.closed = false
-    this.poller.start(
-      () => this.hostTick(),
-      () => this.hostPollMode(),
-      (error) => this.handlePollError(error),
-    )
+    this.startHostPolling()
   }
 
   startGuest(auth: GuestAuth) {
@@ -108,11 +108,23 @@ export class RoomPeerManager implements RoomPeerManagerClient {
     this.guestAuth = auth
     this.closed = false
     this.beginGuestGeneration()
-    this.poller.start(
-      () => this.guestTick(),
-      () => this.guestPollMode(),
-      (error) => this.handlePollError(error),
-    )
+    this.startGuestPolling()
+  }
+
+  setRoomLocked(locked: boolean) {
+    if (!this.hostAuth || this.closed) {
+      return
+    }
+
+    if (this.latestRoomState) {
+      this.latestRoomState = { ...this.latestRoomState, locked }
+    }
+
+    if (locked) {
+      this.maybeStopHostPolling()
+    } else {
+      this.startHostPolling()
+    }
   }
 
   sendToHost(data: string) {
@@ -151,12 +163,45 @@ export class RoomPeerManager implements RoomPeerManagerClient {
       return
     }
     this.closed = true
-    this.poller.stop()
+    this.stopPolling()
     this.closeAllPeers()
     this.coordinator.close()
     this.handlers.clear()
     this.hostAuth = null
     this.guestAuth = null
+    this.latestRoomState = null
+  }
+
+  private startHostPolling() {
+    if (!this.hostAuth || this.closed || this.pollingRole === 'host') {
+      return
+    }
+    this.pollingRole = 'host'
+    this.poller.start(
+      () => this.hostTick(),
+      () => this.hostPollMode(),
+      (error) => this.handlePollError(error),
+    )
+  }
+
+  private startGuestPolling() {
+    if (!this.guestAuth || !this.guestGeneration || this.closed || this.pollingRole === 'guest') {
+      return
+    }
+    this.pollingRole = 'guest'
+    this.poller.start(
+      () => this.guestTick(),
+      () => 'negotiating',
+      (error) => this.handlePollError(error),
+    )
+  }
+
+  private stopPolling() {
+    if (this.pollingRole === null) {
+      return
+    }
+    this.pollingRole = null
+    this.poller.stop()
   }
 
   private async hostTick() {
@@ -169,11 +214,17 @@ export class RoomPeerManager implements RoomPeerManagerClient {
     if (this.closed || this.hostAuth !== auth) {
       return
     }
+    this.latestRoomState = state
     this.emit({ type: 'room-state', state })
 
     const active = new Map(
       state.members
-        .filter((member) => member.present && !member.removed && member.connectionGeneration)
+        .filter((member) => {
+          const peer = this.hostPeers.get(member.memberId)
+          return !member.removed
+            && Boolean(member.connectionGeneration)
+            && (member.present || peer?.state === 'connected')
+        })
         .map((member) => [member.memberId, member] as const),
     )
 
@@ -192,6 +243,8 @@ export class RoomPeerManager implements RoomPeerManagerClient {
         this.emit({ type: 'error', error: asError(error) })
       }
     }))
+
+    this.maybeStopHostPolling()
   }
 
   private async ensureHostPeer(auth: HostAuth, member: RoomMemberView) {
@@ -254,9 +307,29 @@ export class RoomPeerManager implements RoomPeerManagerClient {
       session.onStateChange((state) => {
         peer.state = state
         this.emit({ type: 'peer-state', memberId, state })
+        if (state === 'connected') {
+          this.maybeStopHostPolling()
+        } else if (state === 'failed' || state === 'disconnected') {
+          this.startHostPolling()
+        }
       }),
     ]
     return peer
+  }
+
+  private maybeStopHostPolling() {
+    const state = this.latestRoomState
+    if (!state?.locked || this.pollingRole !== 'host') {
+      return
+    }
+
+    const settled = state.members
+      .filter((member) => !member.removed)
+      .every((member) => this.hostPeers.get(member.memberId)?.state === 'connected')
+
+    if (settled) {
+      this.stopPolling()
+    }
   }
 
   private async guestTick() {
@@ -302,8 +375,11 @@ export class RoomPeerManager implements RoomPeerManagerClient {
       session.onStateChange((peerState) => {
         peer.state = peerState
         this.emit({ type: 'peer-state', memberId: 'host', state: peerState })
-        if (peerState === 'failed' || peerState === 'disconnected') {
+        if (peerState === 'connected') {
+          this.stopPolling()
+        } else if (peerState === 'failed' || peerState === 'disconnected') {
           this.beginGuestGeneration()
+          this.startGuestPolling()
         }
       }),
     ]
@@ -341,10 +417,6 @@ export class RoomPeerManager implements RoomPeerManagerClient {
     return 'hostConnected'
   }
 
-  private guestPollMode(): RoomPollMode {
-    return this.guestPeer?.state === 'connected' ? 'guestConnected' : 'negotiating'
-  }
-
   private isCurrentHostPeer(memberId: string, generation: string, peer: ManagedPeer) {
     return !this.closed
       && this.hostPeers.get(memberId) === peer
@@ -353,7 +425,7 @@ export class RoomPeerManager implements RoomPeerManagerClient {
 
   private handlePollError(error: unknown) {
     if (error instanceof RoomClientError && error.code === 'member_removed') {
-      this.poller.stop()
+      this.stopPolling()
       this.closeAllPeers()
       this.emit({ type: 'removed' })
       return
@@ -363,19 +435,20 @@ export class RoomPeerManager implements RoomPeerManagerClient {
       error instanceof RoomClientError
       && (error.code === 'invalid_credentials' || error.code === 'room_not_found')
     ) {
-      this.poller.stop()
+      this.stopPolling()
       this.closeAllPeers()
     }
     this.emit({ type: 'error', error: asError(error) })
   }
 
   private resetMode() {
-    this.poller.stop()
+    this.stopPolling()
     this.closeAllPeers()
     this.hostAuth = null
     this.guestAuth = null
     this.guestGeneration = null
     this.guestGenerationAnnounced = false
+    this.latestRoomState = null
   }
 
   private closeAllPeers() {

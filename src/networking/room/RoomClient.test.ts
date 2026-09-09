@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { loadMemberCredentials, saveMemberCredentials } from './memberStorage'
-import { RoomClient, RoomClientError, RoomPoller } from './RoomClient'
+import { ROOM_POLL_MS, RoomClient, RoomClientError, RoomPoller } from './RoomClient'
 
 const ROOM_ID = 'room_1234567890123456'
 const INVITE = 'invite_123456789012345678901234'
@@ -140,6 +140,12 @@ describe('RoomClient', () => {
 })
 
 describe('RoomPoller', () => {
+  it('uses fast polling only for negotiation and sparse polling otherwise', () => {
+    expect(ROOM_POLL_MS.negotiating).toBe(750)
+    expect(ROOM_POLL_MS.hostConnected).toBeGreaterThanOrEqual(3_000)
+    expect(ROOM_POLL_MS.hidden).toBeGreaterThanOrEqual(30_000)
+  })
+
   it('never overlaps polling requests', async () => {
     vi.useFakeTimers()
     let resolveCurrent: (() => void) | null = null

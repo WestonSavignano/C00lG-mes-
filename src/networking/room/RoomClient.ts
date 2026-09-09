@@ -15,9 +15,9 @@ import type {
 
 export const ROOM_POLL_MS = {
   negotiating: 750,
-  hostConnected: 1_500,
+  hostConnected: 3_000,
   guestConnected: 5_000,
-  hidden: 10_000,
+  hidden: 30_000,
 } as const
 
 export type RoomPollMode = Exclude<keyof typeof ROOM_POLL_MS, 'hidden'>

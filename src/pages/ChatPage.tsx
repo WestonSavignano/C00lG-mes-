@@ -327,6 +327,7 @@ function ChatPageSession({
         roomId: route.roomId,
         hostSecret: route.hostSecret,
       }, locked)
+      peersRef.current?.setRoomLocked(state.locked)
       setRoomState(state)
     } catch (controlError) {
       const message = roomClientErrorMessage(controlError)
