@@ -1,5 +1,9 @@
 export const MAX_CHAT_MESSAGE_LENGTH = 1_000
 export const MAX_CHAT_HISTORY = 200
+export const MAX_SERIALIZED_CHAT_MESSAGE_LENGTH = 2_048
+
+const MAX_CHAT_MESSAGE_ID_LENGTH = 128
+const MAX_CHAT_SENT_AT_LENGTH = 64
 
 export type ChatMessage = {
   version: 1
@@ -31,7 +35,10 @@ function isChatMessage(value: unknown): value is ChatMessage {
     || value.type !== 'chat.message'
     || typeof value.id !== 'string'
     || value.id.length === 0
+    || value.id.length > MAX_CHAT_MESSAGE_ID_LENGTH
     || typeof value.sentAt !== 'string'
+    || value.sentAt.length === 0
+    || value.sentAt.length > MAX_CHAT_SENT_AT_LENGTH
     || Number.isNaN(Date.parse(value.sentAt))
     || !isRecord(value.payload)
     || !isValidText(value.payload.text)
@@ -40,6 +47,18 @@ function isChatMessage(value: unknown): value is ChatMessage {
   }
 
   return true
+}
+
+function canonicalizeChatMessage(message: ChatMessage): ChatMessage {
+  return {
+    version: 1,
+    type: 'chat.message',
+    id: message.id,
+    sentAt: message.sentAt,
+    payload: {
+      text: message.payload.text,
+    },
+  }
 }
 
 export function createChatMessage(text: string): ChatMessage {
@@ -69,13 +88,28 @@ export function serializeChatMessage(message: ChatMessage) {
     throw new Error('Invalid chat message')
   }
 
-  return JSON.stringify(message)
+  const serialized = JSON.stringify(canonicalizeChatMessage(message))
+
+  if (serialized.length > MAX_SERIALIZED_CHAT_MESSAGE_LENGTH) {
+    throw new Error('Chat message is too large')
+  }
+
+  return serialized
 }
 
 export function parseChatMessage(serialized: string): ChatMessage | null {
+  if (serialized.length > MAX_SERIALIZED_CHAT_MESSAGE_LENGTH) {
+    return null
+  }
+
   try {
     const parsed: unknown = JSON.parse(serialized)
-    return isChatMessage(parsed) ? parsed : null
+
+    if (!isChatMessage(parsed)) {
+      return null
+    }
+
+    return canonicalizeChatMessage(parsed)
   } catch {
     return null
   }
