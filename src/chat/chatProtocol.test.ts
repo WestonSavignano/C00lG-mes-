@@ -39,6 +39,14 @@ describe('chatProtocol', () => {
     expect(parseChatMessage(serializeChatMessage(message))).toEqual(message)
   })
 
+  it('keeps worst-case escaped text serializable at the accepted message limit', () => {
+    const message = createChatMessage('\u0001'.repeat(MAX_CHAT_MESSAGE_LENGTH))
+    const serialized = serializeChatMessage(message)
+
+    expect(serialized.length).toBeLessThanOrEqual(MAX_SERIALIZED_CHAT_MESSAGE_LENGTH)
+    expect(parseChatMessage(serialized)).toEqual(message)
+  })
+
   it('rejects malformed JSON and unsupported protocol versions', () => {
     expect(parseChatMessage('{not json')).toBeNull()
     expect(parseChatMessage(JSON.stringify({
