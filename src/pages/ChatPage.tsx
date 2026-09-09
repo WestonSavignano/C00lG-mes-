@@ -101,6 +101,7 @@ function ChatPage({ peerSessionFactory = createDefaultPeerSession }: ChatPagePro
   const [inviteLink, setInviteLink] = useState('')
   const [answerCode, setAnswerCode] = useState('')
   const [answerInput, setAnswerInput] = useState('')
+  const [isAnswerApplied, setIsAnswerApplied] = useState(false)
   const [messageInput, setMessageInput] = useState('')
   const [messages, setMessages] = useState<VisibleMessage[]>([])
   const [error, setError] = useState<string | null>(() => readInvite(location.hash).error)
@@ -174,6 +175,7 @@ function ChatPage({ peerSessionFactory = createDefaultPeerSession }: ChatPagePro
     setInviteLink('')
     setAnswerCode('')
     setAnswerInput('')
+    setIsAnswerApplied(false)
     setMessageInput('')
     setMessages([])
     setError(null)
@@ -249,8 +251,10 @@ function ChatPage({ peerSessionFactory = createDefaultPeerSession }: ChatPagePro
   }
 
   const handleApplyAnswer = async () => {
-    if (!sessionRef.current) {
-      setError('Create a chat before applying an answer.')
+    if (!sessionRef.current || isAnswerApplied) {
+      if (!sessionRef.current) {
+        setError('Create a chat before applying an answer.')
+      }
       return
     }
 
@@ -266,6 +270,7 @@ function ChatPage({ peerSessionFactory = createDefaultPeerSession }: ChatPagePro
         return
       }
 
+      setIsAnswerApplied(true)
       setConnectionState('connecting')
     } catch {
       if (!isCurrentSetup(setupGeneration)) {
@@ -375,6 +380,7 @@ function ChatPage({ peerSessionFactory = createDefaultPeerSession }: ChatPagePro
             <span>Answer code from your friend</span>
             <textarea
               aria-label="Answer code from your friend"
+              disabled={isAnswerApplied}
               onChange={(event) => setAnswerInput(event.target.value)}
               placeholder="Paste their answer code here"
               rows={5}
@@ -383,11 +389,11 @@ function ChatPage({ peerSessionFactory = createDefaultPeerSession }: ChatPagePro
           </label>
           <button
             className="chat-button chat-button--primary"
-            disabled={isBusy || !answerInput.trim()}
+            disabled={isBusy || isAnswerApplied || !answerInput.trim()}
             onClick={handleApplyAnswer}
             type="button"
           >
-            {isBusy ? 'Connecting…' : 'Connect'}
+            {isBusy || isAnswerApplied ? 'Connecting…' : 'Connect'}
           </button>
           <p className="chat-status" role="status">{describeState(connectionState)}</p>
         </section>
