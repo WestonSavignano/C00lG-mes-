@@ -1,73 +1,73 @@
-# React + TypeScript + Vite
+# C00lG@mes+
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Browser games and experiments built with React, TypeScript, Vite, and Phaser.
 
-Currently, two official plugins are available:
+## Development
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm ci
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Validation:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm test
+npm run lint
+npm run build
 ```
+
+Pull requests run the same test, lint, and build checks through GitHub Actions.
+
+## Peer-to-peer Chat
+
+`/chat` is a two-browser WebRTC experiment that also serves as the networking foundation for future multiplayer games.
+
+The current prototype intentionally uses no C00lG@mes+ application server, database, account system, matchmaking service, or persistent message history. Once connected, Chat messages travel directly between the two browsers over an encrypted WebRTC `RTCDataChannel`.
+
+### Host flow
+
+1. Open `/chat`.
+2. Select **Create chat**.
+3. Copy the generated invite link and send it to one friend.
+4. Keep the original browser tab open.
+5. Your friend opens the invite and returns an answer code.
+6. Paste that answer code into the original tab and select **Connect**.
+7. When the peer connection opens, both browsers can send real-time messages.
+
+### Guest flow
+
+1. Open the invite link from the host.
+2. Select **Join chat**.
+3. Copy the generated answer code and send it back to the host.
+4. Keep the tab open while the host applies the answer.
+5. When the connection opens, Chat becomes available automatically.
+
+### How signaling works
+
+The prototype uses manual, non-trickle WebRTC signaling:
+
+- The host's complete WebRTC offer is encoded into the invite URL fragment (`#offer=...`).
+- The guest creates a complete WebRTC answer and returns it as a copyable code.
+- Each browser waits for ICE gathering to finish before sharing its session description.
+- The invite fragment is decoded client-side and removed from the visible URL after it is captured in memory.
+
+This lets us prove the browser-to-browser transport without introducing a signaling backend yet.
+
+### Current networking limits
+
+The peer connection uses public STUN discovery but intentionally does not use a TURN relay in this first version. Most ordinary home/mobile network combinations should be testable, but restrictive corporate networks, carrier networks, or certain NAT combinations may fail to establish a direct connection.
+
+A failed direct connection should be treated as connectivity evidence for a future TURN/signaling decision, not as a reason to move game traffic to a conventional application server prematurely.
+
+Refreshing or closing either browser tab ends the ephemeral session. Messages are kept only in browser memory and are capped in the UI rather than persisted.
+
+## Multiplayer direction
+
+The WebRTC implementation is separated from the Chat protocol and React UI under `src/networking/webrtc`. Future Warrior multiplayer can reuse `PeerSession` while defining a game-specific wire protocol for player input, authoritative snapshots, and game events.
+
+The likely first multiplayer model is host-authoritative: one browser owns canonical game state while the other sends inputs. Matchmaking, TURN, persistence, anti-cheat, and larger player counts remain separate follow-on decisions.
+
+## Deployment
+
+The site is deployed on Vercel. `vercel.json` rewrites fresh client-side routes to `index.html`, so invite URLs such as `/chat#offer=...` can be opened directly rather than only through in-app navigation.
