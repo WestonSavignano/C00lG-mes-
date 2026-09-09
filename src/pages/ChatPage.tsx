@@ -156,12 +156,6 @@ function ChatPage({ peerSessionFactory = createDefaultPeerSession }: ChatPagePro
     setupGenerationRef.current === generation
   ), [])
 
-  useEffect(() => {
-    if (location.hash.includes('offer=')) {
-      navigate('/chat', { replace: true })
-    }
-  }, [location.hash, navigate])
-
   useEffect(() => () => {
     setupGenerationRef.current += 1
     closeSession()
