@@ -80,7 +80,7 @@ describe('App routes', () => {
     renderRoute('/chat')
 
     expect(screen.getByRole('heading', { level: 1, name: 'Chat' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Create chat' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Start Chat' })).toBeInTheDocument()
   })
 
   it('redirects legacy Soundboard routes to Chat', () => {
