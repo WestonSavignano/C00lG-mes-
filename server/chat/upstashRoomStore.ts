@@ -45,6 +45,16 @@ function signalKey({ roomId, memberId, generation, kind }: SignalKey) {
   return `${SIGNAL_PREFIX}${roomId}:${memberId}:${generation}:${kind}`
 }
 
+function firstConfiguredEnv(...names: string[]) {
+  for (const name of names) {
+    const value = process.env[name]?.trim()
+    if (value) {
+      return value
+    }
+  }
+  return undefined
+}
+
 export class UpstashRoomStore implements RoomStore {
   private readonly url: string
   private readonly token: string
@@ -57,8 +67,16 @@ export class UpstashRoomStore implements RoomStore {
   }
 
   static fromEnv(fetcher: FetchLike = fetch) {
-    const url = process.env.UPSTASH_REDIS_REST_URL?.trim()
-    const token = process.env.UPSTASH_REDIS_REST_TOKEN?.trim()
+    const url = firstConfiguredEnv(
+      'UPSTASH_REDIS_REST_URL',
+      'UPSTASH_REDIS_REST_KV_REST_API_URL',
+      'KV_REST_API_URL',
+    )
+    const token = firstConfiguredEnv(
+      'UPSTASH_REDIS_REST_TOKEN',
+      'UPSTASH_REDIS_REST_KV_REST_API_TOKEN',
+      'KV_REST_API_TOKEN',
+    )
     if (!url || !token) {
       throw new CoordinatorUnavailableError('Upstash Redis is not configured.')
     }
