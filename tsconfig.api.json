@@ -18,6 +18,7 @@
   },
   "include": [
     "api/**/*.ts",
+    "server/**/*.ts",
     "src/networking/room/roomProtocol.ts"
   ]
 }

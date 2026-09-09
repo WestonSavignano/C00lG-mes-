@@ -1,6 +1,6 @@
-import { handleCreate } from './handlers'
-import { roomErrorResponse } from './http'
-import { createProductionRoomService } from './runtime'
+import { handleCreate } from '../../server/chat/handlers'
+import { roomErrorResponse } from '../../server/chat/http'
+import { createProductionRoomService } from '../../server/chat/runtime'
 
 export async function POST(request: Request) {
   try {
