@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   MAX_CHAT_HISTORY,
   MAX_CHAT_MESSAGE_LENGTH,
+  MAX_SERIALIZED_CHAT_MESSAGE_LENGTH,
   createChatMessage,
   parseChatMessage,
   serializeChatMessage,
@@ -82,8 +83,38 @@ describe('chatProtocol', () => {
     expect(parseChatMessage(JSON.stringify(oversized))).toBeNull()
   })
 
-  it('exports a finite positive history bound', () => {
+  it('rejects an oversized serialized envelope before parsing it', () => {
+    const oversizedEnvelope = JSON.stringify({
+      ...validMessage(),
+      ignored: 'x'.repeat(MAX_SERIALIZED_CHAT_MESSAGE_LENGTH),
+    })
+
+    expect(oversizedEnvelope.length).toBeGreaterThan(MAX_SERIALIZED_CHAT_MESSAGE_LENGTH)
+    expect(parseChatMessage(oversizedEnvelope)).toBeNull()
+  })
+
+  it('returns only canonical validated fields from incoming messages', () => {
+    const message = validMessage()
+    const serialized = JSON.stringify({
+      ...message,
+      ignored: 'top-level-extra',
+      payload: {
+        ...message.payload,
+        ignored: 'payload-extra',
+      },
+    })
+
+    const parsed = parseChatMessage(serialized)
+
+    expect(parsed).toEqual(message)
+    expect(parsed).not.toHaveProperty('ignored')
+    expect(parsed?.payload).not.toHaveProperty('ignored')
+  })
+
+  it('exports finite positive bounds', () => {
     expect(MAX_CHAT_HISTORY).toBeGreaterThan(0)
     expect(Number.isSafeInteger(MAX_CHAT_HISTORY)).toBe(true)
+    expect(MAX_SERIALIZED_CHAT_MESSAGE_LENGTH).toBeGreaterThan(MAX_CHAT_MESSAGE_LENGTH)
+    expect(Number.isSafeInteger(MAX_SERIALIZED_CHAT_MESSAGE_LENGTH)).toBe(true)
   })
 })
