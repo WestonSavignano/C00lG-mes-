@@ -26,7 +26,28 @@ describe('UpstashRoomStore', () => {
   it('fails lazily and clearly when Redis environment is absent', () => {
     vi.stubEnv('UPSTASH_REDIS_REST_URL', '')
     vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', '')
+    vi.stubEnv('UPSTASH_REDIS_REST_KV_REST_API_URL', '')
+    vi.stubEnv('UPSTASH_REDIS_REST_KV_REST_API_TOKEN', '')
+    vi.stubEnv('KV_REST_API_URL', '')
+    vi.stubEnv('KV_REST_API_TOKEN', '')
     expect(() => UpstashRoomStore.fromEnv()).toThrow(CoordinatorUnavailableError)
+  })
+
+  it('accepts the Vercel-generated Upstash REST API environment names', async () => {
+    vi.stubEnv('UPSTASH_REDIS_REST_URL', '')
+    vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', '')
+    vi.stubEnv('UPSTASH_REDIS_REST_KV_REST_API_URL', 'https://vercel-upstash.example/')
+    vi.stubEnv('UPSTASH_REDIS_REST_KV_REST_API_TOKEN', 'vercel-token')
+
+    const fetcher = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      expect(String(input)).toBe('https://vercel-upstash.example')
+      expect(new Headers(init?.headers).get('Authorization')).toBe('Bearer vercel-token')
+      return response('OK')
+    })
+    const store = UpstashRoomStore.fromEnv(fetcher)
+
+    await expect(store.createRoom(ROOM)).resolves.toBe(true)
+    expect(fetcher).toHaveBeenCalledOnce()
   })
 
   it('creates rooms with NX and a seven-day expiry', async () => {
