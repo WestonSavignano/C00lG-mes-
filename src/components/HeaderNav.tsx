@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { Link, NavLink } from 'react-router-dom'
 
 const navItems = [
-  { label: 'Soundboard', to: '/soundboard' },
+  { label: 'Chat', to: '/chat' },
   { label: 'Games', to: '/games' },
 ]
 
