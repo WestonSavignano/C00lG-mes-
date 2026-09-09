@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+} from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import BackLink from '../components/BackLink'
 import H1 from '../components/H1'
@@ -118,23 +125,29 @@ function buildGuestInvite(roomId: string, inviteSecret: string, pathname: string
   return url.toString()
 }
 
-function ChatPage({
+function ChatPageSession({
   roomClientFactory = createDefaultRoomClient,
   peerManagerFactory = createDefaultPeerManager,
   chatControllerFactory = createDefaultChatController,
 }: ChatPageProps) {
   const location = useLocation()
   const navigate = useNavigate()
-  const route = parseRoomRoute(location.hash)
+  const route = useMemo(() => parseRoomRoute(location.hash), [location.hash])
   const [isCreating, setIsCreating] = useState(false)
   const [roomState, setRoomState] = useState<RoomState | null>(null)
   const [peerStates, setPeerStates] = useState<PeerStates>({})
   const [messages, setMessages] = useState<RoomChatCanonicalMessage[]>([])
   const [messageInput, setMessageInput] = useState('')
-  const [selfMemberId, setSelfMemberId] = useState<string | null>(null)
-  const [selfLabel, setSelfLabel] = useState('')
-  const [statusText, setStatusText] = useState('')
-  const [error, setError] = useState<string | null>(null)
+  const [selfMemberId, setSelfMemberId] = useState<string | null>(
+    route.kind === 'host' ? 'host' : null,
+  )
+  const [selfLabel, setSelfLabel] = useState(route.kind === 'host' ? 'Host' : '')
+  const [statusText, setStatusText] = useState(
+    route.kind === 'guest' ? 'Joining…' : route.kind === 'host' ? 'Waiting for guests…' : '',
+  )
+  const [error, setError] = useState<string | null>(
+    route.kind === 'invalid' ? 'This chat room link is invalid.' : null,
+  )
   const [copyStatus, setCopyStatus] = useState<string | null>(null)
   const setupGenerationRef = useRef(0)
   const clientRef = useRef<RoomCoordinatorClient | null>(null)
@@ -184,18 +197,8 @@ function ChatPage({
   useEffect(() => {
     setupGenerationRef.current += 1
     const setupGeneration = setupGenerationRef.current
-    teardown()
-    setRoomState(null)
-    setPeerStates({})
-    setMessages([])
-    setMessageInput('')
-    setSelfMemberId(null)
-    setSelfLabel('')
-    setError(route.kind === 'invalid' ? 'This chat room link is invalid.' : null)
-    setCopyStatus(null)
 
     if (route.kind === 'none' || route.kind === 'invalid') {
-      setStatusText('')
       return () => {
         setupGenerationRef.current += 1
         teardown()
@@ -218,12 +221,8 @@ function ChatPage({
             roomId: route.roomId,
             hostSecret: route.hostSecret,
           }
-          setSelfMemberId('host')
-          setSelfLabel('Host')
-          setStatusText('Waiting for guests…')
         } else {
           role = 'guest'
-          setStatusText('Joining…')
           const joined = await client.joinOrResume(route.roomId, route.inviteSecret)
           if (setupGenerationRef.current !== setupGeneration) {
             return
@@ -283,24 +282,11 @@ function ChatPage({
     appendMessage,
     chatControllerFactory,
     handlePeerEvent,
-    location.hash,
     peerManagerFactory,
     roomClientFactory,
+    route,
     teardown,
   ])
-
-  useEffect(() => {
-    if (route.kind === 'guest' && peerStates.host === 'connected') {
-      setStatusText('Connected')
-    } else if (
-      route.kind === 'guest'
-      && selfMemberId
-      && statusText !== 'Removed from room'
-      && statusText !== 'Unable to join room'
-    ) {
-      setStatusText('Reconnecting…')
-    }
-  }, [peerStates.host, route.kind, selfMemberId, statusText])
 
   const handleStartChat = async () => {
     if (isCreating) {
@@ -317,14 +303,15 @@ function ChatPage({
         host: created.hostSecret,
         invite: created.inviteSecret,
       }).toString()
+      client.close()
+      setIsCreating(false)
       navigate(`/chat#${hash}`, { replace: true })
     } catch (creationError) {
+      client.close()
       const message = roomClientErrorMessage(creationError)
       if (message) {
         setError(message)
       }
-    } finally {
-      client.close()
       setIsCreating(false)
     }
   }
@@ -409,6 +396,15 @@ function ChatPage({
   )).length ?? 0
   const guestConnected = peerStates.host === 'connected'
   const canSend = route.kind === 'host' || (route.kind === 'guest' && guestConnected)
+  const guestStatusText = route.kind === 'guest'
+    ? statusText === 'Removed from room' || statusText === 'Unable to join room'
+      ? statusText
+      : guestConnected
+        ? 'Connected'
+        : selfMemberId
+          ? 'Reconnecting…'
+          : statusText || 'Joining…'
+    : statusText
 
   let shareUrl = ''
   if (route.kind === 'host') {
@@ -521,7 +517,7 @@ function ChatPage({
               <div className="chat-panel__header">
                 <div>
                   <p className="chat-eyebrow">{selfLabel || (route.kind === 'host' ? 'Host' : 'Room member')}</p>
-                  <h2>{route.kind === 'guest' ? statusText || 'Joining…' : 'Room chat'}</h2>
+                  <h2>{route.kind === 'guest' ? guestStatusText : 'Room chat'}</h2>
                 </div>
                 <span className="chat-connected-indicator">
                   {route.kind === 'host'
@@ -591,6 +587,11 @@ function ChatPage({
       </div>
     </Page>
   )
+}
+
+function ChatPage(props: ChatPageProps) {
+  const location = useLocation()
+  return <ChatPageSession key={location.hash} {...props} />
 }
 
 export default ChatPage
