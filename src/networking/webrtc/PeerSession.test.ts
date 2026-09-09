@@ -260,17 +260,37 @@ describe('PeerSession', () => {
     expect(received).toEqual(['from host'])
   })
 
-  it('surfaces peer connection lifecycle states', () => {
+  it('reports connected only after the data channel is open', async () => {
     const { peerConnection, session } = createHarness()
     const states: PeerConnectionState[] = []
+
+    await session.createOffer()
     session.onStateChange((state) => states.push(state))
 
     peerConnection.setConnectionState('connecting')
     peerConnection.setConnectionState('connected')
+
+    expect(states).toEqual(['connecting'])
+    expect(() => session.send('too early')).toThrow('Peer data channel is not open')
+
+    peerConnection.hostChannel.open()
+
+    expect(states).toEqual(['connecting', 'connected'])
+    expect(() => session.send('ready')).not.toThrow()
+  })
+
+  it('surfaces disconnection and failure states', async () => {
+    const { peerConnection, session } = createHarness()
+    const states: PeerConnectionState[] = []
+
+    await session.createOffer()
+    peerConnection.hostChannel.open()
+    session.onStateChange((state) => states.push(state))
+
     peerConnection.setConnectionState('disconnected')
     peerConnection.setConnectionState('failed')
 
-    expect(states).toEqual(['connecting', 'connected', 'disconnected', 'failed'])
+    expect(states).toEqual(['disconnected', 'failed'])
   })
 
   it('rejects sends before the data channel opens and closes resources', async () => {
