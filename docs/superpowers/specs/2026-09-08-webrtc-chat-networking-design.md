@@ -1,7 +1,7 @@
 # WebRTC Chat Networking Design
 
 Date: 2026-09-08
-Status: Approved in chat; written-spec review requested
+Status: Approved in chat
 
 ## Goal
 
@@ -17,7 +17,7 @@ The key abstraction is:
 The first room-based version must:
 
 - Let a host create a room once and receive a durable host URL.
-- Open the host room in a new tab so the host immediately works from its durable URL.
+- Navigate the host's current tab to the durable host URL immediately after room creation.
 - Provide a separate share URL that anyone with the invite can open.
 - Let invite recipients join automatically with no answer-code copy/paste step.
 - Support a small group rather than exactly two browsers.
@@ -67,7 +67,7 @@ The host receives a durable URL conceptually shaped like:
 
 The `hostSecret` grants room-owner authority. The UI must never present the host URL as the URL to share with guests.
 
-When **Start Chat** is clicked, the browser should synchronously open a blank new tab, create the room, and navigate that tab to the resulting host URL. Opening the tab before awaiting the network request avoids popup-blocker failures. If room creation fails, the new tab should show/receive an actionable failure rather than silently leaving an unusable window.
+When **Start Chat** is clicked, the current `/chat` page creates the room and then replaces/navigates the current tab to the resulting durable host URL. From that point forward, refreshes reload the same room identity and host authority. If room creation fails, the current page stays usable and surfaces an actionable error without navigating to a partial room URL.
 
 ### Guest invite URL
 
@@ -379,9 +379,9 @@ The page becomes room-oriented rather than manual SDP-oriented.
 Host UX:
 
 - `/chat` shows **Start Chat**.
-- Start Chat opens a new host room tab.
+- Start Chat creates the room and navigates the current tab to its durable host URL.
 - Host room shows share URL, room status, member roster, lock/unlock, and remove controls.
-- Host tab automatically negotiates/re-negotiates each guest peer.
+- Host page automatically negotiates/re-negotiates each guest peer.
 
 Guest UX:
 
@@ -502,7 +502,7 @@ Cover:
 Cover:
 
 - `/chat` exposes **Start Chat**.
-- Start Chat opens/navigates a new host tab to a durable host URL.
+- Start Chat navigates the current tab to a durable host URL after room creation.
 - Host UI displays only the guest share URL as the copyable invite.
 - Invite URL automatically joins without an answer-code ceremony.
 - Guest refresh/remount resumes the same stored member identity.
@@ -518,7 +518,7 @@ Cover:
 Test on the Vercel preview with at least three browser contexts/devices:
 
 1. Open `/chat` and click **Start Chat**.
-2. Confirm a new tab opens with a durable host room URL.
+2. Confirm the current tab navigates to a durable host room URL.
 3. Copy the guest share URL and open it in Guest A and Guest B.
 4. Confirm both guests join without returning any token/code to the host.
 5. Confirm all three can exchange chat messages through the host-star WebRTC topology.
@@ -549,7 +549,7 @@ TURN, matchmaking, persistent accounts, anti-cheat, spectators, and larger playe
 
 The room redesign is complete when:
 
-- **Start Chat** creates a durable room and opens the host in a new tab with its host URL.
+- **Start Chat** creates a durable room and navigates the current tab to its host URL.
 - The host receives a separate reusable invite URL suitable for sharing.
 - Multiple guests can open the invite and join automatically without answer-code exchange.
 - Host and guest refreshes preserve room/member identity and automatically establish fresh WebRTC connections.
