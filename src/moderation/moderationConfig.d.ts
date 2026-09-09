@@ -1,1 +1,7 @@
-declare const __CHAT_MODERATION_CONFIG__: import('./moderationCore').ModerationConfig
+import type { ModerationConfig } from './moderationCore'
+
+declare global {
+  const __CHAT_MODERATION_CONFIG__: ModerationConfig
+}
+
+export {}
