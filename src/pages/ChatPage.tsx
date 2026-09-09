@@ -108,6 +108,7 @@ function ChatPage({ peerSessionFactory = createDefaultPeerSession }: ChatPagePro
   const [copyStatus, setCopyStatus] = useState<string | null>(null)
   const sessionRef = useRef<PeerSessionClient | null>(null)
   const unsubscribeRef = useRef<Array<() => void>>([])
+  const setupGenerationRef = useRef(0)
 
   const appendMessage = useCallback((message: VisibleMessage) => {
     setMessages((current) => [...current, message].slice(-MAX_CHAT_HISTORY))
@@ -145,6 +146,15 @@ function ChatPage({ peerSessionFactory = createDefaultPeerSession }: ChatPagePro
     ]
   }, [appendMessage, closeSession])
 
+  const beginSetup = useCallback(() => {
+    setupGenerationRef.current += 1
+    return setupGenerationRef.current
+  }, [])
+
+  const isCurrentSetup = useCallback((generation: number) => (
+    setupGenerationRef.current === generation
+  ), [])
+
   useEffect(() => {
     if (location.hash.includes('offer=')) {
       navigate('/chat', { replace: true })
@@ -152,10 +162,12 @@ function ChatPage({ peerSessionFactory = createDefaultPeerSession }: ChatPagePro
   }, [location.hash, navigate])
 
   useEffect(() => () => {
+    setupGenerationRef.current += 1
     closeSession()
   }, [closeSession])
 
   const restart = useCallback(() => {
+    setupGenerationRef.current += 1
     closeSession()
     setInviteState({ offer: null, error: null })
     setConnectionState('idle')
@@ -166,10 +178,12 @@ function ChatPage({ peerSessionFactory = createDefaultPeerSession }: ChatPagePro
     setMessages([])
     setError(null)
     setCopyStatus(null)
+    setIsBusy(false)
     navigate('/chat', { replace: true })
   }, [closeSession, navigate])
 
   const handleCreateChat = async () => {
+    const setupGeneration = beginSetup()
     setIsBusy(true)
     setError(null)
     setCopyStatus(null)
@@ -178,13 +192,24 @@ function ChatPage({ peerSessionFactory = createDefaultPeerSession }: ChatPagePro
       const session = peerSessionFactory()
       attachSession(session)
       const offer = await session.createOffer()
+
+      if (!isCurrentSetup(setupGeneration)) {
+        return
+      }
+
       setInviteLink(buildInviteLink(encodeSignal(offer)))
       setConnectionState('awaiting-answer')
     } catch {
+      if (!isCurrentSetup(setupGeneration)) {
+        return
+      }
+
       setError('Could not create a chat invite. Restart and try again.')
       setConnectionState('failed')
     } finally {
-      setIsBusy(false)
+      if (isCurrentSetup(setupGeneration)) {
+        setIsBusy(false)
+      }
     }
   }
 
@@ -193,6 +218,7 @@ function ChatPage({ peerSessionFactory = createDefaultPeerSession }: ChatPagePro
       return
     }
 
+    const setupGeneration = beginSetup()
     setIsBusy(true)
     setError(null)
     setCopyStatus(null)
@@ -201,13 +227,24 @@ function ChatPage({ peerSessionFactory = createDefaultPeerSession }: ChatPagePro
       const session = peerSessionFactory()
       attachSession(session)
       const answer = await session.acceptOffer(inviteState.offer)
+
+      if (!isCurrentSetup(setupGeneration)) {
+        return
+      }
+
       setAnswerCode(encodeSignal(answer))
       setConnectionState('connecting')
     } catch {
+      if (!isCurrentSetup(setupGeneration)) {
+        return
+      }
+
       setError('Could not create an answer for this invite. Restart and try again.')
       setConnectionState('failed')
     } finally {
-      setIsBusy(false)
+      if (isCurrentSetup(setupGeneration)) {
+        setIsBusy(false)
+      }
     }
   }
 
@@ -217,17 +254,29 @@ function ChatPage({ peerSessionFactory = createDefaultPeerSession }: ChatPagePro
       return
     }
 
+    const setupGeneration = beginSetup()
     setIsBusy(true)
     setError(null)
 
     try {
       const answer = decodeSignal(answerInput.trim(), 'answer')
       await sessionRef.current.applyAnswer(answer)
+
+      if (!isCurrentSetup(setupGeneration)) {
+        return
+      }
+
       setConnectionState('connecting')
     } catch {
+      if (!isCurrentSetup(setupGeneration)) {
+        return
+      }
+
       setError('That answer code is invalid. Ask your friend to copy it again.')
     } finally {
-      setIsBusy(false)
+      if (isCurrentSetup(setupGeneration)) {
+        setIsBusy(false)
+      }
     }
   }
 
