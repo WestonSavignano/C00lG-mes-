@@ -116,9 +116,10 @@ describe('ChatPage', () => {
     await user.click(screen.getByRole('button', { name: 'Create chat' }))
 
     const inviteLink = await screen.findByRole('textbox', { name: 'Invite link' })
-    expect(inviteLink).toHaveValue(expect.stringContaining('/chat#offer='))
+    const inviteValue = (inviteLink as HTMLInputElement).value
+    expect(inviteValue).toContain('/chat#offer=')
 
-    const encodedOffer = new URL(inviteLink.getAttribute('value')!).hash.slice('#offer='.length)
+    const encodedOffer = new URL(inviteValue).hash.slice('#offer='.length)
     expect(decodeSignal(encodedOffer, 'offer')).toEqual(OFFER)
   })
 
@@ -131,7 +132,7 @@ describe('ChatPage', () => {
 
     expect(session.acceptedOffers).toEqual([OFFER])
     const answerCode = await screen.findByRole('textbox', { name: 'Answer code' })
-    expect(decodeSignal(answerCode.getAttribute('value')!, 'answer')).toEqual(ANSWER)
+    expect(decodeSignal((answerCode as HTMLTextAreaElement).value, 'answer')).toEqual(ANSWER)
   })
 
   it('lets the host apply the guest answer', async () => {
