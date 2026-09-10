@@ -71,14 +71,13 @@ function NeonDriftGame() {
     const viewport = viewportRef.current
     if (!canvas || !viewport) return
 
-    let context: CanvasRenderingContext2D | null = null
+    let ctx: CanvasRenderingContext2D | null
     try {
-      context = canvas.getContext('2d', { alpha: false })
+      ctx = canvas.getContext('2d', { alpha: false })
     } catch {
       return
     }
-    if (!context) return
-    const ctx = context
+    if (!ctx) return
 
     const keys = new Set<string>()
     const drones: Drone[] = []
