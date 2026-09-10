@@ -95,10 +95,12 @@ describe('App routes', () => {
     expect(screen.getByRole('heading', { name: 'Games' })).toBeInTheDocument()
 
     const cards = screen.getAllByTestId('card')
-    expect(cards).toHaveLength(5)
+    expect(cards).toHaveLength(6)
     expect(within(cards[0]).getByRole('heading', { name: 'Plane Blaster' }))
       .toBeInTheDocument()
-    expect(within(cards[4]).getByRole('heading', { name: 'Warrior2' }))
+    expect(within(cards[2]).getByRole('heading', { name: 'Neon Drift' }))
+      .toBeInTheDocument()
+    expect(within(cards[5]).getByRole('heading', { name: 'Warrior2' }))
       .toBeInTheDocument()
   })
 
@@ -110,6 +112,17 @@ describe('App routes', () => {
     expect(screen.getByTestId('game-viewport')).toHaveAttribute(
       'data-game',
       'bit-planes',
+    )
+  })
+
+  it('renders Neon Drift as a game route', () => {
+    renderRoute('/games/neon-drift')
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Neon Drift' }))
+      .toBeInTheDocument()
+    expect(screen.getByTestId('game-viewport')).toHaveAttribute(
+      'data-game',
+      'neon-drift',
     )
   })
 })
