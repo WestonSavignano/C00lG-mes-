@@ -30,6 +30,12 @@ function GamesPage() {
           <P>A fast-paced platformer with a twist.</P>
           <CardAction>Open Donut Run</CardAction>
         </Card>
+        <Card to="/games/neon-drift">
+          <CardLabel>Game</CardLabel>
+          <H2>Neon Drift</H2>
+          <P>Outrun a neon drone swarm, collect energy cores, and deploy defensive turrets.</P>
+          <CardAction>Open Neon Drift</CardAction>
+        </Card>
         <Card to="/games/worm-battles">
           <CardLabel>Game</CardLabel>
           <H2>Worm Battles</H2>
@@ -42,7 +48,7 @@ function GamesPage() {
           <P>A hand-drawn stick-figure action game ported into the app.</P>
           <CardAction>Open Warrior</CardAction>
         </Card>
-                <Card to="/games/warrior2">
+        <Card to="/games/warrior2">
           <CardLabel>Game</CardLabel>
           <H2>Warrior2</H2>
           <P>Battle Dark Matter and protect the village.</P>
