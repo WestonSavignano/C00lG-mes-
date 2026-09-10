@@ -3,6 +3,7 @@ import './App.css'
 import HeaderNav from './components/HeaderNav'
 import BitPlanesPage from './games/bit-planes/BitPlanesPage'
 import DonutRunPage from './games/donut-run/DonutRunPage'
+import NeonDriftPage from './games/neon-drift/NeonDriftPage'
 import WarriorPage from './games/warrior/WarriorPage'
 import Warrior2Page from './games/warrior2/WarriorPage'
 import WormBattlesPage from './games/worm-battles/WormBattlesPage'
@@ -23,6 +24,7 @@ function App() {
         <Route path="/games" element={<GamesPage />} />
         <Route path="/games/plane-blaster" element={<BitPlanesPage />} />
         <Route path="/games/donut-run" element={<DonutRunPage />} />
+        <Route path="/games/neon-drift" element={<NeonDriftPage />} />
         <Route path="/games/worm-battles" element={<WormBattlesPage />} />
         <Route path="/games/warrior" element={<WarriorPage />} />
         <Route path="/games/warrior2" element={<Warrior2Page />} />

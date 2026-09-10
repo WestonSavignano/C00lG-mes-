@@ -1,0 +1,259 @@
+.game-viewport[data-game='neon-drift'] {
+  min-height: 360px;
+  border-color: rgba(73, 246, 255, 0.22);
+  background: #040611;
+}
+
+.neon-drift {
+  --neon-cyan: #49f6ff;
+  --neon-pink: #ff4fd8;
+  --neon-violet: #8d6bff;
+  --neon-lime: #8dff72;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  color: #ecfaff;
+  background: #040611;
+  user-select: none;
+}
+
+.neon-drift__canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.neon-drift__hud {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.neon-drift__topbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px 68px 18px 20px;
+  color: #ecfaff;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-shadow: 0 0 18px rgba(73, 246, 255, 0.35);
+}
+
+.neon-drift__hud-card {
+  min-width: 118px;
+  padding: 9px 11px 8px;
+  border: 1px solid rgba(114, 238, 255, 0.22);
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(12, 22, 48, 0.65), rgba(5, 9, 24, 0.48));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 8px 30px rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(8px);
+}
+
+.neon-drift__hud-card strong {
+  display: block;
+  margin-top: 3px;
+  color: #fff;
+  font-size: clamp(1rem, 2.2vw, 1.65rem);
+  letter-spacing: 0.02em;
+}
+
+.neon-drift__hud-card--right {
+  text-align: right;
+}
+
+.neon-drift__boost-wrap {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  width: min(390px, calc(100% - 36px));
+  transform: translateX(-50%);
+  color: #8ba6b6;
+  font-size: 0.58rem;
+  letter-spacing: 0.18em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.neon-drift__boost-track {
+  height: 7px;
+  margin-top: 6px;
+  overflow: hidden;
+  border: 1px solid rgba(120, 220, 255, 0.22);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.36);
+}
+
+.neon-drift__boost-fill {
+  width: 100%;
+  height: 100%;
+  transform: scaleX(1);
+  transform-origin: left center;
+  background: linear-gradient(90deg, var(--neon-violet), var(--neon-cyan));
+  box-shadow: 0 0 18px rgba(73, 246, 255, 0.7);
+}
+
+.neon-drift__message {
+  position: absolute;
+  top: 14%;
+  left: 50%;
+  opacity: 0;
+  transform: translateX(-50%);
+  color: #fff;
+  font-size: 0.66rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-align: center;
+  text-transform: uppercase;
+  transition: opacity 120ms ease;
+}
+
+.neon-drift__message--show {
+  opacity: 1;
+}
+
+.neon-drift__overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  padding: clamp(14px, 3vw, 26px);
+  overflow: auto;
+  background:
+    radial-gradient(circle at 50% 35%, rgba(79, 61, 160, 0.18), transparent 35%),
+    linear-gradient(180deg, rgba(2, 4, 14, 0.34), rgba(2, 4, 14, 0.78));
+}
+
+.neon-drift__panel {
+  width: min(620px, 100%);
+  padding: clamp(20px, 4vw, 42px);
+  border: 1px solid rgba(115, 233, 255, 0.24);
+  border-radius: 22px;
+  background: linear-gradient(180deg, rgba(9, 15, 37, 0.92), rgba(4, 8, 23, 0.86));
+  box-shadow: 0 22px 80px rgba(0, 0, 0, 0.45), 0 0 70px rgba(78, 43, 158, 0.08);
+  backdrop-filter: blur(14px);
+}
+
+.neon-drift__eyebrow {
+  color: var(--neon-cyan);
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+}
+
+.neon-drift__title {
+  margin: 7px 0 10px;
+  background: linear-gradient(180deg, #fff, #b8f9ff 47%, #7d6cff 100%);
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 24px rgba(73, 246, 255, 0.14));
+  font-size: clamp(2.3rem, 7vw, 5.5rem);
+  font-weight: 950;
+  letter-spacing: -0.055em;
+  line-height: 0.92;
+  text-transform: uppercase;
+}
+
+.neon-drift__subtitle {
+  max-width: 540px;
+  margin: 0 0 18px;
+  color: #b2c9d5;
+  font-size: clamp(0.74rem, 1.8vw, 0.92rem);
+  line-height: 1.5;
+}
+
+.neon-drift__controls {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 18px 0 20px;
+}
+
+.neon-drift__control {
+  display: flex;
+  min-height: 68px;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 12px;
+  color: #aabcc8;
+  background: rgba(255, 255, 255, 0.035);
+  font-size: 0.65rem;
+}
+
+.neon-drift__control b {
+  color: #fff;
+  font-size: 0.74rem;
+}
+
+.neon-drift__start {
+  padding: 12px 18px;
+  border: 0;
+  border-radius: 12px;
+  color: #031018;
+  background: linear-gradient(90deg, #7359ff, #29e9ff);
+  box-shadow: 0 12px 35px rgba(71, 215, 255, 0.18);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 950;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  transition: transform 120ms ease, filter 120ms ease;
+}
+
+.neon-drift__start:hover,
+.neon-drift__start:focus-visible {
+  filter: brightness(1.08);
+  transform: translateY(-2px);
+}
+
+.neon-drift__tip {
+  margin: 11px 0 0;
+  color: #6e8493;
+  font-size: 0.62rem;
+  line-height: 1.45;
+}
+
+.game-viewport[data-game='neon-drift']:fullscreen .neon-drift__topbar {
+  padding-top: max(18px, env(safe-area-inset-top));
+}
+
+@media (max-width: 720px) {
+  .game-viewport[data-game='neon-drift'] {
+    min-height: 320px;
+  }
+
+  .neon-drift__topbar {
+    gap: 6px;
+    padding: 10px 58px 10px 10px;
+  }
+
+  .neon-drift__hud-card {
+    min-width: 0;
+    flex: 1;
+    padding: 7px 8px;
+  }
+
+  .neon-drift__controls {
+    grid-template-columns: 1fr;
+  }
+
+  .neon-drift__control {
+    min-height: 48px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .neon-drift__message,
+  .neon-drift__start {
+    transition: none;
+  }
+}
