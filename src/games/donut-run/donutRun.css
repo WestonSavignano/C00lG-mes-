@@ -1,0 +1,27 @@
+.donut-run__surface {
+  position: absolute;
+  inset: 0;
+  touch-action: none;
+}
+
+.donut-run__surface > canvas {
+  width: 100%;
+  height: 100%;
+}
+
+.donut-run__controls {
+  position: absolute;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(18px, env(safe-area-inset-bottom));
+  pointer-events: none;
+}
+
+.donut-run__jump {
+  pointer-events: auto;
+}
+
+@media (any-pointer: fine) and (min-width: 721px) {
+  .donut-run__controls {
+    display: none;
+  }
+}
