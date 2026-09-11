@@ -1,24 +1,41 @@
-import { Link } from 'react-router-dom'
-import Hero from '../components/Hero'
+import { featuredGame, gameCatalog } from '../games/catalog/gameCatalog'
+import FeaturedGame from '../games/discovery/FeaturedGame'
+import GameGrid from '../games/discovery/GameGrid'
+import GameRail from '../games/discovery/GameRail'
+import PartyCallout from '../games/discovery/PartyCallout'
+import { resolveRecentGames } from '../games/discovery/recentGames'
+import './DiscoveryPages.css'
 
 function HomePage() {
+  const recentGames = resolveRecentGames()
+
   return (
-    <main className="home-page">
-      <Hero
-        description="A site for real gamers."
-        title="C00lG@mes+"
-      >
-        <nav className="home-links" aria-label="Home sections">
-          <Link className="section-link" to="/chat">
-            <span>Chat</span>
-            <span>Private peer-to-peer browser chat with a friend.</span>
-          </Link>
-          <Link className="section-link" to="/games">
-            <span>Games</span>
-            <span>Browser games, experiments, and game-engine practice.</span>
-          </Link>
-        </nav>
-      </Hero>
+    <main className="arcade-home">
+      <div className="discovery-page">
+        <header className="arcade-home__intro">
+          <p className="discovery-kicker">C00lG@mes+</p>
+          <h1>Pick a game. Get into it.</h1>
+          <p>Instant browser games built to feel great, wherever you play.</p>
+        </header>
+
+        <FeaturedGame game={featuredGame} />
+
+        {recentGames.length > 0 ? (
+          <GameRail games={recentGames} title="Continue Playing" />
+        ) : null}
+
+        <PartyCallout />
+
+        <section aria-labelledby="home-games-heading" className="discovery-section">
+          <header className="discovery-section__header">
+            <div>
+              <p className="discovery-kicker">The arcade</p>
+              <h2 id="home-games-heading">Play something good.</h2>
+            </div>
+          </header>
+          <GameGrid games={gameCatalog} />
+        </section>
+      </div>
     </main>
   )
 }
