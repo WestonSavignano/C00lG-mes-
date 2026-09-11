@@ -218,20 +218,26 @@
     stroke-width: 2.15;
   }
 
-  .app-shell[data-game-route='true'] .app-shell__content {
-    padding-bottom: 0;
+  .app-shell[data-game-route='true'] {
+    height: 100dvh;
+    min-height: 100dvh;
+    overflow: hidden;
   }
 
+  .app-shell[data-game-route='true'] .app-header,
   .app-shell[data-game-route='true'] .mobile-bottom-navigation {
     display: none;
   }
 
-  .app-shell[data-game-route='true'] .app-header {
-    position: relative;
+  .app-shell[data-game-route='true'] .app-shell__content {
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+    padding-bottom: 0;
   }
 
   .game-route-loading {
-    min-height: calc(100svh - var(--app-header-height-mobile));
+    min-height: 100dvh;
   }
 }
 
