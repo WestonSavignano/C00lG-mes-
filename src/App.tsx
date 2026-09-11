@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import './App.css'
 import { gameRouteEntries } from './games/catalog/gameRoutes'
+import RecentGameTracker from './games/discovery/RecentGameTracker'
 import ChatPage from './pages/ChatPage'
 import GamesPage from './pages/GamesPage'
 import HomePage from './pages/HomePage'
@@ -10,6 +11,7 @@ import AppShell from './shell/AppShell'
 function App() {
   return (
     <AppShell>
+      <RecentGameTracker />
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/chat" element={<ChatPage />} />
