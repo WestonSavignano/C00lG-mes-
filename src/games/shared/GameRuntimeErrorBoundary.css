@@ -1,0 +1,91 @@
+.game-runtime-error {
+  min-height: 280px;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.game-runtime-error__panel {
+  width: min(100%, 520px);
+  display: grid;
+  gap: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 24px;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.game-runtime-error__eyebrow {
+  margin: 0;
+  color: var(--color-accent);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.game-runtime-error h2,
+.game-runtime-error p {
+  margin: 0;
+}
+
+.game-runtime-error h2 {
+  color: var(--color-text-strong);
+  font-size: clamp(1.25rem, 3vw, 1.7rem);
+}
+
+.game-runtime-error p:not(.game-runtime-error__eyebrow) {
+  color: var(--color-muted);
+  line-height: 1.55;
+}
+
+.game-runtime-error__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.game-runtime-error__actions button,
+.game-runtime-error__actions a {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  padding: 9px 14px;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.game-runtime-error__actions button {
+  border: 1px solid transparent;
+  color: #041513;
+  background: var(--color-accent);
+  cursor: pointer;
+}
+
+.game-runtime-error__actions a {
+  border: 1px solid var(--color-border);
+  color: var(--color-text-strong);
+  background: var(--color-surface-raised);
+}
+
+@media (max-width: 720px) {
+  .game-runtime-error {
+    height: 100%;
+    min-height: 0;
+    padding:
+      calc(64px + env(safe-area-inset-top))
+      max(14px, env(safe-area-inset-right))
+      max(14px, env(safe-area-inset-bottom))
+      max(14px, env(safe-area-inset-left));
+  }
+
+  .game-runtime-error__panel {
+    padding: 18px;
+  }
+}
