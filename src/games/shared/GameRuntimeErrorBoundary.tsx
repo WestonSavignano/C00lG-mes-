@@ -1,4 +1,4 @@
-import { Component, type ErrorInfo, type ReactNode } from 'react'
+import { Component, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import type { GameDefinition } from '../catalog/gameTypes'
 import './GameRuntimeErrorBoundary.css'
@@ -22,11 +22,6 @@ class GameRuntimeErrorBoundary extends Component<
 
   static getDerivedStateFromError(): GameRuntimeErrorBoundaryState {
     return { hasError: true }
-  }
-
-  componentDidCatch(_error: Error, _info: ErrorInfo) {
-    // The boundary intentionally keeps recovery local to the game route.
-    // Centralized reporting can be added here when product telemetry exists.
   }
 
   private retry = () => {
