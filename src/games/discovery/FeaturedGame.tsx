@@ -3,6 +3,7 @@ import { useId } from 'react'
 import { Link } from 'react-router-dom'
 import type { GameDefinition } from '../catalog/gameTypes'
 import GameArtwork from './GameArtwork'
+import './FeaturedGame.css'
 
 type FeaturedGameProps = {
   game: GameDefinition
