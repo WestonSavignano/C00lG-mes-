@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import './App.css'
 import HeaderNav from './components/HeaderNav'
@@ -12,6 +13,8 @@ import GamesPage from './pages/GamesPage'
 import HomePage from './pages/HomePage'
 import NotFoundPage from './pages/NotFoundPage'
 
+const BodiIslandPage = lazy(() => import('./games/bodi-island/BodiIslandPage'))
+
 function App() {
   return (
     <>
@@ -23,6 +26,14 @@ function App() {
         <Route path="/soundboard/sound" element={<Navigate replace to="/chat" />} />
         <Route path="/games" element={<GamesPage />} />
         <Route path="/games/plane-blaster" element={<BitPlanesPage />} />
+        <Route
+          path="/games/bodi-island"
+          element={(
+            <Suspense fallback={<div role="status">Loading Bodi Island…</div>}>
+              <BodiIslandPage />
+            </Suspense>
+          )}
+        />
         <Route path="/games/donut-run" element={<DonutRunPage />} />
         <Route path="/games/neon-drift" element={<NeonDriftPage />} />
         <Route path="/games/worm-battles" element={<WormBattlesPage />} />
