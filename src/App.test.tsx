@@ -90,6 +90,7 @@ describe('App routes', () => {
     renderRoute('/games')
 
     expect(screen.getByRole('heading', { level: 1, name: 'Games' })).toBeInTheDocument()
+    expect(screen.queryByTestId('game-page-shell')).not.toBeInTheDocument()
 
     const tiles = screen.getAllByTestId('game-tile')
     expect(tiles).toHaveLength(6)
@@ -101,28 +102,45 @@ describe('App routes', () => {
       .toHaveAttribute('href', '/games/warrior2')
   })
 
-  it('shows a lightweight loading boundary for lazy game routes', () => {
+  it('shows the immersive shell while a lazy game route loads', () => {
     renderRoute('/games/neon-drift')
 
+    const shell = screen.getByTestId('game-page-shell')
+
+    expect(shell).toHaveAttribute('data-orientation', 'landscape')
+    expect(within(shell).getByRole('heading', { level: 1, name: 'Neon Drift' }))
+      .toBeInTheDocument()
+    expect(within(shell).getByRole('link', { name: 'Back to Games' }))
+      .toHaveAttribute('href', '/games')
     expect(screen.getByRole('status')).toHaveTextContent('Loading Neon Drift…')
   })
 
-  it('renders Plane Blaster as the primary page content', async () => {
+  it('renders Plane Blaster inside exactly one shared game shell', async () => {
     renderRoute('/games/plane-blaster')
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Plane Blaster' }))
+    const shell = screen.getByTestId('game-page-shell')
+
+    expect(screen.getAllByTestId('game-page-shell')).toHaveLength(1)
+    expect(within(shell).getByRole('heading', { level: 1, name: 'Plane Blaster' }))
       .toBeInTheDocument()
+    expect(within(shell).getByRole('link', { name: 'Back to Games' }))
+      .toHaveAttribute('href', '/games')
     expect(await screen.findByTestId('game-viewport')).toHaveAttribute(
       'data-game',
       'bit-planes',
     )
   })
 
-  it('renders Neon Drift as a game route', async () => {
+  it('renders Neon Drift inside exactly one shared game shell', async () => {
     renderRoute('/games/neon-drift')
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Neon Drift' }))
+    const shell = screen.getByTestId('game-page-shell')
+
+    expect(screen.getAllByTestId('game-page-shell')).toHaveLength(1)
+    expect(within(shell).getByRole('heading', { level: 1, name: 'Neon Drift' }))
       .toBeInTheDocument()
+    expect(within(shell).getByRole('link', { name: 'Back to Games' }))
+      .toHaveAttribute('href', '/games')
     expect(await screen.findByTestId('game-viewport')).toHaveAttribute(
       'data-game',
       'neon-drift',

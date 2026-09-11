@@ -1,0 +1,149 @@
+.game-page-shell {
+  width: min(100%, 1320px);
+  min-height: calc(100svh - var(--app-header-height));
+  margin: 0 auto;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 12px;
+  padding: 18px 28px 32px;
+}
+
+.game-page-shell__chrome {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.game-page-shell__back {
+  min-height: 44px;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+  border-radius: var(--radius-sm);
+  padding: 8px 10px 8px 6px;
+  color: var(--color-text);
+  font-size: 0.82rem;
+  font-weight: 760;
+  text-decoration: none;
+}
+
+.game-page-shell__back:hover,
+.game-page-shell__back:focus-visible {
+  color: var(--color-text-strong);
+  background: var(--color-surface-raised);
+}
+
+.game-page-shell__back svg {
+  width: 19px;
+  height: 19px;
+}
+
+.game-page-shell__identity {
+  min-width: 0;
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+  text-align: right;
+}
+
+.game-page-shell__identity > span {
+  color: var(--color-muted);
+  font-size: 0.65rem;
+  font-weight: 760;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+}
+
+.game-page-shell__identity h1 {
+  overflow: hidden;
+  max-width: min(56vw, 520px);
+  margin: 0;
+  color: var(--color-text-strong);
+  font-size: clamp(1.05rem, 2vw, 1.35rem);
+  font-weight: 820;
+  letter-spacing: -0.025em;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.game-page-shell__stage {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  align-self: start;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: #050914;
+  box-shadow: var(--shadow-sm);
+}
+
+.game-page-shell__runtime {
+  min-width: 0;
+  min-height: 0;
+}
+
+@media (max-width: 720px) {
+  .game-page-shell {
+    position: relative;
+    width: 100%;
+    height: 100dvh;
+    min-height: 100dvh;
+    display: block;
+    padding: 0;
+  }
+
+  .game-page-shell__chrome {
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+    z-index: 25;
+    min-height: calc(58px + env(safe-area-inset-top));
+    padding:
+      env(safe-area-inset-top)
+      max(10px, env(safe-area-inset-right))
+      0
+      max(10px, env(safe-area-inset-left));
+    background: linear-gradient(180deg, rgba(3, 7, 18, 0.92), rgba(3, 7, 18, 0.62) 70%, transparent);
+    pointer-events: none;
+  }
+
+  .game-page-shell__back,
+  .game-page-shell__identity {
+    pointer-events: auto;
+  }
+
+  .game-page-shell__back {
+    min-height: 44px;
+    color: #f8fafc;
+    background: rgba(3, 7, 18, 0.52);
+  }
+
+  .game-page-shell__identity > span {
+    color: rgba(226, 232, 240, 0.72);
+  }
+
+  .game-page-shell__identity h1 {
+    max-width: 48vw;
+    color: #f8fafc;
+    font-size: 0.95rem;
+  }
+
+  .game-page-shell__stage,
+  .game-page-shell__runtime {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+  }
+
+  .game-page-shell__stage {
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+}
