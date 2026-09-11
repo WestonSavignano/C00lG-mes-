@@ -1,10 +1,12 @@
 # Bodi Island Vertical Slice Implementation Plan
 
+Status: Implemented in PR #6; automated validation green on the delivered head.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add a playable 3D Bodi Island forest vertical slice that proves third-person movement, Captain companionship, sword combat, Dark Matter collection, Blaze's Shadow Boots upgrade, shadow-ground traversal, responsive mobile controls, and repository integration.
 
-**Architecture:** Keep Bodi Island isolated under `src/games/bodi-island`. Use a small native WebGL renderer and imperative frame loop inside the game boundary; keep React focused on lifecycle, HUD, and touch controls. Put deterministic progression/combat state transitions in pure TypeScript helpers so they are unit-testable without WebGL. Integrate through the current explicit route/card pattern on `main`; do not depend on unmerged PR #5. The renderer is deliberately replaceable if later slices justify a fuller 3D engine.
+**Architecture:** Keep Bodi Island isolated under `src/games/bodi-island`. Use a small native WebGL renderer and imperative frame loop inside the game boundary; keep React focused on lifecycle, HUD, and touch controls. Put deterministic progression/combat state transitions in pure TypeScript helpers so they are unit-testable without WebGL. Integrate through the current explicit route/card pattern on `main`; do not depend on unmerged PR #5. The Bodi Island route is lazy-loaded so its 3D runtime does not join the initial app bundle. The renderer remains deliberately replaceable if later slices justify a fuller 3D engine.
 
 **Tech Stack:** React 19, TypeScript 6, Vite 8, native WebGL, Vitest, existing `GameViewport`.
 
@@ -31,99 +33,71 @@
 ### Task 1: Lock progression rules with tests
 
 **Files:**
-- Create: `src/games/bodi-island/bodiIslandLogic.test.ts`
-- Create: `src/games/bodi-island/bodiIslandLogic.ts`
+- `src/games/bodi-island/bodiIslandLogic.test.ts`
+- `src/games/bodi-island/bodiIslandLogic.ts`
 
-**Interfaces:**
-- Produces: `DARK_FUZZ_REQUIRED`, `collectDarkFuzz`, `canCraftShadowBoots`, `craftShadowBoots`, `canCrossShadowGround`, `movementSpeed`.
-
-- [x] **Step 1: Write failing tests** covering Dark Matter-only drops, the 10-piece cap, crafting at exactly 10, one-time crafting, shadow-ground gating, and faster boot movement.
-- [ ] **Step 2: Confirm the focused test is red in CI** before implementation.
-- [ ] **Step 3: Implement the minimal pure TypeScript helpers** required by the tests.
-- [ ] **Step 4: Run the focused test again** and confirm PASS.
-- [ ] **Step 5: Commit** `feat: define Bodi Island progression rules`.
+- [x] Add tests covering Dark Matter-only drops, the 10-piece cap, one-time Shadow Boots progression, shadow-ground gating, and faster boot movement.
+- [x] Implement the pure TypeScript progression helpers.
+- [x] Verify the progression tests in the full repository suite.
 
 ### Task 2: Add the isolated native-WebGL scene runtime
 
 **Files:**
-- Create: `src/games/bodi-island/bodiIslandScene.ts`
-- Create: `src/games/bodi-island/bodiIslandScene.test.ts`
+- `src/games/bodi-island/bodiIslandScene.ts`
+- `src/games/bodi-island/bodiIslandScene.test.ts`
 
-**Interfaces:**
-- Consumes: progression helpers from Task 1.
-- Produces: `createBodiIslandScene(canvas, callbacks)` returning `{ setInput, attack, dodge, interact, resize, dispose }`.
-
-- [ ] **Step 1: Write tests** for deterministic spawn data, enemy hit-state transitions, Dark Matter collection callback behavior, and lifecycle helpers that do not require a live WebGL context.
-- [ ] **Step 2: Confirm the focused scene tests are RED.**
-- [ ] **Step 3: Implement a compact reusable WebGL renderer** with a perspective camera, colored low-poly primitives, depth testing, capped DPR, shared static buffers, and no per-frame React state.
-- [ ] **Step 4: Implement a low-poly forest scene** with bounded world geometry, fog-like distance coloring, simple lighting baked into face colors, no shadow maps, and bounded draw count.
-- [ ] **Step 5: Build Bodi as a small readable low-poly character** using approved colors and proportions; build Captain as a cat body plus TV head with dark-green screen/neon-green signal panel.
-- [ ] **Step 6: Implement third-person follow camera and movement** with keyboard/touch intent, collision against world bounds, and smooth camera follow.
-- [ ] **Step 7: Implement Shadow Bug and Dark Matter enemies** with simple low-cost steering, contact damage, sword hit detection, Dark Matter puff particles, and no Shadow Bug drops.
-- [ ] **Step 8: Implement the shadow-ground gate** so Bodi is pushed back before boots and can cross after boots.
-- [ ] **Step 9: Run scene tests** and confirm PASS.
-- [ ] **Step 10: Commit** `feat: add Bodi Island WebGL forest runtime`.
+- [x] Add tests for deterministic spawn data, enemy hit-state transitions, drops, and bounded forest coordinates.
+- [x] Implement a compact native-WebGL renderer with perspective camera, colored low-poly primitives, depth testing, capped DPR, shared buffers, and no per-frame React state.
+- [x] Implement the bounded low-poly forest, Bodi, Captain, Blaze, Shadow Bugs, Dark Matters, Dark Fuzz burst feedback, and simple synthesized Dark Matter noises.
+- [x] Implement third-person movement, camera following, sword combat, dodge, contact damage, knockout recovery, and the shadow-ground gate.
+- [x] Verify scene tests in the full repository suite.
 
 ### Task 3: Add React lifecycle, HUD, touch controls, and Blaze interaction
 
 **Files:**
-- Create: `src/games/bodi-island/BodiIslandGame.tsx`
-- Create: `src/games/bodi-island/BodiIslandPage.tsx`
-- Create: `src/games/bodi-island/bodiIsland.css`
-- Create: `src/games/bodi-island/BodiIslandGame.test.tsx`
+- `src/games/bodi-island/BodiIslandGame.tsx`
+- `src/games/bodi-island/BodiIslandPage.tsx`
+- `src/games/bodi-island/bodiIsland.css`
+- `src/games/bodi-island/BodiIslandGame.test.tsx`
 
-**Interfaces:**
-- Consumes: `createBodiIslandScene`, progression helpers, shared `GameViewport`.
-- Produces: playable page UI and controls.
-
-- [ ] **Step 1: Write component tests** for visible objective text, Dark Fuzz counter, Shadow Boots state, and labeled touch controls.
-- [ ] **Step 2: Confirm focused component tests are RED.**
-- [ ] **Step 3: Implement the game shell** using `GameViewport`, a compact HUD, objective/status messaging, and an accessible WebGL-unavailable fallback state.
-- [ ] **Step 4: Implement desktop controls**: WASD/arrows move, Space attack, Shift dodge, E interact.
-- [ ] **Step 5: Implement mobile controls** with Pointer Events: thumb directional pad plus Attack, Dodge, and Interact buttons; each target >=44px.
-- [ ] **Step 6: Add Blaze near the forest entrance** as the upgrade interaction point. When Bodi has 10 Dark Fuzz, Interact crafts Shadow Boots and updates the objective.
-- [ ] **Step 7: Add a simple vertical-slice finish state** beyond the shadow ground: reach the pulsing signal marker with Captain to complete the demo.
-- [ ] **Step 8: Run component tests** and confirm PASS.
-- [ ] **Step 9: Commit** `feat: add Bodi Island HUD and controls`.
+- [x] Add component tests for the objective, Dark Fuzz counter, Shadow Boots state, and labeled touch controls.
+- [x] Implement the game shell using `GameViewport`, compact HUD, objective/status messaging, and an accessible WebGL-unavailable fallback.
+- [x] Implement desktop controls: WASD/arrows move, Space attack, Shift dodge, E interact.
+- [x] Implement Pointer Events mobile controls with 44px+ targets and safe pointer-release behavior.
+- [x] Implement Blaze as the Shadow Boots crafting interaction point.
+- [x] Implement the vertical-slice finish state at Captain's signal beyond the shadow ground.
+- [x] Verify component tests in the full repository suite.
 
 ### Task 4: Integrate Bodi Island into C00lG@mes+
 
 **Files:**
-- Modify: `src/App.tsx`
-- Modify: `src/pages/GamesPage.tsx`
-- Create: `src/games/bodi-island/bodiIslandIntegration.test.tsx`
+- `src/App.tsx`
+- `src/App.test.tsx`
+- `src/pages/GamesPage.tsx`
+- `src/games/bodi-island/bodiIslandIntegration.test.tsx`
 
-**Interfaces:**
-- Produces: `/games/bodi-island` route and Games-page entry.
-
-- [ ] **Step 1: Write an integration test** proving the Games page exposes Bodi Island and the route renders the Bodi Island heading/game viewport.
-- [ ] **Step 2: Confirm the integration test is RED against current explicit routes/cards.**
-- [ ] **Step 3: Add the `BodiIslandPage` route** at `/games/bodi-island`.
-- [ ] **Step 4: Add the Bodi Island Games card** with concise adventure copy.
-- [ ] **Step 5: Run the integration test** and confirm PASS.
-- [ ] **Step 6: Commit** `feat: add Bodi Island to the arcade`.
+- [x] Add `/games/bodi-island` and a Games-page entry.
+- [x] Update the app-level seven-game contract.
+- [x] Lazy-load the Bodi Island route so the 3D runtime stays out of the initial app bundle.
+- [x] Verify the Games entry and lazy-loaded route through integration tests.
 
 ### Task 5: Validate performance and delivery
 
-**Files:**
-- Modify as required only to fix findings from validation.
-- Update PR #6 description/status.
-
-- [ ] **Step 1: Run `npm test`** and require all tests PASS.
-- [ ] **Step 2: Run `npm run lint`** and require PASS.
-- [ ] **Step 3: Run `npm run build`** and require PASS.
-- [ ] **Step 4: Verify the frame loop and WebGL resources are cleaned up on unmount.**
-- [ ] **Step 5: Review for mobile ergonomics**: minimum 44px controls, no body-scroll conflict inside play controls, readable HUD, responsive viewport.
-- [ ] **Step 6: Review performance safeguards**: capped DPR, bounded entity count, shared buffers, no React frame-state loop, no expensive real-time shadows/post-processing.
-- [ ] **Step 7: Update PR #6** from design-only wording to implementation summary and include exact CI evidence.
-- [ ] **Step 8: Mark PR ready for review only after required checks are green.**
+- [x] `npm test`: 30 test files / 126 tests passed on the delivered head.
+- [x] `npm run lint`: passed with zero lint errors on the delivered head.
+- [x] `npm run build`: TypeScript and Vite production build passed on the delivered head.
+- [x] Verify frame-loop, WebGL buffer/program, resize listener/observer, and optional AudioContext cleanup on unmount.
+- [x] Verify mobile control targets are at least 44px with safe-area-aware placement.
+- [x] Verify performance safeguards: DPR capped at 1.5, bounded enemy/entity counts, shared WebGL buffer/program, no React frame-state loop, no shadow maps or post-processing.
+- [x] Verify code splitting: production build emits Bodi Island as a separate ~19.3 kB JS chunk (~7.35 kB gzip) plus separate CSS.
+- [ ] Perform real-device/local visual and game-feel playtesting; CI cannot validate controls feel, camera feel, rendering correctness across GPUs, or moment-to-moment fun.
 
 ## Scope check
 
-This PR intentionally implements a **vertical slice**, not the full design spec. The larger spec includes multiple future content systems and story chapters; implementing them all in one PR would create an unreviewable, high-risk game build. The vertical slice is successful when it proves the technical and player-experience foundation needed to expand Bodi Island safely.
+This PR intentionally implements a **vertical slice**, not the full design spec. The larger spec includes multiple future content systems and story chapters; implementing them all in one PR would create an unreviewable, high-risk game build. The vertical slice proves the technical/player-experience foundation needed to expand Bodi Island safely.
 
-## Self-review
+Deferred by explicit scope: full village interiors, Town Hall opening cinematic, Bob/Andrew dialogue, Shadow Monster boss, Luma, climbing/swimming/gliding, ruins/mountain content, the mountain robot, and Dark Matter King finale.
 
-- Spec coverage for the vertical slice: Bodi identity, Captain, forest, third-person 3D, sword combat, Shadow Bug, Dark Matter, 10 Dark Fuzz, Blaze, Shadow Boots, shadow-ground gate, mobile controls, and performance constraints are assigned to tasks above.
-- Deferred by explicit scope: full village interiors, Town Hall opening cinematic, Bob/Andrew dialogue, Shadow Monster boss, Luma, climbing/swimming/gliding, ruins/mountain, robot, and Dark Matter King finale.
-- No placeholder implementation steps are intended; exact mechanics may be tuned during real-play review without expanding PR scope.
+## Delivery note
+
+Automated verification is complete. The remaining gate is the user's local gameplay review, especially camera feel, movement responsiveness, enemy readability, mobile ergonomics, and visual direction. Any findings should be iterated on this PR before expanding into the next Bodi Island slice.
