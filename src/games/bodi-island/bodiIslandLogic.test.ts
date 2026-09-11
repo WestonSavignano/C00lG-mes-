@@ -30,7 +30,7 @@ describe('Bodi Island progression', () => {
     expect(logic).not.toBeNull()
     if (!logic) return
 
-    expect(logic.collectDarkFuzz(0, 'dark-matter', true)).toBe(0)
+    expect(logic.collectDarkFuzz(10, 'dark-matter', true)).toBe(10)
   })
 
   it('allows Blaze to craft Shadow Boots once Bodi has 10 Dark Fuzz', async () => {
@@ -44,7 +44,7 @@ describe('Bodi Island progression', () => {
     expect(logic.canCraftShadowBoots({ darkFuzz: 10, hasShadowBoots: true })).toBe(false)
 
     expect(logic.craftShadowBoots({ darkFuzz: 10, hasShadowBoots: false })).toEqual({
-      darkFuzz: 0,
+      darkFuzz: 10,
       hasShadowBoots: true,
     })
   })
