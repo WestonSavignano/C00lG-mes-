@@ -1,0 +1,61 @@
+import { describe, expect, it } from 'vitest'
+
+const modulePath = './bodiIslandLogic'
+
+async function loadLogic() {
+  try {
+    return await import(/* @vite-ignore */ modulePath)
+  } catch {
+    return null
+  }
+}
+
+describe('Bodi Island progression', () => {
+  it('collects Dark Fuzz only from Dark Matters and caps it at the boots requirement', async () => {
+    const logic = await loadLogic()
+
+    expect(logic).not.toBeNull()
+    if (!logic) return
+
+    expect(logic.collectDarkFuzz(0, 'shadow-bug')).toBe(0)
+    expect(logic.collectDarkFuzz(0, 'dark-matter')).toBe(1)
+    expect(logic.collectDarkFuzz(9, 'dark-matter')).toBe(10)
+    expect(logic.collectDarkFuzz(10, 'dark-matter')).toBe(10)
+    expect(logic.DARK_FUZZ_REQUIRED).toBe(10)
+  })
+
+  it('allows Blaze to craft Shadow Boots once Bodi has 10 Dark Fuzz', async () => {
+    const logic = await loadLogic()
+
+    expect(logic).not.toBeNull()
+    if (!logic) return
+
+    expect(logic.canCraftShadowBoots({ darkFuzz: 9, hasShadowBoots: false })).toBe(false)
+    expect(logic.canCraftShadowBoots({ darkFuzz: 10, hasShadowBoots: false })).toBe(true)
+    expect(logic.canCraftShadowBoots({ darkFuzz: 10, hasShadowBoots: true })).toBe(false)
+
+    expect(logic.craftShadowBoots({ darkFuzz: 10, hasShadowBoots: false })).toEqual({
+      darkFuzz: 0,
+      hasShadowBoots: true,
+    })
+  })
+
+  it('keeps shadow ground blocked until the boots are crafted', async () => {
+    const logic = await loadLogic()
+
+    expect(logic).not.toBeNull()
+    if (!logic) return
+
+    expect(logic.canCrossShadowGround(false)).toBe(false)
+    expect(logic.canCrossShadowGround(true)).toBe(true)
+  })
+
+  it('makes Bodi faster while wearing Shadow Boots', async () => {
+    const logic = await loadLogic()
+
+    expect(logic).not.toBeNull()
+    if (!logic) return
+
+    expect(logic.movementSpeed(true)).toBeGreaterThan(logic.movementSpeed(false))
+  })
+})
