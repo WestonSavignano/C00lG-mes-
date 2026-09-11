@@ -1,6 +1,6 @@
 # Bodi Island Vertical Slice Implementation Plan
 
-Status: Implemented in PR #6; automated validation green on the delivered head.
+Status: Implemented in PR #6; automated validation green on the delivered code head. Final documentation-only status commit is subject to the same repository CI gate.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -83,9 +83,9 @@ Status: Implemented in PR #6; automated validation green on the delivered head.
 
 ### Task 5: Validate performance and delivery
 
-- [x] `npm test`: 30 test files / 126 tests passed on the delivered head.
-- [x] `npm run lint`: passed with zero lint errors on the delivered head.
-- [x] `npm run build`: TypeScript and Vite production build passed on the delivered head.
+- [x] `npm test`: 30 test files / 126 tests passed on the delivered code head.
+- [x] `npm run lint`: passed with zero lint errors on the delivered code head.
+- [x] `npm run build`: TypeScript and Vite production build passed on the delivered code head.
 - [x] Verify frame-loop, WebGL buffer/program, resize listener/observer, and optional AudioContext cleanup on unmount.
 - [x] Verify mobile control targets are at least 44px with safe-area-aware placement.
 - [x] Verify performance safeguards: DPR capped at 1.5, bounded enemy/entity counts, shared WebGL buffer/program, no React frame-state loop, no shadow maps or post-processing.
@@ -100,4 +100,4 @@ Deferred by explicit scope: full village interiors, Town Hall opening cinematic,
 
 ## Delivery note
 
-Automated verification is complete. The remaining gate is the user's local gameplay review, especially camera feel, movement responsiveness, enemy readability, mobile ergonomics, and visual direction. Any findings should be iterated on this PR before expanding into the next Bodi Island slice.
+Automated verification is complete for the delivered code head. The remaining gate is the user's local gameplay review, especially camera feel, movement responsiveness, enemy readability, mobile ergonomics, and visual direction. Any findings should be iterated on this PR before expanding into the next Bodi Island slice.
