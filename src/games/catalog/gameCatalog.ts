@@ -19,7 +19,7 @@ export const gameCatalog: readonly GameDefinition[] = [
     shortDescription: 'A quick platforming sprint with a sugary twist.',
     category: 'Platformer',
     orientation: 'landscape',
-    inputs: ['keyboard'],
+    inputs: ['touch', 'keyboard'],
     artwork: { theme: 'candy', label: 'Candy-colored platform run' },
     loadPage: () => import('../donut-run/DonutRunPage'),
   },
