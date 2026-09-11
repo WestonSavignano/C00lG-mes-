@@ -19,14 +19,14 @@ describe('Bodi Island arcade integration', () => {
     )
   })
 
-  it('renders the Bodi Island game route', () => {
+  it('renders the lazy-loaded Bodi Island game route', async () => {
     render(
       <MemoryRouter initialEntries={['/games/bodi-island']}>
         <App />
       </MemoryRouter>,
     )
 
-    expect(screen.getByRole('heading', { level: 1, name: 'Bodi Island' })).toBeInTheDocument()
-    expect(screen.getByTestId('game-viewport')).toHaveAttribute('data-game', 'bodi-island')
+    expect(await screen.findByRole('heading', { level: 1, name: 'Bodi Island' })).toBeInTheDocument()
+    expect(await screen.findByTestId('game-viewport')).toHaveAttribute('data-game', 'bodi-island')
   })
 })
