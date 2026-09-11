@@ -3,7 +3,7 @@ import { featuredGame, gameCatalog, getGameByRoute } from './gameCatalog'
 
 describe('game catalog', () => {
   it('registers each current game exactly once with unique ids and routes', () => {
-    expect(gameCatalog).toHaveLength(6)
+    expect(gameCatalog).toHaveLength(7)
     expect(new Set(gameCatalog.map((game) => game.id)).size).toBe(gameCatalog.length)
     expect(new Set(gameCatalog.map((game) => game.route)).size).toBe(gameCatalog.length)
     expect(gameCatalog.every((game) => game.route === game.route.trim())).toBe(true)
