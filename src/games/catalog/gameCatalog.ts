@@ -32,7 +32,7 @@ export const gameCatalog: readonly GameDefinition[] = [
     featured: true,
     new: true,
     orientation: 'landscape',
-    inputs: ['keyboard'],
+    inputs: ['touch', 'keyboard'],
     artwork: { theme: 'neon', label: 'Neon survival arena' },
     loadPage: () => import('../neon-drift/NeonDriftPage'),
   },
