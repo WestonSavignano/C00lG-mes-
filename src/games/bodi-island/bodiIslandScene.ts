@@ -17,6 +17,14 @@ const SIGNAL_Z = 43
 const BLAZE_X = -4.6
 const BLAZE_Z = 0.5
 
+type Color = readonly [number, number, number, number]
+type DirectionInput = {
+  forward: boolean
+  backward: boolean
+  left: boolean
+  right: boolean
+}
+
 export type EnemySpawn = {
   id: string
   kind: EnemyKind
@@ -33,6 +41,40 @@ export type EnemyHitResult = {
   enemy: EnemyState
   defeated: boolean
   drop: 'dark-fuzz' | null
+}
+
+export type BodiIslandSceneCallbacks = {
+  onDarkFuzzChange?: (darkFuzz: number) => void
+  onShadowBootsChange?: (hasShadowBoots: boolean) => void
+  onHealthChange?: (health: number) => void
+  onMessage?: (message: string) => void
+  onComplete?: () => void
+}
+
+export type BodiIslandSceneController = {
+  setInput: (next: Partial<DirectionInput>) => void
+  attack: () => void
+  dodge: () => void
+  interact: () => void
+  resize: () => void
+  dispose: () => void
+}
+
+type RuntimeEnemy = EnemySpawn & {
+  health: number
+  active: boolean
+  hitFlash: number
+  phase: number
+}
+
+type Particle = {
+  x: number
+  y: number
+  z: number
+  vx: number
+  vy: number
+  vz: number
+  life: number
 }
 
 export const FOREST_ENEMY_SPAWNS: EnemySpawn[] = [
@@ -64,53 +106,9 @@ export function applyEnemyHit(enemy: EnemyState): EnemyHitResult {
   }
 }
 
-type InputState = {
-  forward: boolean
-  backward: boolean
-  left: boolean
-  right: boolean
-}
-
-export type BodiIslandSceneCallbacks = {
-  onDarkFuzzChange?: (darkFuzz: number) => void
-  onShadowBootsChange?: (hasShadowBoots: boolean) => void
-  onHealthChange?: (health: number) => void
-  onMessage?: (message: string) => void
-  onComplete?: () => void
-}
-
-export type BodiIslandSceneController = {
-  setInput: (next: Partial<InputState>) => void
-  attack: () => void
-  dodge: () => void
-  interact: () => void
-  resize: () => void
-  dispose: () => void
-}
-
-type RuntimeEnemy = EnemySpawn & {
-  health: number
-  active: boolean
-  hitFlash: number
-  phase: number
-}
-
-type Particle = {
-  x: number
-  y: number
-  z: number
-  vx: number
-  vy: number
-  vz: number
-  life: number
-}
-
-type Color = readonly [number, number, number, number]
-
 const COLORS = {
   sky: [0.48, 0.78, 0.78, 1] as Color,
   grass: [0.29, 0.58, 0.28, 1] as Color,
-  grassDark: [0.18, 0.43, 0.19, 1] as Color,
   path: [0.59, 0.45, 0.28, 1] as Color,
   trunk: [0.32, 0.2, 0.1, 1] as Color,
   leaves: [0.12, 0.43, 0.2, 1] as Color,
@@ -148,33 +146,34 @@ const TREE_LAYOUT = [
 ] as const
 
 const CUBE_VERTICES = new Float32Array([
-  -0.5,-0.5, 0.5,  0.5,-0.5, 0.5,  0.5, 0.5, 0.5,
-  -0.5,-0.5, 0.5,  0.5, 0.5, 0.5, -0.5, 0.5, 0.5,
-   0.5,-0.5,-0.5, -0.5,-0.5,-0.5, -0.5, 0.5,-0.5,
-   0.5,-0.5,-0.5, -0.5, 0.5,-0.5,  0.5, 0.5,-0.5,
-  -0.5,-0.5,-0.5, -0.5,-0.5, 0.5, -0.5, 0.5, 0.5,
-  -0.5,-0.5,-0.5, -0.5, 0.5, 0.5, -0.5, 0.5,-0.5,
-   0.5,-0.5, 0.5,  0.5,-0.5,-0.5,  0.5, 0.5,-0.5,
-   0.5,-0.5, 0.5,  0.5, 0.5,-0.5,  0.5, 0.5, 0.5,
-  -0.5, 0.5, 0.5,  0.5, 0.5, 0.5,  0.5, 0.5,-0.5,
-  -0.5, 0.5, 0.5,  0.5, 0.5,-0.5, -0.5, 0.5,-0.5,
-  -0.5,-0.5,-0.5,  0.5,-0.5,-0.5,  0.5,-0.5, 0.5,
-  -0.5,-0.5,-0.5,  0.5,-0.5, 0.5, -0.5,-0.5, 0.5,
+  -0.5,-0.5,0.5, 0.5,-0.5,0.5, 0.5,0.5,0.5,
+  -0.5,-0.5,0.5, 0.5,0.5,0.5, -0.5,0.5,0.5,
+  0.5,-0.5,-0.5, -0.5,-0.5,-0.5, -0.5,0.5,-0.5,
+  0.5,-0.5,-0.5, -0.5,0.5,-0.5, 0.5,0.5,-0.5,
+  -0.5,-0.5,-0.5, -0.5,-0.5,0.5, -0.5,0.5,0.5,
+  -0.5,-0.5,-0.5, -0.5,0.5,0.5, -0.5,0.5,-0.5,
+  0.5,-0.5,0.5, 0.5,-0.5,-0.5, 0.5,0.5,-0.5,
+  0.5,-0.5,0.5, 0.5,0.5,-0.5, 0.5,0.5,0.5,
+  -0.5,0.5,0.5, 0.5,0.5,0.5, 0.5,0.5,-0.5,
+  -0.5,0.5,0.5, 0.5,0.5,-0.5, -0.5,0.5,-0.5,
+  -0.5,-0.5,-0.5, 0.5,-0.5,-0.5, 0.5,-0.5,0.5,
+  -0.5,-0.5,-0.5, 0.5,-0.5,0.5, -0.5,-0.5,0.5,
 ])
+
+function clamp(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value))
+}
 
 function compileShader(gl: WebGLRenderingContext, type: number, source: string) {
   const shader = gl.createShader(type)
   if (!shader) throw new Error('Unable to create WebGL shader.')
-
   gl.shaderSource(shader, source)
   gl.compileShader(shader)
-
   if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
     const message = gl.getShaderInfoLog(shader) ?? 'Unknown shader error.'
     gl.deleteShader(shader)
     throw new Error(message)
   }
-
   return shader
 }
 
@@ -182,33 +181,25 @@ function createProgram(gl: WebGLRenderingContext) {
   const vertex = compileShader(gl, gl.VERTEX_SHADER, `
     attribute vec3 aPosition;
     uniform mat4 uMvp;
-    void main() {
-      gl_Position = uMvp * vec4(aPosition, 1.0);
-    }
+    void main() { gl_Position = uMvp * vec4(aPosition, 1.0); }
   `)
   const fragment = compileShader(gl, gl.FRAGMENT_SHADER, `
     precision mediump float;
     uniform vec4 uColor;
-    void main() {
-      gl_FragColor = uColor;
-    }
+    void main() { gl_FragColor = uColor; }
   `)
-
   const program = gl.createProgram()
   if (!program) throw new Error('Unable to create WebGL program.')
-
   gl.attachShader(program, vertex)
   gl.attachShader(program, fragment)
   gl.linkProgram(program)
   gl.deleteShader(vertex)
   gl.deleteShader(fragment)
-
   if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
     const message = gl.getProgramInfoLog(program) ?? 'Unknown program error.'
     gl.deleteProgram(program)
     throw new Error(message)
   }
-
   return program
 }
 
@@ -235,21 +226,21 @@ function lookAt(
   let zx = eyeX - targetX
   let zy = eyeY - targetY
   let zz = eyeZ - targetZ
-  let len = Math.hypot(zx, zy, zz) || 1
-  zx /= len
-  zy /= len
-  zz /= len
+  let length = Math.hypot(zx, zy, zz) || 1
+  zx /= length
+  zy /= length
+  zz /= length
 
   let xx = zz
-  let xy = 0
+  const xy = 0
   let xz = -zx
-  len = Math.hypot(xx, xz) || 1
-  xx /= len
-  xz /= len
+  length = Math.hypot(xx, xz) || 1
+  xx /= length
+  xz /= length
 
-  const yx = xy * zz - xz * zy
-  const yy = xz * zx - xx * zz
-  const yz = xx * zy - xy * zx
+  const yx = zy * xz
+  const yy = zz * xx - zx * xz
+  const yz = -zy * xx
 
   out[0] = xx
   out[1] = yx
@@ -292,19 +283,19 @@ function modelMatrix(
   sz: number,
   yaw = 0,
 ) {
-  const c = Math.cos(yaw)
-  const s = Math.sin(yaw)
-  out[0] = c * sx
+  const cosine = Math.cos(yaw)
+  const sine = Math.sin(yaw)
+  out[0] = cosine * sx
   out[1] = 0
-  out[2] = -s * sx
+  out[2] = -sine * sx
   out[3] = 0
   out[4] = 0
   out[5] = sy
   out[6] = 0
   out[7] = 0
-  out[8] = s * sz
+  out[8] = sine * sz
   out[9] = 0
-  out[10] = c * sz
+  out[10] = cosine * sz
   out[11] = 0
   out[12] = x
   out[13] = y
@@ -313,16 +304,12 @@ function modelMatrix(
 }
 
 function rotatedOffset(x: number, z: number, yaw: number) {
-  const c = Math.cos(yaw)
-  const s = Math.sin(yaw)
+  const cosine = Math.cos(yaw)
+  const sine = Math.sin(yaw)
   return {
-    x: x * c + z * s,
-    z: -x * s + z * c,
+    x: x * cosine + z * sine,
+    z: -x * sine + z * cosine,
   }
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, value))
 }
 
 export function createBodiIslandScene(
@@ -335,17 +322,13 @@ export function createBodiIslandScene(
     depth: true,
     powerPreference: 'high-performance',
   })
-
-  if (!gl) {
-    throw new Error('Bodi Island needs WebGL to run in this browser.')
-  }
+  if (!gl) throw new Error('Bodi Island needs WebGL to run in this browser.')
 
   const program = createProgram(gl)
   const positionLocation = gl.getAttribLocation(program, 'aPosition')
   const mvpLocation = gl.getUniformLocation(program, 'uMvp')
   const colorLocation = gl.getUniformLocation(program, 'uColor')
   const buffer = gl.createBuffer()
-
   if (!buffer || !mvpLocation || !colorLocation || positionLocation < 0) {
     gl.deleteProgram(program)
     throw new Error('Unable to initialize Bodi Island graphics.')
@@ -357,8 +340,6 @@ export function createBodiIslandScene(
   gl.enableVertexAttribArray(positionLocation)
   gl.vertexAttribPointer(positionLocation, 3, gl.FLOAT, false, 0, 0)
   gl.enable(gl.DEPTH_TEST)
-  gl.enable(gl.CULL_FACE)
-  gl.cullFace(gl.BACK)
   gl.clearColor(...COLORS.sky)
 
   const projection = new Float32Array(16)
@@ -367,34 +348,25 @@ export function createBodiIslandScene(
   const model = new Float32Array(16)
   const mvp = new Float32Array(16)
 
-  const input: InputState = {
+  const input: DirectionInput = {
     forward: false,
     backward: false,
     left: false,
     right: false,
   }
+  const player = { x: 0, z: 0, yaw: 0, health: 5 }
+  const captain = { x: 1.15, z: -1.15 }
+  const camera = { x: 0, y: 5.2, z: -9 }
+  const enemies: RuntimeEnemy[] = FOREST_ENEMY_SPAWNS.map((spawn, index) => ({
+    ...spawn,
+    health: spawn.kind === 'dark-matter' ? 2 : 1,
+    active: true,
+    hitFlash: 0,
+    phase: index * 1.37,
+  }))
+  const particles: Particle[] = []
 
-  const player = {
-    x: 0,
-    z: 0,
-    yaw: 0,
-    health: 5,
-  }
-  const captain = {
-    x: 1.15,
-    z: -1.15,
-    bob: 0,
-  }
-  const camera = {
-    x: 0,
-    y: 5.2,
-    z: -9,
-  }
-
-  let progression: ProgressionState = {
-    darkFuzz: 0,
-    hasShadowBoots: false,
-  }
+  let progression: ProgressionState = { darkFuzz: 0, hasShadowBoots: false }
   let attackTimer = 0
   let attackCooldown = 0
   let dodgeTimer = 0
@@ -405,43 +377,6 @@ export function createBodiIslandScene(
   let frameHandle = 0
   let lastTime = performance.now()
   let audioContext: AudioContext | null = null
-
-  const enemies: RuntimeEnemy[] = FOREST_ENEMY_SPAWNS.map((spawn, index) => ({
-    ...spawn,
-    health: spawn.kind === 'dark-matter' ? 2 : 1,
-    active: true,
-    hitFlash: 0,
-    phase: index * 1.37,
-  }))
-  const particles: Particle[] = []
-
-  const getAudioContext = () => {
-    if (audioContext) return audioContext
-    const AudioContextClass = window.AudioContext
-    if (!AudioContextClass) return null
-    audioContext = new AudioContextClass()
-    return audioContext
-  }
-
-  const playMatterNoise = (pitch = 180) => {
-    try {
-      const context = getAudioContext()
-      if (!context) return
-      const oscillator = context.createOscillator()
-      const gain = context.createGain()
-      oscillator.type = 'square'
-      oscillator.frequency.setValueAtTime(pitch, context.currentTime)
-      oscillator.frequency.exponentialRampToValueAtTime(pitch * 1.7, context.currentTime + 0.08)
-      gain.gain.setValueAtTime(0.035, context.currentTime)
-      gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.11)
-      oscillator.connect(gain)
-      gain.connect(context.destination)
-      oscillator.start()
-      oscillator.stop(context.currentTime + 0.12)
-    } catch {
-      // Audio is playful feedback only; gameplay must not depend on it.
-    }
-  }
 
   const drawBox = (
     x: number,
@@ -456,7 +391,7 @@ export function createBodiIslandScene(
     modelMatrix(model, x, y, z, sx, sy, sz, yaw)
     multiply(mvp, projectionView, model)
     gl.uniformMatrix4fv(mvpLocation, false, mvp)
-    gl.uniform4fv(colorLocation, color)
+    gl.uniform4f(colorLocation, color[0], color[1], color[2], color[3])
     gl.drawArrays(gl.TRIANGLES, 0, 36)
   }
 
@@ -477,10 +412,9 @@ export function createBodiIslandScene(
     drawBox(originX + offset.x, y, originZ + offset.z, sx, sy, sz, color, yaw + localYaw)
   }
 
-  const drawBodi = () => {
-    const walk = input.forward || input.backward || input.left || input.right
-    const step = walk ? Math.sin(performance.now() * 0.012) * 0.12 : 0
-
+  const drawBodi = (time: number) => {
+    const walking = input.forward || input.backward || input.left || input.right
+    const step = walking ? Math.sin(time * 0.012) * 0.12 : 0
     drawPersonPart(player.x, player.z, player.yaw, 0, 1.45, 0, 0.75, 0.85, 0.5, COLORS.shirt)
     drawPersonPart(player.x, player.z, player.yaw, 0, 2.18, 0, 0.72, 0.62, 0.62, COLORS.skin)
     drawPersonPart(player.x, player.z, player.yaw, 0, 2.52, -0.02, 0.78, 0.18, 0.67, COLORS.hair)
@@ -488,7 +422,6 @@ export function createBodiIslandScene(
     drawPersonPart(player.x, player.z, player.yaw, 0.24, 0.72 - step, 0, 0.28, 0.9, 0.32, COLORS.pants)
     drawPersonPart(player.x, player.z, player.yaw, -0.24, 0.2 + step, 0.1, 0.34, 0.2, 0.56, COLORS.shoes)
     drawPersonPart(player.x, player.z, player.yaw, 0.24, 0.2 - step, 0.1, 0.34, 0.2, 0.56, COLORS.shoes)
-
     const swing = attackTimer > 0 ? 0.8 : 0
     drawPersonPart(player.x, player.z, player.yaw, 0.62, 1.46, 0.18 + swing, 0.13, 1.45, 0.13, COLORS.steel, swing)
     drawPersonPart(player.x, player.z, player.yaw, 0.62, 0.78, 0.18 + swing, 0.34, 0.12, 0.16, COLORS.shoes, swing)
@@ -500,15 +433,7 @@ export function createBodiIslandScene(
     drawBox(captain.x, 0.55 + bob, captain.z, 0.92, 0.55, 1.25, COLORS.captainBody)
     drawBox(captain.x, 1.2 + bob, captain.z + 0.25, 0.95, 0.78, 0.72, COLORS.captainBody)
     drawBox(captain.x, 1.2 + bob, captain.z - 0.13, 0.72, 0.54, 0.03, COLORS.captainScreen)
-    drawBox(
-      captain.x,
-      1.2 + bob,
-      captain.z - 0.155,
-      0.22 + signalPulse * 0.08,
-      0.22 + signalPulse * 0.08,
-      0.02,
-      COLORS.captainSignal,
-    )
+    drawBox(captain.x, 1.2 + bob, captain.z - 0.155, 0.22 + signalPulse * 0.08, 0.22 + signalPulse * 0.08, 0.02, COLORS.captainSignal)
     drawBox(captain.x - 0.28, 0.17 + bob, captain.z - 0.28, 0.16, 0.35, 0.18, COLORS.captainBody)
     drawBox(captain.x + 0.28, 0.17 + bob, captain.z - 0.28, 0.16, 0.35, 0.18, COLORS.captainBody)
     drawBox(captain.x - 0.28, 0.17 + bob, captain.z + 0.3, 0.16, 0.35, 0.18, COLORS.captainBody)
@@ -525,10 +450,10 @@ export function createBodiIslandScene(
 
   const drawTree = (x: number, z: number, index: number) => {
     const height = 2.3 + (index % 4) * 0.28
-    const tint = index % 2 === 0 ? COLORS.leaves : COLORS.leavesLight
+    const leaves = index % 2 === 0 ? COLORS.leaves : COLORS.leavesLight
     drawBox(x, height * 0.5, z, 0.5, height, 0.5, COLORS.trunk)
-    drawBox(x, height + 0.65, z, 2.15, 1.35, 2.15, tint, index * 0.22)
-    drawBox(x + 0.28, height + 1.45, z - 0.18, 1.45, 1.1, 1.45, tint, index * 0.31)
+    drawBox(x, height + 0.65, z, 2.15, 1.35, 2.15, leaves, index * 0.22)
+    drawBox(x + 0.28, height + 1.45, z - 0.18, 1.45, 1.1, 1.45, leaves, index * 0.31)
   }
 
   const drawDarkMatter = (enemy: RuntimeEnemy, time: number) => {
@@ -536,22 +461,17 @@ export function createBodiIslandScene(
     const color = enemy.hitFlash > 0 ? COLORS.darkMatterHit : COLORS.darkMatter
     const wobble = Math.sin(time * 0.004 + enemy.phase) * 0.09
     drawBox(enemy.x, bob, enemy.z, 1.05, 0.9, 1.05, color, wobble)
+    const fuzzOffsets = [[-0.55, 0], [0.55, 0], [0, -0.55], [0, 0.55], [-0.4, -0.4], [0.4, 0.4]] as const
+    for (const [xOffset, zOffset] of fuzzOffsets) {
+      drawBox(enemy.x + xOffset, bob, enemy.z + zOffset, 0.22, 0.22, 0.22, color, wobble)
+    }
     drawBox(enemy.x - 0.3, bob + 0.18, enemy.z - 0.52, 0.24, 0.27, 0.08, COLORS.eye)
     drawBox(enemy.x + 0.3, bob + 0.18, enemy.z - 0.52, 0.24, 0.27, 0.08, COLORS.eye)
     drawBox(enemy.x - 0.3, bob + 0.18, enemy.z - 0.57, 0.08, 0.11, 0.03, COLORS.pupil)
     drawBox(enemy.x + 0.3, bob + 0.18, enemy.z - 0.57, 0.08, 0.11, 0.03, COLORS.pupil)
     for (let leg = 0; leg < 3; leg += 1) {
       const angle = enemy.phase + (leg / 3) * Math.PI * 2
-      drawBox(
-        enemy.x + Math.cos(angle) * 0.36,
-        0.2,
-        enemy.z + Math.sin(angle) * 0.36,
-        0.17,
-        0.55,
-        0.17,
-        color,
-        angle,
-      )
+      drawBox(enemy.x + Math.cos(angle) * 0.36, 0.2, enemy.z + Math.sin(angle) * 0.36, 0.17, 0.55, 0.17, color, angle)
     }
   }
 
@@ -570,20 +490,35 @@ export function createBodiIslandScene(
   const drawWorld = (time: number) => {
     drawBox(0, -0.28, 22, 24, 0.55, 56, COLORS.grass)
     drawBox(0, 0.02, 11, 4.4, 0.08, 27, COLORS.path)
-    drawBox(0, 0.05, (SHADOW_START_Z + SHADOW_END_Z) / 2, 22.2, 0.12, SHADOW_END_Z - SHADOW_START_Z, COLORS.shadow)
-
+    drawBox(0, 0.05, 26, 22.2, 0.12, SHADOW_END_Z - SHADOW_START_Z, COLORS.shadow)
     const pulse = 0.5 + Math.sin(time * 0.004) * 0.5
-    drawBox(0, 0.13, (SHADOW_START_Z + SHADOW_END_Z) / 2, 16 + pulse, 0.04, 1.1, COLORS.shadowPulse)
-
+    drawBox(0, 0.13, 26, 16 + pulse, 0.04, 1.1, COLORS.shadowPulse)
     TREE_LAYOUT.forEach(([x, z], index) => drawTree(x, z, index))
-
     drawBox(-6.2, 2.2, 52, 8.2, 4.6, 5.8, COLORS.mountain, 0.18)
     drawBox(3.6, 3.6, 54, 11, 7.5, 6.5, COLORS.mountain, -0.1)
     drawBox(8.2, 2.5, 51, 5.2, 5.2, 4.8, COLORS.mountain, -0.3)
-
     const signalPulse = 0.85 + Math.sin(time * 0.007) * 0.22
     drawBox(0, 1.1, SIGNAL_Z, 0.45 * signalPulse, 2.2, 0.45 * signalPulse, COLORS.signal)
     drawBox(0, 2.45, SIGNAL_Z, 1.15 * signalPulse, 0.18, 1.15 * signalPulse, COLORS.signal, time * 0.001)
+  }
+
+  const playMatterNoise = (pitch = 180) => {
+    try {
+      if (!audioContext) audioContext = new AudioContext()
+      const oscillator = audioContext.createOscillator()
+      const gain = audioContext.createGain()
+      oscillator.type = 'square'
+      oscillator.frequency.setValueAtTime(pitch, audioContext.currentTime)
+      oscillator.frequency.exponentialRampToValueAtTime(pitch * 1.7, audioContext.currentTime + 0.08)
+      gain.gain.setValueAtTime(0.035, audioContext.currentTime)
+      gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.11)
+      oscillator.connect(gain)
+      gain.connect(audioContext.destination)
+      oscillator.start()
+      oscillator.stop(audioContext.currentTime + 0.12)
+    } catch {
+      // Sound is optional feedback; gameplay remains functional without audio.
+    }
   }
 
   const burstDarkFuzz = (x: number, z: number) => {
@@ -609,22 +544,52 @@ export function createBodiIslandScene(
     callbacks.onMessage?.('Captain got Bodi safely back to the forest entrance.')
   }
 
+  const updateMovement = (dt: number) => {
+    let dx = Number(input.right) - Number(input.left)
+    let dz = Number(input.forward) - Number(input.backward)
+    const length = Math.hypot(dx, dz)
+    if (length > 0) {
+      dx /= length
+      dz /= length
+      player.yaw = Math.atan2(dx, dz)
+    }
+
+    let speed = movementSpeed(progression.hasShadowBoots)
+    if (dodgeTimer > 0) speed *= 2.45
+    const nextX = clamp(player.x + dx * speed * dt, -FOREST_HALF_WIDTH + 0.8, FOREST_HALF_WIDTH - 0.8)
+    let nextZ = clamp(player.z + dz * speed * dt, FOREST_START_Z, FOREST_END_Z)
+
+    if (!progression.hasShadowBoots && player.z < SHADOW_START_Z && nextZ >= SHADOW_START_Z) {
+      nextZ = SHADOW_START_Z - 0.35
+      callbacks.onMessage?.('Captain flashes a warning: the shadow ground is not safe yet.')
+    }
+    if (!progression.hasShadowBoots && player.z > SHADOW_END_Z && nextZ <= SHADOW_END_Z) {
+      nextZ = SHADOW_END_Z + 0.35
+    }
+
+    player.x = nextX
+    player.z = nextZ
+    const follow = 1 - Math.exp(-dt * 5.2)
+    captain.x += (player.x + 1.25 - captain.x) * follow
+    captain.z += (player.z - 1.25 - captain.z) * follow
+    const cameraFollow = 1 - Math.exp(-dt * 4.5)
+    camera.x += (player.x * 0.68 - camera.x) * cameraFollow
+    camera.z += (player.z - 8.8 - camera.z) * cameraFollow
+  }
+
   const updateEnemies = (dt: number, time: number) => {
     for (const enemy of enemies) {
       if (!enemy.active) continue
       enemy.hitFlash = Math.max(0, enemy.hitFlash - dt)
-
       const dx = player.x - enemy.x
       const dz = player.z - enemy.z
       const distance = Math.hypot(dx, dz)
       const wakeDistance = enemy.kind === 'dark-matter' ? 6.4 : 7.4
-      const moveSpeed = enemy.kind === 'dark-matter' ? 1.05 : 1.45
-
+      const speed = enemy.kind === 'dark-matter' ? 1.05 : 1.45
       if (distance < wakeDistance && distance > 1.1) {
-        enemy.x += (dx / distance) * moveSpeed * dt
-        enemy.z += (dz / distance) * moveSpeed * dt
+        enemy.x += (dx / distance) * speed * dt
+        enemy.z += (dz / distance) * speed * dt
       }
-
       if (distance < 1.12 && hurtCooldown <= 0 && dodgeTimer <= 0) {
         player.health = Math.max(0, player.health - 1)
         hurtCooldown = 0.85
@@ -651,64 +616,19 @@ export function createBodiIslandScene(
     }
   }
 
-  const updateMovement = (dt: number) => {
-    let dx = Number(input.right) - Number(input.left)
-    let dz = Number(input.forward) - Number(input.backward)
-    const length = Math.hypot(dx, dz)
-
-    if (length > 0) {
-      dx /= length
-      dz /= length
-      player.yaw = Math.atan2(dx, dz)
-    }
-
-    let speed = movementSpeed(progression.hasShadowBoots)
-    if (dodgeTimer > 0) speed *= 2.45
-
-    const nextX = clamp(player.x + dx * speed * dt, -FOREST_HALF_WIDTH + 0.8, FOREST_HALF_WIDTH - 0.8)
-    let nextZ = clamp(player.z + dz * speed * dt, FOREST_START_Z, FOREST_END_Z)
-
-    if (!progression.hasShadowBoots && player.z < SHADOW_START_Z && nextZ >= SHADOW_START_Z) {
-      nextZ = SHADOW_START_Z - 0.35
-      callbacks.onMessage?.('Captain flashes a warning: the shadow ground is not safe yet.')
-    }
-    if (!progression.hasShadowBoots && player.z > SHADOW_END_Z && nextZ <= SHADOW_END_Z) {
-      nextZ = SHADOW_END_Z + 0.35
-    }
-
-    player.x = nextX
-    player.z = nextZ
-
-    const captainTargetX = player.x + 1.25
-    const captainTargetZ = player.z - 1.25
-    const follow = 1 - Math.exp(-dt * 5.2)
-    captain.x += (captainTargetX - captain.x) * follow
-    captain.z += (captainTargetZ - captain.z) * follow
-    captain.bob += dt
-
-    const cameraTargetX = player.x * 0.68
-    const cameraTargetZ = player.z - 8.8
-    const cameraFollow = 1 - Math.exp(-dt * 4.5)
-    camera.x += (cameraTargetX - camera.x) * cameraFollow
-    camera.z += (cameraTargetZ - camera.z) * cameraFollow
-  }
-
   const render = (time: number) => {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
     lookAt(view, camera.x, camera.y, camera.z, player.x * 0.55, 1.1, player.z + 3.1)
     multiply(projectionView, projection, view)
-
     drawWorld(time)
     drawBlaze()
-    drawBodi()
+    drawBodi(time)
     drawCaptain(time)
-
     for (const enemy of enemies) {
       if (!enemy.active) continue
       if (enemy.kind === 'dark-matter') drawDarkMatter(enemy, time)
       else drawShadowBug(enemy, time)
     }
-
     for (const particle of particles) {
       drawBox(particle.x, Math.max(0.05, particle.y), particle.z, 0.16, 0.16, 0.16, COLORS.darkMatter)
     }
@@ -718,13 +638,11 @@ export function createBodiIslandScene(
     if (disposed) return
     const dt = Math.min(0.033, Math.max(0, (time - lastTime) / 1000))
     lastTime = time
-
     attackTimer = Math.max(0, attackTimer - dt)
     attackCooldown = Math.max(0, attackCooldown - dt)
     dodgeTimer = Math.max(0, dodgeTimer - dt)
     dodgeCooldown = Math.max(0, dodgeCooldown - dt)
     hurtCooldown = Math.max(0, hurtCooldown - dt)
-
     updateMovement(dt)
     updateEnemies(dt, time)
     updateParticles(dt)
@@ -736,7 +654,6 @@ export function createBodiIslandScene(
     if (attackCooldown > 0 || completed) return
     attackCooldown = 0.34
     attackTimer = 0.23
-
     const forwardX = Math.sin(player.yaw)
     const forwardZ = Math.cos(player.yaw)
     let target: RuntimeEnemy | null = null
@@ -753,26 +670,27 @@ export function createBodiIslandScene(
       target = enemy
       targetDistance = distance
     }
-
     if (!target) return
 
     const result = applyEnemyHit({ kind: target.kind, health: target.health })
     target.health = result.enemy.health
     target.hitFlash = 0.12
-
     if (target.kind === 'dark-matter') playMatterNoise(210)
     if (!result.defeated) return
 
     target.active = false
-    if (target.kind === 'dark-matter') {
-      burstDarkFuzz(target.x, target.z)
-    }
-
+    if (target.kind === 'dark-matter') burstDarkFuzz(target.x, target.z)
     if (result.drop === 'dark-fuzz') {
-      const next = collectDarkFuzz(progression.darkFuzz, target.kind)
-      progression = { ...progression, darkFuzz: next }
-      callbacks.onDarkFuzzChange?.(next)
-      callbacks.onMessage?.(next >= 10 ? 'Ten Dark Fuzz! Return to Blaze.' : `Dark Fuzz collected: ${next}/10`)
+      progression = {
+        ...progression,
+        darkFuzz: collectDarkFuzz(progression.darkFuzz, target.kind, progression.hasShadowBoots),
+      }
+      callbacks.onDarkFuzzChange?.(progression.darkFuzz)
+      callbacks.onMessage?.(
+        progression.darkFuzz >= 10
+          ? 'Ten Dark Fuzz! Return to Blaze.'
+          : `Dark Fuzz collected: ${progression.darkFuzz}/10`,
+      )
     } else {
       callbacks.onMessage?.('Shadow Bug defeated. Captain looks very proud.')
     }
@@ -786,7 +704,6 @@ export function createBodiIslandScene(
 
   const interact = () => {
     if (completed) return
-
     const blazeDistance = Math.hypot(player.x - BLAZE_X, player.z - BLAZE_Z)
     if (blazeDistance < 3) {
       if (canCraftShadowBoots(progression)) {
@@ -809,7 +726,6 @@ export function createBodiIslandScene(
       callbacks.onMessage?.('Captain found the signal! Something deeper in Bodi Island is waking up...')
       return
     }
-
     callbacks.onMessage?.('Captain chirps. There is nothing to use here yet.')
   }
 
@@ -820,12 +736,10 @@ export function createBodiIslandScene(
     const dpr = Math.min(window.devicePixelRatio || 1, 1.5)
     const pixelWidth = Math.floor(width * dpr)
     const pixelHeight = Math.floor(height * dpr)
-
     if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
       canvas.width = pixelWidth
       canvas.height = pixelHeight
     }
-
     gl.viewport(0, 0, canvas.width, canvas.height)
     perspective(projection, Math.PI / 3.15, canvas.width / canvas.height, 0.1, 120)
   }
