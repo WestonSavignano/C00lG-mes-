@@ -13,9 +13,9 @@ function GameRail({ games, title }: GameRailProps) {
 
   return (
     <section aria-labelledby={headingId} className="game-rail">
-      <header className="game-rail__header">
+      <div className="game-rail__header">
         <h2 id={headingId}>{title}</h2>
-      </header>
+      </div>
       <div className="game-rail__track">
         {games.map((game) => (
           <GameTile game={game} key={game.id} />
