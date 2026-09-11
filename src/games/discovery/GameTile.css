@@ -1,0 +1,79 @@
+.game-tile {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.game-tile__link {
+  display: block;
+  min-height: 100%;
+  color: inherit;
+  text-decoration: none;
+}
+
+.game-tile__body {
+  display: grid;
+  gap: 5px;
+  padding: 13px 14px 15px;
+}
+
+.game-tile__meta {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--color-muted);
+  font-size: 0.7rem;
+  font-weight: 760;
+  letter-spacing: 0.045em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.game-tile__meta > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.game-tile__badges {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 4px;
+}
+
+.game-badge {
+  border: 1px solid rgba(94, 234, 212, 0.28);
+  border-radius: 999px;
+  padding: 3px 6px;
+  color: var(--color-accent);
+  background: rgba(45, 212, 191, 0.08);
+  font-size: 0.58rem;
+  line-height: 1;
+}
+
+.game-tile h3 {
+  overflow: hidden;
+  margin: 0;
+  color: var(--color-text-strong);
+  font-size: clamp(1rem, 3vw, 1.18rem);
+  font-weight: 790;
+  letter-spacing: -0.025em;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .game-tile__link:hover {
+    transform: translateY(-3px);
+  }
+
+  .game-tile__link:hover .game-artwork {
+    filter: saturate(1.08) brightness(1.04);
+  }
+}

@@ -1,46 +1,82 @@
 :root {
-  --text: #4f5965;
-  --text-h: #111827;
-  --bg: #f7f9fb;
-  --surface: #ffffff;
-  --border: #d9e1ea;
-  --accent: #0f766e;
-  --link: #1d4ed8;
-  --shadow: 0 12px 30px rgba(17, 24, 39, 0.07);
+  color-scheme: dark;
 
-  --sans: Inter, ui-sans-serif, system-ui, 'Segoe UI', Roboto, sans-serif;
+  --color-bg: #060914;
+  --color-surface: #0e1524;
+  --color-surface-raised: #151f31;
+  --color-text: #b9c5d6;
+  --color-text-strong: #f7fbff;
+  --color-muted: #77859a;
+  --color-accent: #5eead4;
+  --color-accent-strong: #2dd4bf;
+  --color-border: rgba(148, 163, 184, 0.18);
+  --color-focus: #7dd3fc;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-xl: 30px;
+
+  --shadow-sm: 0 12px 32px rgba(0, 0, 0, 0.18);
+  --shadow-lg: 0 28px 80px rgba(0, 0, 0, 0.32);
+
+  --motion-fast: 140ms;
+  --motion-base: 220ms;
+  --ease-out: cubic-bezier(0.2, 0.75, 0.2, 1);
+
+  --app-header-height: 68px;
+  --app-header-height-mobile: 56px;
+  --mobile-navigation-height: 64px;
+
+  /* Compatibility aliases for existing pages and games. */
+  --text: var(--color-text);
+  --text-h: var(--color-text-strong);
+  --bg: var(--color-bg);
+  --surface: var(--color-surface);
+  --border: var(--color-border);
+  --accent: var(--color-accent);
+  --link: #93c5fd;
+  --shadow: var(--shadow-sm);
+
+  --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 
   font: 18px/1.5 var(--sans);
   letter-spacing: 0;
-  color: var(--text);
-  background: var(--bg);
+  color: var(--color-text);
+  background: var(--color-bg);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #b8c1cc;
-    --text-h: #f8fafc;
-    --bg: #111827;
-    --surface: #182234;
-    --border: #334155;
-    --accent: #5eead4;
-    --link: #93c5fd;
-    --shadow: 0 12px 30px rgba(0, 0, 0, 0.28);
-  }
-}
-
 * {
   box-sizing: border-box;
+}
+
+html {
+  min-width: 320px;
+  min-height: 100%;
+  background: var(--color-bg);
 }
 
 body {
   min-width: 320px;
   min-height: 100svh;
   margin: 0;
+  overflow-x: hidden;
+  background: var(--color-bg);
 }
 
 button,
@@ -48,6 +84,11 @@ input,
 textarea,
 select {
   font: inherit;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
 }
 
 h1,
@@ -58,10 +99,10 @@ p {
 
 h1,
 h2 {
-  color: var(--text-h);
-  font-weight: 750;
-  line-height: 1.08;
-  letter-spacing: 0;
+  color: var(--color-text-strong);
+  font-weight: 780;
+  line-height: 1.05;
+  letter-spacing: -0.025em;
 }
 
 h1 {
@@ -74,18 +115,23 @@ h2 {
 
 a {
   transition:
-    color 160ms ease,
-    border-color 160ms ease,
-    transform 160ms ease;
+    color var(--motion-fast) ease,
+    border-color var(--motion-fast) ease,
+    background-color var(--motion-fast) ease,
+    transform var(--motion-fast) var(--ease-out);
 }
 
 a:hover {
-  color: var(--accent);
+  color: var(--color-accent);
 }
 
-a:focus-visible {
-  outline: 3px solid var(--accent);
-  outline-offset: 4px;
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 3px;
 }
 
 @media (max-width: 720px) {
@@ -95,5 +141,16 @@ a:focus-visible {
 
   h1 {
     font-size: 2.25rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
   }
 }

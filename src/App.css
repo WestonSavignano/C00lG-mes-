@@ -1,291 +1,9 @@
-.site-header {
-  position: sticky;
-  top: 0;
-  z-index: 20;
-  border-bottom: 1px solid var(--border);
-  background: color-mix(in srgb, var(--bg) 92%, transparent);
-  backdrop-filter: blur(14px);
-}
-
-.site-header__inner {
-  width: min(100%, 1040px);
-  min-height: 72px;
-  margin: 0 auto;
-  padding: 0 24px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-}
-
-.brand-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-  color: var(--text-h);
-  font-weight: 800;
-  text-decoration: none;
-}
-
-.brand-link__icon {
-  width: 34px;
-  height: 34px;
-  flex: 0 0 auto;
-}
-
-.brand-link span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.desktop-nav {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.nav-link,
-.mobile-nav__link {
-  color: var(--text-h);
-  font-weight: 700;
-  text-decoration: none;
-}
-
-.nav-link {
-  border-radius: 8px;
-  padding: 8px 12px;
-}
-
-.nav-link.active,
-.nav-link:hover,
-.mobile-nav__link.active,
-.mobile-nav__link:hover {
-  color: var(--accent);
-}
-
-.menu-button {
-  display: none;
-  width: 44px;
-  height: 44px;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  color: var(--text-h);
-  background: var(--surface);
-  cursor: pointer;
-}
-
-.menu-button svg {
-  width: 22px;
-  height: 22px;
-  stroke-width: 2.25;
-}
-
-.mobile-nav {
-  width: min(100%, 1040px);
-  margin: 0 auto;
-  padding: 0 18px 18px;
-}
-
-.mobile-nav__link {
-  display: flex;
-  min-height: 48px;
-  align-items: center;
-  border-top: 1px solid var(--border);
-}
-
-.home-page {
-  min-height: calc(100svh - 73px);
-}
-
-.hero {
-  position: relative;
-  overflow: hidden;
-  min-height: 420px;
-  isolation: isolate;
-  background:
-    radial-gradient(circle at 70% 20%, rgba(125, 211, 252, 0.4), transparent 28%),
-    linear-gradient(180deg, #08243f 0%, #063654 48%, #041827 100%);
-}
-
-.hero--home {
-  min-height: calc(100svh - 73px);
-  display: grid;
-  align-items: center;
-}
-
-.hero--detail {
-  min-height: 360px;
-  border-radius: 12px;
-}
-
-.ocean-animation,
-.ocean-animation__sky,
-.ocean-animation__water,
-.hero__surface {
-  position: absolute;
-  inset: 0;
-}
-
-.ocean-animation {
-  z-index: -3;
-  overflow: hidden;
-}
-
-.ocean-animation__sky {
-  background:
-    radial-gradient(circle at 26% 22%, rgba(255, 255, 255, 0.72), transparent 8%),
-    radial-gradient(circle at 68% 18%, rgba(125, 211, 252, 0.32), transparent 24%),
-    linear-gradient(180deg, #67b8d8 0%, #87d7e5 36%, #0b4262 62%, #052439 100%);
-}
-
-.ocean-animation__water {
-  top: 42%;
-  background-repeat: repeat-x;
-  background-size: 520px 100%;
-  opacity: 0.8;
-  transform: translate3d(0, 0, 0);
-}
-
-.ocean-animation__water--back {
-  animation: ocean-drift 24s linear infinite;
-  background-image:
-    radial-gradient(60% 32% at 50% 0%, rgba(226, 246, 255, 0.42), transparent 60%),
-    repeating-radial-gradient(ellipse at 50% 0%, rgba(125, 211, 252, 0.34) 0 8px, transparent 9px 28px),
-    linear-gradient(180deg, rgba(8, 145, 178, 0.54), rgba(4, 24, 39, 0.9));
-}
-
-.ocean-animation__water--front {
-  top: 54%;
-  animation: ocean-drift 18s linear infinite reverse;
-  background-image:
-    radial-gradient(55% 26% at 50% 0%, rgba(248, 250, 252, 0.46), transparent 58%),
-    repeating-radial-gradient(ellipse at 50% 0%, rgba(240, 249, 255, 0.28) 0 6px, transparent 8px 24px),
-    linear-gradient(180deg, rgba(6, 95, 125, 0.62), rgba(2, 8, 23, 0.88));
-}
-
-.hero__surface {
-  z-index: -2;
-  background:
-    radial-gradient(circle at 28% 26%, rgba(255, 255, 255, 0.24), transparent 18%),
-    linear-gradient(90deg, rgba(2, 8, 23, 0.42), rgba(2, 8, 23, 0.08) 45%, rgba(2, 8, 23, 0.5)),
-    linear-gradient(180deg, rgba(2, 8, 23, 0.05), rgba(2, 8, 23, 0.55));
-}
-
-.hero__content {
-  width: min(100%, 1040px);
-  margin: 0 auto;
-  padding: 72px 24px;
-  color: #dbeafe;
-}
-
-.hero--detail .hero__content {
-  padding: 52px 40px;
-}
-
-.hero__eyebrow {
-  margin-bottom: 12px;
-  color: #7dd3fc;
-  font-size: 0.78rem;
-  font-weight: 800;
-  letter-spacing: 0;
-  text-transform: uppercase;
-}
-
-.hero h1 {
-  max-width: 13ch;
-  color: #f8fafc;
-  font-size: clamp(3rem, 8vw, 6.8rem);
-  text-wrap: balance;
-}
-
-.hero--detail h1 {
-  max-width: 14ch;
-  font-size: clamp(2.5rem, 6vw, 5rem);
-}
-
-.hero__description {
-  max-width: 42rem;
-  margin-top: 18px;
-  color: #bfdbfe;
-  font-size: 1.15rem;
-}
-
-.hero__actions {
-  margin-top: 32px;
-}
-
-.eyebrow,
-.detail__label {
-  color: var(--accent);
+.eyebrow {
+  color: var(--color-accent);
   font-size: 0.78rem;
   font-weight: 700;
-  letter-spacing: 0;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-}
-
-.home-links {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  max-width: 680px;
-}
-
-.section-link {
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface);
-  color: inherit;
-  box-shadow: var(--shadow);
-  display: grid;
-  gap: 10px;
-  min-height: 126px;
-  padding: 20px;
-  text-decoration: none;
-}
-
-.hero .section-link {
-  border-color: rgba(191, 219, 254, 0.34);
-  background: rgba(8, 47, 73, 0.42);
-  color: #dbeafe;
-  box-shadow: none;
-  backdrop-filter: blur(12px);
-}
-
-.section-link span:first-child {
-  color: var(--text-h);
-  font-size: 1.35rem;
-  font-weight: 700;
-}
-
-.hero .section-link span:first-child {
-  color: #f8fafc;
-}
-
-.section-link span:last-child {
-  max-width: 32rem;
-}
-
-.detail {
-  display: grid;
-  gap: 28px;
-}
-
-.back-link {
-  justify-self: start;
-  color: #dbeafe;
-  font-weight: 700;
-  text-decoration: none;
-}
-
-.detail__body {
-  padding: 24px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface);
 }
 
 .game-shell {
@@ -316,13 +34,13 @@
   gap: 10px;
   align-items: baseline;
   padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
 }
 
 .game-controls dt {
-  color: var(--text-h);
+  color: var(--color-text-strong);
   font-weight: 800;
 }
 
@@ -336,12 +54,12 @@
   width: 100%;
   aspect-ratio: 16 / 9;
   min-height: 280px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
   background:
     radial-gradient(circle at 18% 22%, rgba(94, 234, 212, 0.2), transparent 20%),
     linear-gradient(180deg, #071421 0%, #0f2638 100%);
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-sm);
 }
 
 .game-viewport:fullscreen {
@@ -370,7 +88,7 @@
   height: 44px;
   place-items: center;
   border: 1px solid rgba(219, 234, 254, 0.36);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   color: #dbeafe;
   background: rgba(7, 20, 33, 0.74);
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
@@ -398,67 +116,8 @@
   font-weight: 800;
 }
 
-@keyframes ocean-drift {
-  from {
-    transform: translate3d(0, 0, 0);
-  }
-
-  to {
-    transform: translate3d(-520px, 0, 0);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .ocean-animation__water {
-    animation: none;
-  }
-}
-
 @media (max-width: 720px) {
-  .site-header__inner {
-    min-height: 64px;
-    padding: 0 18px;
-  }
-
-  .desktop-nav {
-    display: none;
-  }
-
-  .menu-button {
-    display: inline-flex;
-  }
-
-  .hero--home {
-    min-height: calc(100svh - 65px);
-  }
-
-  .hero--detail {
-    min-height: 320px;
-    border-radius: 0;
-    margin-inline: -18px;
-  }
-
-  .hero__content,
-  .hero--detail .hero__content {
-    padding: 44px 18px;
-  }
-
-  .hero h1 {
-    font-size: clamp(2.75rem, 16vw, 4.25rem);
-  }
-
-  .hero--detail h1 {
-    font-size: clamp(2.35rem, 13vw, 3.75rem);
-  }
-
-  .home-links {
-    grid-template-columns: 1fr;
-  }
-
-  .game-shell__header {
-    grid-template-columns: 1fr;
-  }
-
+  .game-shell__header,
   .game-controls div {
     grid-template-columns: 1fr;
   }

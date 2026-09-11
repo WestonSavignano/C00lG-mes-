@@ -1,61 +1,20 @@
-import BackLink from '../components/BackLink'
-import Card from '../components/Card'
-import CardAction from '../components/CardAction'
-import CardLabel from '../components/CardLabel'
-import H1 from '../components/H1'
-import H2 from '../components/H2'
-import P from '../components/P'
-import Page from '../components/Page'
-import PageHeader from '../components/PageHeader'
-import Section from '../components/Section'
+import { gameCatalog } from '../games/catalog/gameCatalog'
+import GameGrid from '../games/discovery/GameGrid'
+import './DiscoveryPages.css'
 
 function GamesPage() {
   return (
-    <Page>
-      <PageHeader>
-        <BackLink to="/">Home</BackLink>
-        <H1>Games</H1>
-        <P>A place for browser games, experiments, and game-engine practice.</P>
-      </PageHeader>
-      <Section>
-        <Card to="/games/plane-blaster ">
-          <CardLabel>Game</CardLabel>
-          <H2>Plane Blaster</H2>
-          <P>A Phaser-powered starter dogfight with arcade plane controls.</P>
-          <CardAction>Open Plane Blaster</CardAction>
-        </Card>
-        <Card to="/games/donut-run">
-          <CardLabel>Game</CardLabel>
-          <H2>Donut Run</H2>
-          <P>A fast-paced platformer with a twist.</P>
-          <CardAction>Open Donut Run</CardAction>
-        </Card>
-        <Card to="/games/neon-drift">
-          <CardLabel>Game</CardLabel>
-          <H2>Neon Drift</H2>
-          <P>Outrun a neon drone swarm, collect energy cores, and deploy defensive turrets.</P>
-          <CardAction>Open Neon Drift</CardAction>
-        </Card>
-        <Card to="/games/worm-battles">
-          <CardLabel>Game</CardLabel>
-          <H2>Worm Battles</H2>
-          <P>A strategic multiplayer game where you control a worm and battle against opponents.</P>
-          <CardAction>Open Worm Battles</CardAction>
-        </Card>
-        <Card to="/games/warrior">
-          <CardLabel>Game</CardLabel>
-          <H2>Warrior</H2>
-          <P>A hand-drawn stick-figure action game ported into the app.</P>
-          <CardAction>Open Warrior</CardAction>
-        </Card>
-        <Card to="/games/warrior2">
-          <CardLabel>Game</CardLabel>
-          <H2>Warrior2</H2>
-          <P>Battle Dark Matter and protect the village.</P>
-          <CardAction>Open Warrior2</CardAction>
-        </Card>
-      </Section>
-    </Page>
+    <main className="games-library">
+      <div className="discovery-page">
+        <div className="games-library__header">
+          <p className="discovery-kicker">C00lG@mes+ arcade</p>
+          <h1>Games</h1>
+          <p>Six worlds. No installs. Pick one and play.</p>
+        </div>
+
+        <GameGrid games={gameCatalog} />
+      </div>
+    </main>
   )
 }
 

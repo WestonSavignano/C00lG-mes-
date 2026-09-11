@@ -1,0 +1,94 @@
+.arcade-home,
+.games-library {
+  min-height: 100%;
+}
+
+.discovery-page {
+  width: min(100%, 1280px);
+  margin: 0 auto;
+  padding: 44px max(28px, env(safe-area-inset-right)) 72px max(28px, env(safe-area-inset-left));
+}
+
+.arcade-home .discovery-page {
+  display: grid;
+  gap: clamp(30px, 5vw, 56px);
+}
+
+.discovery-kicker {
+  color: var(--color-accent);
+  font-size: 0.7rem;
+  font-weight: 820;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.arcade-home__intro,
+.games-library__header {
+  display: grid;
+  gap: 10px;
+}
+
+.arcade-home__intro {
+  max-width: 800px;
+}
+
+.arcade-home__intro h1 {
+  max-width: 11ch;
+  font-size: clamp(2.5rem, 7vw, 5.4rem);
+  font-weight: 860;
+  letter-spacing: -0.06em;
+  line-height: 0.94;
+  text-wrap: balance;
+}
+
+.arcade-home__intro > p:last-child,
+.games-library__header > p:last-child {
+  color: var(--color-muted);
+  font-size: clamp(0.95rem, 2vw, 1.08rem);
+}
+
+.games-library__header {
+  max-width: 720px;
+  margin-bottom: 32px;
+}
+
+.games-library__header h1 {
+  font-size: clamp(2.7rem, 6vw, 5rem);
+  font-weight: 860;
+  letter-spacing: -0.055em;
+  line-height: 0.95;
+}
+
+.discovery-section {
+  min-width: 0;
+}
+
+.discovery-section__header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.discovery-section__header h2 {
+  font-size: clamp(1.35rem, 4vw, 1.8rem);
+}
+
+@media (max-width: 720px) {
+  .discovery-page {
+    padding: 26px max(14px, env(safe-area-inset-right)) 48px max(14px, env(safe-area-inset-left));
+  }
+
+  .arcade-home .discovery-page {
+    gap: 32px;
+  }
+
+  .arcade-home__intro h1 {
+    font-size: clamp(2.35rem, 12vw, 3.5rem);
+  }
+
+  .games-library__header {
+    margin-bottom: 24px;
+  }
+}

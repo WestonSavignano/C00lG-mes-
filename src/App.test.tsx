@@ -1,7 +1,6 @@
 import { render, screen, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import App from './App'
 
 function renderRoute(route: string) {
@@ -13,8 +12,11 @@ function renderRoute(route: string) {
 }
 
 describe('App routes', () => {
-  it('renders a responsive header with brand, Chat, Games, and a mobile menu', async () => {
-    const user = userEvent.setup()
+  beforeEach(() => {
+    localStorage.clear()
+  })
+
+  it('renders the arcade shell with shared desktop and mobile destinations', () => {
     renderRoute('/')
 
     const header = screen.getByRole('banner')
@@ -25,55 +27,50 @@ describe('App routes', () => {
     const desktopNav = within(header).getByRole('navigation', {
       name: 'Primary',
     })
-    expect(within(desktopNav).getByRole('link', { name: 'Chat' }))
+    const mobileNav = screen.getByRole('navigation', {
+      name: 'Mobile primary',
+    })
+
+    for (const navigation of [desktopNav, mobileNav]) {
+      expect(within(navigation).getByRole('link', { name: 'Home' }))
+        .toHaveAttribute('href', '/')
+      expect(within(navigation).getByRole('link', { name: 'Games' }))
+        .toHaveAttribute('href', '/games')
+      expect(within(navigation).getByRole('link', { name: 'Party' }))
+        .toHaveAttribute('href', '/chat')
+    }
+  })
+
+  it('makes the home page an immediate game discovery surface', () => {
+    renderRoute('/')
+
+    expect(
+      screen.getByRole('heading', { level: 1, name: /Pick a game/i }),
+    ).toBeInTheDocument()
+
+    const featured = screen.getByRole('region', { name: 'Neon Drift' })
+    expect(within(featured).getByRole('link', { name: 'Play Neon Drift' }))
+      .toHaveAttribute('href', '/games/neon-drift')
+
+    expect(screen.getByRole('link', { name: 'Start a party' }))
       .toHaveAttribute('href', '/chat')
-    expect(within(desktopNav).getByRole('link', { name: 'Games' }))
-      .toHaveAttribute('href', '/games')
-
-    const menuButton = within(header).getByRole('button', {
-      name: /open navigation menu/i,
-    })
-    expect(menuButton).toHaveAttribute('aria-expanded', 'false')
-
-    await user.click(menuButton)
-
-    expect(menuButton).toHaveAttribute('aria-expanded', 'true')
-    const mobileNav = within(header).getByRole('navigation', {
-      name: 'Mobile',
-    })
-    const chatLink = within(mobileNav).getByRole('link', { name: 'Chat' })
-    expect(chatLink).toHaveAttribute('href', '/chat')
-
-    await user.click(chatLink)
-
-    expect(menuButton).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.getAllByTestId('game-tile')).toHaveLength(6)
   })
 
-  it('links from the home page to Chat and Games', () => {
+  it('surfaces recently played games when history exists', () => {
+    localStorage.setItem(
+      'coolgames.recent-games.v1',
+      JSON.stringify(['warrior', 'neon-drift']),
+    )
+
     renderRoute('/')
 
-    const homeSections = screen.getByRole('navigation', {
-      name: 'Home sections',
-    })
-
-    expect(within(homeSections).getByRole('link', { name: /chat/i })).toHaveAttribute(
-      'href',
-      '/chat',
-    )
-    expect(within(homeSections).getByRole('link', { name: /games/i })).toHaveAttribute(
-      'href',
-      '/games',
-    )
-  })
-
-  it('renders the home hero', () => {
-    renderRoute('/')
-
-    const hero = screen.getByRole('region', { name: 'C00lG@mes+' })
-
-    expect(within(hero).getByRole('heading', { name: 'C00lG@mes+' }))
-      .toBeInTheDocument()
-    expect(within(hero).getByText('A site for real gamers.')).toBeInTheDocument()
+    const recent = screen.getByRole('region', { name: 'Continue Playing' })
+    expect(within(recent).getAllByTestId('game-tile')).toHaveLength(2)
+    expect(within(recent).getByRole('link', { name: 'Play Warrior' }))
+      .toHaveAttribute('href', '/games/warrior')
+    expect(within(recent).getByRole('link', { name: 'Play Neon Drift' }))
+      .toHaveAttribute('href', '/games/neon-drift')
   })
 
   it('renders the canonical Chat route', () => {
@@ -89,38 +86,44 @@ describe('App routes', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Chat' })).toBeInTheDocument()
   })
 
-  it('renders the current game cards', () => {
+  it('renders the complete catalog as visual game tiles', () => {
     renderRoute('/games')
 
-    expect(screen.getByRole('heading', { name: 'Games' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'Games' })).toBeInTheDocument()
 
-    const cards = screen.getAllByTestId('card')
-    expect(cards).toHaveLength(6)
-    expect(within(cards[0]).getByRole('heading', { name: 'Plane Blaster' }))
-      .toBeInTheDocument()
-    expect(within(cards[2]).getByRole('heading', { name: 'Neon Drift' }))
-      .toBeInTheDocument()
-    expect(within(cards[5]).getByRole('heading', { name: 'Warrior2' }))
-      .toBeInTheDocument()
+    const tiles = screen.getAllByTestId('game-tile')
+    expect(tiles).toHaveLength(6)
+    expect(screen.getByRole('link', { name: 'Play Plane Blaster' }))
+      .toHaveAttribute('href', '/games/plane-blaster')
+    expect(screen.getByRole('link', { name: 'Play Neon Drift' }))
+      .toHaveAttribute('href', '/games/neon-drift')
+    expect(screen.getByRole('link', { name: 'Play Warrior2' }))
+      .toHaveAttribute('href', '/games/warrior2')
   })
 
-  it('renders Plane Blaster as the primary page content', () => {
+  it('shows a lightweight loading boundary for lazy game routes', () => {
+    renderRoute('/games/neon-drift')
+
+    expect(screen.getByRole('status')).toHaveTextContent('Loading Neon Drift…')
+  })
+
+  it('renders Plane Blaster as the primary page content', async () => {
     renderRoute('/games/plane-blaster')
 
-    expect(screen.getByRole('heading', { level: 1, name: 'Plane Blaster' }))
+    expect(await screen.findByRole('heading', { level: 1, name: 'Plane Blaster' }))
       .toBeInTheDocument()
-    expect(screen.getByTestId('game-viewport')).toHaveAttribute(
+    expect(await screen.findByTestId('game-viewport')).toHaveAttribute(
       'data-game',
       'bit-planes',
     )
   })
 
-  it('renders Neon Drift as a game route', () => {
+  it('renders Neon Drift as a game route', async () => {
     renderRoute('/games/neon-drift')
 
-    expect(screen.getByRole('heading', { level: 1, name: 'Neon Drift' }))
+    expect(await screen.findByRole('heading', { level: 1, name: 'Neon Drift' }))
       .toBeInTheDocument()
-    expect(screen.getByTestId('game-viewport')).toHaveAttribute(
+    expect(await screen.findByTestId('game-viewport')).toHaveAttribute(
       'data-game',
       'neon-drift',
     )
