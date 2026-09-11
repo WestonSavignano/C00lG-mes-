@@ -27,20 +27,32 @@ function FartAttack() {
     }
   }, [])
 
-  const handleMovementStart =
-    (direction: MovementDirection) =>
-    (event: ReactPointerEvent<HTMLButtonElement>) => {
-      event.preventDefault()
-      event.currentTarget.setPointerCapture?.(event.pointerId)
-      gameRef.current?.setMovement(direction, true)
+  const handleMovementStart = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const direction = event.currentTarget.dataset.direction as
+      | MovementDirection
+      | undefined
+
+    if (!direction) {
+      return
     }
 
-  const handleMovementEnd =
-    (direction: MovementDirection) =>
-    (event: ReactPointerEvent<HTMLButtonElement>) => {
-      event.preventDefault()
-      gameRef.current?.setMovement(direction, false)
+    event.preventDefault()
+    event.currentTarget.setPointerCapture?.(event.pointerId)
+    gameRef.current?.setMovement(direction, true)
+  }
+
+  const handleMovementEnd = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const direction = event.currentTarget.dataset.direction as
+      | MovementDirection
+      | undefined
+
+    if (!direction) {
+      return
     }
+
+    event.preventDefault()
+    gameRef.current?.setMovement(direction, false)
+  }
 
   return (
     <div className="fart-attack">
@@ -57,9 +69,10 @@ function FartAttack() {
           <button
             aria-label="Move up"
             className="fart-attack__control fart-attack__control--up"
-            onPointerCancel={handleMovementEnd('up')}
-            onPointerDown={handleMovementStart('up')}
-            onPointerUp={handleMovementEnd('up')}
+            data-direction="up"
+            onPointerCancel={handleMovementEnd}
+            onPointerDown={handleMovementStart}
+            onPointerUp={handleMovementEnd}
             type="button"
           >
             ↑
@@ -67,9 +80,10 @@ function FartAttack() {
           <button
             aria-label="Move left"
             className="fart-attack__control fart-attack__control--left"
-            onPointerCancel={handleMovementEnd('left')}
-            onPointerDown={handleMovementStart('left')}
-            onPointerUp={handleMovementEnd('left')}
+            data-direction="left"
+            onPointerCancel={handleMovementEnd}
+            onPointerDown={handleMovementStart}
+            onPointerUp={handleMovementEnd}
             type="button"
           >
             ←
@@ -77,9 +91,10 @@ function FartAttack() {
           <button
             aria-label="Move down"
             className="fart-attack__control fart-attack__control--down"
-            onPointerCancel={handleMovementEnd('down')}
-            onPointerDown={handleMovementStart('down')}
-            onPointerUp={handleMovementEnd('down')}
+            data-direction="down"
+            onPointerCancel={handleMovementEnd}
+            onPointerDown={handleMovementStart}
+            onPointerUp={handleMovementEnd}
             type="button"
           >
             ↓
@@ -87,9 +102,10 @@ function FartAttack() {
           <button
             aria-label="Move right"
             className="fart-attack__control fart-attack__control--right"
-            onPointerCancel={handleMovementEnd('right')}
-            onPointerDown={handleMovementStart('right')}
-            onPointerUp={handleMovementEnd('right')}
+            data-direction="right"
+            onPointerCancel={handleMovementEnd}
+            onPointerDown={handleMovementStart}
+            onPointerUp={handleMovementEnd}
             type="button"
           >
             →
