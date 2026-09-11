@@ -37,6 +37,18 @@ export const gameCatalog: readonly GameDefinition[] = [
     loadPage: () => import('../neon-drift/NeonDriftPage'),
   },
   {
+    id: 'fart-attack',
+    route: '/games/fart-attack',
+    title: 'Fart Attack',
+    shortDescription: 'Clear gassy waves, beat bosses, and gear up between rounds.',
+    category: 'Arcade survival',
+    new: true,
+    orientation: 'landscape',
+    inputs: ['keyboard', 'touch'],
+    artwork: { theme: 'arena', label: 'Gas-cloud survival arena' },
+    loadPage: () => import('../fart-attack/FartAttackPage'),
+  },
+  {
     id: 'worm-battles',
     route: '/games/worm-battles',
     title: 'Worm Battles',
