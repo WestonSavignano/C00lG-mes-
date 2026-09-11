@@ -18,6 +18,12 @@ function GamesPage() {
         <P>A place for browser games, experiments, and game-engine practice.</P>
       </PageHeader>
       <Section>
+        <Card to="/games/bodi-island">
+          <CardLabel>3D Adventure</CardLabel>
+          <H2>Bodi Island</H2>
+          <P>Follow Captain into the forest and uncover the mystery behind the TV-Cat signals.</P>
+          <CardAction>Open Bodi Island</CardAction>
+        </Card>
         <Card to="/games/plane-blaster ">
           <CardLabel>Game</CardLabel>
           <H2>Plane Blaster</H2>
