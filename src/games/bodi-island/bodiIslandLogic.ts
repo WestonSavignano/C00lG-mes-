@@ -10,7 +10,7 @@ export type ProgressionState = {
 export function collectDarkFuzz(
   current: number,
   enemyKind: EnemyKind,
-  hasShadowBoots: boolean,
+  hasShadowBoots = false,
 ) {
   if (enemyKind !== 'dark-matter' || hasShadowBoots) {
     return current
@@ -29,7 +29,7 @@ export function craftShadowBoots(state: ProgressionState): ProgressionState {
   }
 
   return {
-    darkFuzz: 0,
+    darkFuzz: DARK_FUZZ_REQUIRED,
     hasShadowBoots: true,
   }
 }
