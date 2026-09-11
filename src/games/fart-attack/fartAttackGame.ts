@@ -162,8 +162,8 @@ export function createFartAttackGame(canvas: HTMLCanvasElement): FartAttackGameC
     const amount = Math.min(30, 5 + wave * 2)
 
     for (let index = 0; index < amount; index += 1) {
-      let x = 0
-      let y = 0
+      let x: number
+      let y: number
 
       do {
         x = 35 + Math.random() * 730
