@@ -1,0 +1,68 @@
+name: Work item
+description: Define one coherent outcome that can normally be reviewed in one focused PR.
+title: ""
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Keep work small and reviewable. One Issue should describe one coherent outcome that can normally be completed in one focused PR. Split independent outcomes or unrelated systems.
+
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Outcome
+      description: What observable thing should be better when this Issue is complete?
+      placeholder: Describe the player/product/engineering result, not only the implementation.
+    validations:
+      required: true
+
+  - type: textarea
+    id: why
+    attributes:
+      label: Why
+      description: What player, product, business, performance, architecture, or reliability value does this create?
+      placeholder: Keep this brief when the value is obvious.
+    validations:
+      required: false
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: What is included?
+      placeholder: List the boundaries that make this a coherent, focused change.
+    validations:
+      required: false
+
+  - type: textarea
+    id: non-goals
+    attributes:
+      label: Non-goals
+      description: What is intentionally excluded so this Issue stays focused?
+      placeholder: N/A is fine for very small work.
+    validations:
+      required: false
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: What observable requirements must be true to call the outcome complete?
+      placeholder: |
+        - [ ] Observable requirement
+        - [ ] Observable requirement
+    validations:
+      required: true
+
+  - type: textarea
+    id: validation
+    attributes:
+      label: Validation
+      description: Describe automated and manual validation appropriate to the change.
+      placeholder: |
+        Automated: npm test, npm run lint, npm run build, plus focused tests as needed.
+
+        Manual when relevant: touch/mobile; keyboard/mouse; orientation; fullscreen/focus; pause/resume; resize; accessibility/reduced motion; game feel; frame stability; lower-powered hardware.
+    validations:
+      required: false
