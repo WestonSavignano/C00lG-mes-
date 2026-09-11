@@ -104,6 +104,12 @@ describe('App routes', () => {
       .toBeInTheDocument()
   })
 
+  it('shows a lightweight loading boundary for lazy game routes', () => {
+    renderRoute('/games/neon-drift')
+
+    expect(screen.getByRole('status')).toHaveTextContent('Loading Neon Drift…')
+  })
+
   it('renders Plane Blaster as the primary page content', () => {
     renderRoute('/games/plane-blaster')
 
