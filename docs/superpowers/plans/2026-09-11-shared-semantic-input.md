@@ -34,40 +34,40 @@
 
 ### Shared input foundation
 
-- `src/games/shared/input/semanticInput.ts` — mutable source-aware semantic state and read/write contracts.
-- `src/games/shared/input/semanticInput.test.ts` — deterministic movement/held/press/reset coverage.
-- `src/games/shared/input/keyboardInput.ts` — keyboard-to-semantic bindings and listener lifecycle.
-- `src/games/shared/input/keyboardInput.test.ts` — key mapping, repeat, interactive-target, and cleanup coverage.
-- `src/games/shared/input/inputLifecycle.ts` — interruption/reset listeners.
-- `src/games/shared/input/inputLifecycle.test.ts` — blur/visibility/pagehide/fullscreen/orientation/unmount reset coverage.
-- `src/games/shared/input/useSemanticInput.ts` — stable per-game input instance plus keyboard/lifecycle attachment.
-- `src/games/shared/input/DirectionalControl.tsx` — single-pointer fixed virtual stick.
-- `src/games/shared/input/DirectionalControl.test.tsx` — dead-zone, capture, cancellation, ownership, and cleanup coverage.
+- `src/games/shared/input/semanticInput.ts` — mutable source-aware semantic state and contracts.
+- `src/games/shared/input/semanticInput.test.ts` — movement/held/press/reset tests.
+- `src/games/shared/input/keyboardInput.ts` — keyboard-to-semantic bindings.
+- `src/games/shared/input/keyboardInput.test.ts` — keyboard lifecycle tests.
+- `src/games/shared/input/inputLifecycle.ts` — interruption reset listeners.
+- `src/games/shared/input/inputLifecycle.test.ts` — interruption/unmount tests.
+- `src/games/shared/input/useSemanticInput.ts` — stable per-game input instance and listener attachment.
+- `src/games/shared/input/DirectionalControl.tsx` — fixed single-pointer virtual stick.
+- `src/games/shared/input/DirectionalControl.test.tsx` — dead-zone/capture/cancel tests.
 - `src/games/shared/input/ActionButton.tsx` — semantic press/hold native button.
-- `src/games/shared/input/ActionButton.test.tsx` — pointer lifecycle, keyboard accessibility, double-fire prevention, and cleanup coverage.
-- `src/games/shared/input/inputControls.css` — bounded shared control presentation/focus/pressed styling.
+- `src/games/shared/input/ActionButton.test.tsx` — pointer/keyboard/double-fire tests.
+- `src/games/shared/input/inputControls.css` — shared control focus/pressed presentation.
 
-### Donut Run consumer
+### Donut Run
 
-- `src/games/donut-run/donutRunInput.ts` — `DonutRunAction` and keyboard bindings.
-- `src/games/donut-run/donutRunInput.test.ts` — binding contract.
-- `src/games/donut-run/DonutRunControls.tsx` — game-specific visible Jump layout using shared `ActionButton`.
-- `src/games/donut-run/DonutRun.tsx` — semantic reader integration and Donut-specific game-surface pointer mapping.
-- `src/games/donut-run/donutRun.css` — Donut surface and safe-area-aware touch-control placement.
+- `src/games/donut-run/donutRunInput.ts`
+- `src/games/donut-run/donutRunInput.test.ts`
+- `src/games/donut-run/DonutRunControls.tsx`
+- `src/games/donut-run/donutRun.css`
+- modify `src/games/donut-run/DonutRun.tsx`
 
-### Neon Drift consumer
+### Neon Drift
 
-- `src/games/neon-drift/neonDriftInput.ts` — action type, keyboard bindings, and ordered lifecycle/control intent processor.
-- `src/games/neon-drift/neonDriftInput.test.ts` — mapping plus start/pause/deploy ordering behavior.
-- `src/games/neon-drift/NeonDriftControls.tsx` — game-specific stick/Boost/Deploy composition.
-- `src/games/neon-drift/NeonDriftControls.test.tsx` — composed multi-touch movement + Boost/Deploy coverage.
-- `src/games/neon-drift/NeonDriftGame.tsx` — replace raw key-set mechanics with semantic reader; route overlay Start through semantic intent.
-- `src/games/neon-drift/neonDrift.css` — safe-area touch layout and HUD spacing.
+- `src/games/neon-drift/neonDriftInput.ts`
+- `src/games/neon-drift/neonDriftInput.test.ts`
+- `src/games/neon-drift/NeonDriftControls.tsx`
+- `src/games/neon-drift/NeonDriftControls.test.tsx`
+- modify `src/games/neon-drift/NeonDriftGame.tsx`
+- modify `src/games/neon-drift/neonDrift.css`
 
 ### Catalog
 
-- `src/games/catalog/gameCatalog.ts` — add `touch` to Donut Run and Neon Drift metadata only after each consumer works.
-- `src/games/catalog/gameCatalog.test.ts` — assert both migrated games advertise `touch` + `keyboard`.
+- modify `src/games/catalog/gameCatalog.ts`
+- modify `src/games/catalog/gameCatalog.test.ts`
 
 ---
 
@@ -78,10 +78,14 @@
 - Create: `src/games/shared/input/semanticInput.test.ts`
 
 **Interfaces:**
-- Produces:
 
 ```ts
 export type MovementVector = Readonly<{ x: number; y: number }>
+
+export type MovementInputWriter = {
+  setMoveSource(sourceId: string, x: number, y: number): void
+  clearMoveSource(sourceId: string): void
+}
 
 export type SemanticInputReader<Action extends string> = {
   readonly move: MovementVector
@@ -89,9 +93,7 @@ export type SemanticInputReader<Action extends string> = {
   consumePress(action: Action): boolean
 }
 
-export type SemanticInputWriter<Action extends string> = {
-  setMoveSource(sourceId: string, x: number, y: number): void
-  clearMoveSource(sourceId: string): void
+export type SemanticInputWriter<Action extends string> = MovementInputWriter & {
   setActionSource(sourceId: string, action: Action, held: boolean): void
   pulseAction(action: Action): void
   clearSource(sourceId: string): void
@@ -106,76 +108,52 @@ export type SemanticInput<Action extends string> = {
 export function createSemanticInput<Action extends string>(): SemanticInput<Action>
 ```
 
-- Later tasks depend on the stable identity of `reader.move` and source-aware semantics.
-
 - [ ] **Step 1: Write failing semantic-store tests**
 
-Cover these exact behaviors:
+Cover stable movement-object identity, zero initial state, source aggregation, opposite-direction cancellation, radial clamping, held action ownership by multiple sources, source-specific release, buffered press consumption, `clearSource`, and `reset`.
+
+Core assertions:
 
 ```ts
-it('keeps one stable zero movement vector', () => {
-  const input = createSemanticInput<'boost'>()
-  const move = input.reader.move
-  expect(move).toEqual({ x: 0, y: 0 })
-  input.writer.setMoveSource('keyboard:KeyD', 1, 0)
-  expect(input.reader.move).toBe(move)
-  expect(move).toEqual({ x: 1, y: 0 })
-})
-
-it('aggregates, cancels, and radially clamps movement sources', () => {
-  const input = createSemanticInput<'boost'>()
-  input.writer.setMoveSource('right', 1, 0)
-  input.writer.setMoveSource('down', 0, 1)
-  expect(input.reader.move.x).toBeCloseTo(Math.SQRT1_2)
-  expect(input.reader.move.y).toBeCloseTo(Math.SQRT1_2)
-  input.writer.setMoveSource('left', -1, 0)
-  expect(input.reader.move).toEqual({ x: 0, y: 1 })
-})
-
-it('keeps held actions active until every owning source releases', () => {
-  const input = createSemanticInput<'boost'>()
-  input.writer.setActionSource('keyboard:Space', 'boost', true)
-  input.writer.setActionSource('button:boost', 'boost', true)
-  input.writer.setActionSource('keyboard:Space', 'boost', false)
-  expect(input.reader.isHeld('boost')).toBe(true)
-  input.writer.clearSource('button:boost')
-  expect(input.reader.isHeld('boost')).toBe(false)
-})
-
-it('buffers discrete presses and resets every semantic state', () => {
-  const input = createSemanticInput<'deploy'>()
-  input.writer.pulseAction('deploy')
-  input.writer.pulseAction('deploy')
-  expect(input.reader.consumePress('deploy')).toBe(true)
-  expect(input.reader.consumePress('deploy')).toBe(true)
-  expect(input.reader.consumePress('deploy')).toBe(false)
-  input.writer.setMoveSource('move', 1, 0)
-  input.writer.setActionSource('hold', 'deploy', true)
-  input.writer.pulseAction('deploy')
-  input.writer.reset()
-  expect(input.reader.move).toEqual({ x: 0, y: 0 })
-  expect(input.reader.isHeld('deploy')).toBe(false)
-  expect(input.reader.consumePress('deploy')).toBe(false)
-})
+const input = createSemanticInput<'boost' | 'deploy'>()
+const move = input.reader.move
+input.writer.setMoveSource('right', 1, 0)
+input.writer.setMoveSource('down', 0, 1)
+expect(input.reader.move).toBe(move)
+expect(move.x).toBeCloseTo(Math.SQRT1_2)
+expect(move.y).toBeCloseTo(Math.SQRT1_2)
 ```
 
-- [ ] **Step 2: Run the focused test and verify red**
+```ts
+input.writer.setActionSource('keyboard:Space', 'boost', true)
+input.writer.setActionSource('button:boost', 'boost', true)
+input.writer.setActionSource('keyboard:Space', 'boost', false)
+expect(input.reader.isHeld('boost')).toBe(true)
+input.writer.clearSource('button:boost')
+expect(input.reader.isHeld('boost')).toBe(false)
+```
 
-Run:
+```ts
+input.writer.pulseAction('deploy')
+input.writer.pulseAction('deploy')
+expect(input.reader.consumePress('deploy')).toBe(true)
+expect(input.reader.consumePress('deploy')).toBe(true)
+expect(input.reader.consumePress('deploy')).toBe(false)
+```
+
+- [ ] **Step 2: Run red**
 
 ```bash
 npm test -- src/games/shared/input/semanticInput.test.ts
 ```
 
-Expected: FAIL because `semanticInput.ts` / `createSemanticInput` does not exist yet.
+Expected: FAIL because `semanticInput.ts` does not exist.
 
-- [ ] **Step 3: Implement the minimal semantic store**
+- [ ] **Step 3: Implement the minimal store**
 
-Use a `Map<string, {x:number;y:number}>` for movement sources, source-aware held-action sets, and a pending press-count map. Recompute the single mutable movement vector only when sources change, normalizing the aggregate when its magnitude exceeds `1`.
+Use a `Map<string, {x:number;y:number}>` for movement sources, source-aware held-action sets, and a pending press-count map. Recompute the same mutable movement object only when a source changes; clamp the aggregate radially to magnitude `1`. `clearSource` removes movement plus held-action ownership for that source. `reset` clears every source/count and mutates movement to `{x:0,y:0}`.
 
-`clearSource(sourceId)` must remove that source from both movement and every held action. `reset()` must clear all maps/counts and mutate the stable movement object back to `{x:0,y:0}`.
-
-- [ ] **Step 4: Run focused tests and verify green**
+- [ ] **Step 4: Run green**
 
 ```bash
 npm test -- src/games/shared/input/semanticInput.test.ts
@@ -183,7 +161,7 @@ npm test -- src/games/shared/input/semanticInput.test.ts
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit the semantic core**
+- [ ] **Step 5: Commit**
 
 ```bash
 git add src/games/shared/input/semanticInput.ts src/games/shared/input/semanticInput.test.ts
@@ -202,8 +180,6 @@ git commit -m "feat: add semantic input state"
 - Create: `src/games/shared/input/useSemanticInput.ts`
 
 **Interfaces:**
-- Consumes: `SemanticInputWriter<Action>` and `createSemanticInput<Action>()` from Task 1.
-- Produces:
 
 ```ts
 export type KeyboardBinding<Action extends string> = {
@@ -231,81 +207,45 @@ export function useSemanticInput<Action extends string>(
 ): SemanticInput<Action>
 ```
 
-- [ ] **Step 1: Write failing keyboard-adapter tests**
+- [ ] **Step 1: Write failing keyboard tests**
 
-Test cardinal movement keydown/up, held actions, non-repeat press edges, one key containing both `hold` and `press`, mapped-key `preventDefault`, and interactive targets.
+Cover directional keydown/up, held action keydown/up, discrete non-repeat press, one key with both `hold` and `press`, mapped-key `preventDefault`, and interactive-target handling.
 
-Important regression test:
+Required stuck-input regression:
 
 ```ts
-it('ignores interactive keydown but always allows keyup to clear an owned source', () => {
-  const input = createSemanticInput<'boost'>()
-  const detach = attachKeyboardInput(window, input.writer, [
-    { code: 'Space', hold: 'boost', preventDefault: true },
-  ])
-
-  window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Space', bubbles: true }))
-  expect(input.reader.isHeld('boost')).toBe(true)
-
-  const button = document.createElement('button')
-  document.body.append(button)
-  button.dispatchEvent(new KeyboardEvent('keyup', { code: 'Space', bubbles: true }))
-  expect(input.reader.isHeld('boost')).toBe(false)
-
-  detach()
-  button.remove()
-})
+window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Space' }))
+expect(input.reader.isHeld('boost')).toBe(true)
+button.dispatchEvent(new KeyboardEvent('keyup', { code: 'Space', bubbles: true }))
+expect(input.reader.isHeld('boost')).toBe(false)
 ```
 
-Keydown from a focused/interactive target must not activate global gameplay semantics. Keyup still clears the mapped source so focus changes cannot leave a held key stuck.
+Global gameplay mappings ignore interactive-target **keydown** events, but mapped **keyup** always clears the physical key source so focus changes cannot strand held state.
 
-- [ ] **Step 2: Run keyboard tests and verify red**
+- [ ] **Step 2: Implement keyboard adapter**
 
-```bash
-npm test -- src/games/shared/input/keyboardInput.test.ts
-```
+Use source ID `keyboard:${event.code}`. Initial keydown applies move/hold and pulses press actions only when `event.repeat === false`. Cleanup removes listeners and clears all mapped key sources. Interactive selector: `button, a, input, select, textarea, [contenteditable="true"]`.
 
-Expected: FAIL because the adapter is not implemented.
+- [ ] **Step 3: Write failing lifecycle tests**
 
-- [ ] **Step 3: Implement `attachKeyboardInput`**
+Assert reset on `window.blur`, hidden `visibilitychange`, `pagehide`, `fullscreenchange`, `orientationchange`, and cleanup/unmount. Assert ordinary `resize` does not reset.
 
-Use one source ID per physical key: `keyboard:${event.code}`. On keydown, ignore interactive targets; otherwise apply move/hold contributions and pulse press actions only when `event.repeat === false`. On keyup, clear that key source regardless of event target. Cleanup removes listeners and clears every configured keyboard source.
+- [ ] **Step 4: Implement lifecycle helper and hook**
 
-The interactive selector must cover `button`, `a`, `input`, `select`, `textarea`, and `[contenteditable="true"]`.
+`attachInputResetLifecycle` registers the bounded listener set once and resets during cleanup. `useSemanticInput` lazily creates one input instance in a ref and attaches keyboard/lifecycle listeners in an effect. It never mirrors movement or held actions into React state.
 
-- [ ] **Step 4: Write failing lifecycle-reset tests**
-
-Spy on `writer.reset()` and verify exactly one reset for each of:
-
-- `window.blur`;
-- `document.visibilitychange` while `document.hidden === true`;
-- `window.pagehide`;
-- `document.fullscreenchange`;
-- `window.orientationchange`;
-- cleanup/unmount.
-
-Also dispatch ordinary `resize` and assert it does not reset.
-
-- [ ] **Step 5: Implement `attachInputResetLifecycle`**
-
-Register the bounded listener set once. The returned cleanup removes every listener and calls `writer.reset()` once so unmount cannot retain held input.
-
-- [ ] **Step 6: Implement `useSemanticInput`**
-
-Create one `SemanticInput<Action>` lazily with a ref. In one effect, attach the keyboard and lifecycle adapters and detach both on unmount. The hook must never mirror `reader.move` or held actions into React state.
-
-- [ ] **Step 7: Run shared adapter tests**
+- [ ] **Step 5: Run focused tests**
 
 ```bash
-npm test -- src/games/shared/input/keyboardInput.test.ts src/games/shared/input/inputLifecycle.test.ts src/games/shared/input/semanticInput.test.ts
+npm test -- src/games/shared/input/semanticInput.test.ts src/games/shared/input/keyboardInput.test.ts src/games/shared/input/inputLifecycle.test.ts
 ```
 
 Expected: PASS.
 
-- [ ] **Step 8: Commit keyboard/lifecycle glue**
+- [ ] **Step 6: Commit**
 
 ```bash
-git add src/games/shared/input/keyboardInput.ts src/games/shared/input/keyboardInput.test.ts src/games/shared/input/inputLifecycle.ts src/games/shared/input/inputLifecycle.test.ts src/games/shared/input/useSemanticInput.ts
+git add src/games/shared/input
 git commit -m "feat: add semantic input device adapters"
 ```
 
@@ -321,12 +261,10 @@ git commit -m "feat: add semantic input device adapters"
 - Create: `src/games/shared/input/inputControls.css`
 
 **Interfaces:**
-- Consumes: `SemanticInputWriter<Action>`.
-- Produces:
 
 ```ts
 export type DirectionalControlProps = {
-  writer: Pick<SemanticInputWriter<string>, 'setMoveSource' | 'clearMoveSource'>
+  writer: MovementInputWriter
   sourceId: string
   label: string
   deadZone?: number
@@ -346,84 +284,46 @@ export type ActionButtonProps<Action extends string> = {
 }
 ```
 
-If TypeScript variance makes `SemanticInputWriter<string>` too broad for movement-only usage, introduce and export a non-generic `MovementInputWriter` interface from `semanticInput.ts` containing only `setMoveSource` and `clearMoveSource`; do not weaken action typing.
-
 - [ ] **Step 1: Write failing `DirectionalControl` tests**
 
-Mock `setPointerCapture` / `releasePointerCapture` in JSDOM. Stub the control's `getBoundingClientRect()` to a deterministic `120x120` square.
-
-Cover:
-
-- first pointer claims ownership and calls `setPointerCapture`;
-- center and movement within the `0.12` dead zone writes zero;
-- edge movement produces a magnitude-1 vector;
-- diagonal beyond the radius is radially clamped;
-- second pointer is ignored while the first owns the stick;
-- pointerup, pointercancel, lostpointercapture, and unmount clear the move source;
-- returning to neutral mutates input without React-render-driven frame state.
+Mock pointer capture/release and use a deterministic `120x120` bounding box. Cover first-pointer ownership, `0.12` dead zone, smooth dead-zone rescaling, radial clamping, ignored secondary pointer, pointerup, pointercancel, lost capture, unmount, and deterministic zero.
 
 - [ ] **Step 2: Implement `DirectionalControl`**
 
-Use refs for pointer ownership, root element, and thumb element. On each owned pointer event, measure current bounds, compute center/radius, clamp magnitude, apply dead-zone rescaling, write the vector, and update CSS custom properties/`data-pressed` imperatively.
-
-Do not store pointer coordinates in React state.
+Use refs for pointer ownership/root/thumb. Measure current bounds on owned pointer events, compute center/radius, dead-zone-rescale and clamp the vector, write it through one source, and update thumb CSS variables/pressed attributes imperatively. No pointer-coordinate React state.
 
 - [ ] **Step 3: Write failing `ActionButton` tests**
 
-Cover press and hold modes, pointer capture, leave/re-entry for hold, pointerup/cancel/lost-capture cleanup, unmount cleanup, Enter/Space keyboard behavior, and this required regression:
+Stub a deterministic button bounding box. Cover press and hold pointer ownership, leave/re-entry in hold mode, pointer cancel/lost-capture/unmount cleanup, Enter/Space keyboard behavior, and this exact invariant:
 
 ```ts
-it('emits one press for a pointer activation even when a native click follows', () => {
-  const pulseAction = vi.fn()
-  render(/* press ActionButton using pulseAction */)
-  const button = screen.getByRole('button', { name: 'Deploy' })
-
-  fireEvent.pointerDown(button, { pointerId: 7, clientX: 10, clientY: 10 })
-  fireEvent.pointerUp(button, { pointerId: 7, clientX: 10, clientY: 10 })
-  fireEvent.click(button, { detail: 1 })
-
-  expect(pulseAction).toHaveBeenCalledTimes(1)
-})
+fireEvent.pointerDown(button, { pointerId: 7, clientX: 20, clientY: 20 })
+fireEvent.pointerUp(button, { pointerId: 7, clientX: 20, clientY: 20 })
+fireEvent.click(button, { detail: 1 })
+expect(pulseAction).toHaveBeenCalledTimes(1)
 ```
 
-Also verify a native keyboard/synthetic `click` with `detail: 0` emits one press in `press` mode.
+Then verify native keyboard/synthetic activation with `click.detail === 0` emits exactly one press.
 
 - [ ] **Step 4: Implement `ActionButton`**
 
-For `press` mode, pointer completion inside the button emits the semantic press and records that the following pointer-generated click is already consumed. `onClick` emits only for keyboard/assistive activation (`detail === 0`) or another activation not already handled by the pointer path.
+For `press`, valid pointer completion inside emits one semantic press and marks the following pointer-generated native click consumed; `onClick` emits only for keyboard/assistive activation or a click not already handled by the pointer path. For `hold`, pointerdown sets held state, pointermove toggles based on current inside/outside bounds, and pointerup/cancel/lost-capture/unmount clears it. Local Enter/Space keydown/up uses a `${sourceId}:keyboard` source because the global adapter ignores focused buttons.
 
-For `hold` mode, pointerdown sets the held source, pointermove toggles it according to current inside/outside bounds, and pointerup/cancel/lost-capture/unmount clears it. Local Enter/Space keydown/up handlers own a separate `${sourceId}:keyboard` source because the global keyboard adapter intentionally ignores focused buttons.
+- [ ] **Step 5: Add shared control CSS**
 
-- [ ] **Step 5: Add bounded shared styles**
+Use `pointer-events:auto` and `touch-action:none` only on real controls; visible `:focus-visible` and `[data-pressed="true"]`; action targets >= `44px` with primary size around `60px`; fixed circular stick; no continuous expensive effects.
 
-`inputControls.css` must provide:
-
-- `pointer-events: auto` only on actual controls;
-- `touch-action: none` only on actual controls;
-- visible `:focus-visible` treatment;
-- visible `[data-pressed="true"]` treatment;
-- minimum `44px` action target with primary sizing in the `56–64px` range;
-- a fixed circular stick with a bounded thumb transform;
-- no continuous expensive blur/shader animation.
-
-- [ ] **Step 6: Run pointer-control tests**
+- [ ] **Step 6: Run focused tests and commit**
 
 ```bash
 npm test -- src/games/shared/input/DirectionalControl.test.tsx src/games/shared/input/ActionButton.test.tsx
-```
-
-Expected: PASS.
-
-- [ ] **Step 7: Commit shared Pointer Events primitives**
-
-```bash
-git add src/games/shared/input/DirectionalControl.tsx src/games/shared/input/DirectionalControl.test.tsx src/games/shared/input/ActionButton.tsx src/games/shared/input/ActionButton.test.tsx src/games/shared/input/inputControls.css src/games/shared/input/semanticInput.ts
+git add src/games/shared/input
 git commit -m "feat: add shared touch input controls"
 ```
 
 ---
 
-### Task 4: Migrate Donut Run without changing player behavior
+### Task 4: Migrate Donut Run without changing behavior
 
 **Files:**
 - Create: `src/games/donut-run/donutRunInput.ts`
@@ -435,7 +335,6 @@ git commit -m "feat: add shared touch input controls"
 - Modify: `src/games/catalog/gameCatalog.test.ts`
 
 **Interfaces:**
-- Produces:
 
 ```ts
 export type DonutRunAction = 'jump'
@@ -446,74 +345,41 @@ export const donutRunKeyboardBindings: readonly KeyboardBinding<DonutRunAction>[
 ]
 ```
 
-- `DonutRunControls` receives `SemanticInputWriter<DonutRunAction>` and renders one shared press-mode Jump `ActionButton`.
+- [ ] **Step 1: Write failing mapping/catalog tests**
 
-- [ ] **Step 1: Write failing Donut mapping/catalog tests**
+Assert the exact bindings and, after migration, Donut catalog inputs `['touch', 'keyboard']`.
 
-Assert the exact keyboard bindings above and assert `getGameByRoute('/games/donut-run')?.inputs` contains both `keyboard` and `touch` once migration lands.
+- [ ] **Step 2: Add game-specific Jump composition**
 
-- [ ] **Step 2: Implement Donut mapping/control composition**
+`DonutRunControls` renders one shared press-mode Jump button with source `button:donut-run:jump` inside a safe-area-aware wrapper.
 
-Create `DonutRunControls.tsx` with a game-specific safe-area wrapper and:
+- [ ] **Step 3: Migrate `DonutRun.tsx`**
 
-```tsx
-<ActionButton
-  action="jump"
-  mode="press"
-  sourceId="button:donut-run:jump"
-  writer={writer}
->
-  Jump
-</ActionButton>
-```
+Create one `useSemanticInput(donutRunKeyboardBindings)` instance. Move the Phaser parent ref to a full-size `.donut-run__surface` inside `GameViewport`; that Donut-specific surface `onPointerDown` pulses `jump`. Pass `DonutRunControls` through `inputOverlay`. Remove Phaser raw pointer/keyboard registrations. At the beginning of scene update, consume `jump` and call the existing `handleAction()` path.
 
-- [ ] **Step 3: Migrate Donut runtime input**
+Keep the existing `Tap, click, or press SPACE` copy and menu/running/dead mechanics unchanged. The surface, Jump overlay, and fullscreen button remain siblings so Jump/fullscreen pointer events cannot bubble into the surface and double-fire.
 
-In `DonutRun.tsx`:
+- [ ] **Step 4: Add Donut styles and catalog metadata**
 
-1. create one `useSemanticInput(donutRunKeyboardBindings)` instance;
-2. move the Phaser parent ref to a full-size Donut surface element inside `GameViewport`;
-3. route that surface's `onPointerDown` directly to `writer.pulseAction('jump')` as a Donut-specific mapping;
-4. pass `DonutRunControls` through `GameViewport.inputOverlay`;
-5. remove Phaser `pointerdown`, `keydown-SPACE`, and `keydown-UP` registrations;
-6. at the beginning of the Phaser scene update, consume pending `jump` input and call the existing `handleAction()` mechanics path;
-7. retain the existing menu/dead/running behavior and existing player-facing `Tap, click, or press SPACE` copy.
+`.donut-run__surface` fills the viewport and locally uses `touch-action:none`. Touch Jump sits near the lower-right safe area and is hidden on pointer-fine desktop layouts. Change only Donut's catalog inputs to `['touch', 'keyboard']`.
 
-The touch Jump overlay and fullscreen button are siblings of the Donut surface, not descendants, so their pointer events cannot bubble into the surface mapping and double-fire `jump`.
-
-- [ ] **Step 4: Add Donut layout styles**
-
-Create a full-size `.donut-run__surface` with local `touch-action: none`. Position the touch Jump control via the overlay near the lower-right safe area. Hide visual thumb controls on pointer-fine desktop layouts while preserving game-surface mouse click and keyboard behavior.
-
-- [ ] **Step 5: Update Donut catalog metadata**
-
-Change only Donut Run's catalog `inputs` from `['keyboard']` to `['touch', 'keyboard']`.
-
-- [ ] **Step 6: Run Donut-focused tests**
+- [ ] **Step 5: Run tests and commit**
 
 ```bash
 npm test -- src/games/donut-run/donutRunInput.test.ts src/games/catalog/gameCatalog.test.ts
-```
-
-Expected: PASS.
-
-- [ ] **Step 7: Commit Donut migration**
-
-```bash
 git add src/games/donut-run src/games/catalog/gameCatalog.ts src/games/catalog/gameCatalog.test.ts
 git commit -m "feat: migrate Donut Run to semantic input"
 ```
 
 ---
 
-### Task 5: Define and test Neon Drift semantic lifecycle ordering
+### Task 5: Define Neon Drift semantic mappings and lifecycle ordering
 
 **Files:**
 - Create: `src/games/neon-drift/neonDriftInput.ts`
 - Create: `src/games/neon-drift/neonDriftInput.test.ts`
 
 **Interfaces:**
-- Produces:
 
 ```ts
 export type NeonDriftAction = 'boost' | 'deploy' | 'start' | 'pause'
@@ -535,7 +401,7 @@ export function processNeonDriftControlIntents(
 ): void
 ```
 
-Keyboard bindings must preserve:
+Bindings:
 
 ```ts
 [
@@ -554,37 +420,24 @@ Keyboard bindings must preserve:
 ]
 ```
 
-- [ ] **Step 1: Write failing mapping tests**
+- [ ] **Step 1: Write failing mapping/order tests**
 
-Assert the exact semantic mapping above and that no game-mechanics-facing mapping exposes raw key values beyond this device adapter configuration.
+Required state cases:
 
-- [ ] **Step 2: Write failing lifecycle-order tests**
+1. `start` works while not running/game-over;
+2. `pause` toggles running `false -> true` and `true -> false` paused state;
+3. deploy while paused is consumed and never fires after a later resume;
+4. when `pause` and `deploy` are queued while paused, pause is processed first, runtime state is re-read, and deploy may execute after same-frame resume;
+5. start is processed before later control/simulation gating.
 
-Use a real `createSemanticInput<NeonDriftAction>()` reader and mutable test runtime.
-
-Required cases:
-
-1. queued `start` invokes `start()` while `running === false`;
-2. queued `pause` changes `paused: false -> true` while running;
-3. a later queued `pause` changes `paused: true -> false` while running;
-4. `deploy` while paused is consumed without invoking `deploy()` and does not fire after a later resume;
-5. when `pause` and `deploy` are both queued while paused, processing `pause` first resumes and then allows the same-frame Deploy because runtime state is re-read after each lifecycle handler;
-6. `start` is processed before deploy/simulation gating.
-
-- [ ] **Step 3: Implement `processNeonDriftControlIntents`**
-
-Process in this exact order:
+- [ ] **Step 2: Implement exact control processing order**
 
 ```ts
 const startPressed = reader.consumePress('start')
-if (startPressed && (!runtime.isRunning() || runtime.isGameOver())) {
-  runtime.start()
-}
+if (startPressed && (!runtime.isRunning() || runtime.isGameOver())) runtime.start()
 
 const pausePressed = reader.consumePress('pause')
-if (pausePressed && runtime.isRunning() && !runtime.isGameOver()) {
-  runtime.togglePause()
-}
+if (pausePressed && runtime.isRunning() && !runtime.isGameOver()) runtime.togglePause()
 
 const deployPressed = reader.consumePress('deploy')
 if (
@@ -592,24 +445,15 @@ if (
   runtime.isRunning() &&
   !runtime.isPaused() &&
   !runtime.isGameOver()
-) {
-  runtime.deploy()
-}
+) runtime.deploy()
 ```
 
-The `deploy` edge is consumed whether or not deployment is currently valid.
+`deploy` is consumed even when invalid.
 
-- [ ] **Step 4: Run Neon semantic tests**
+- [ ] **Step 3: Run tests and commit**
 
 ```bash
 npm test -- src/games/neon-drift/neonDriftInput.test.ts
-```
-
-Expected: PASS.
-
-- [ ] **Step 5: Commit Neon semantic contract**
-
-```bash
 git add src/games/neon-drift/neonDriftInput.ts src/games/neon-drift/neonDriftInput.test.ts
 git commit -m "feat: define Neon Drift semantic inputs"
 ```
@@ -626,61 +470,26 @@ git commit -m "feat: define Neon Drift semantic inputs"
 - Modify: `src/games/catalog/gameCatalog.ts`
 - Modify: `src/games/catalog/gameCatalog.test.ts`
 
-**Interfaces:**
-- Consumes: `useSemanticInput`, `DirectionalControl`, `ActionButton`, `neonDriftKeyboardBindings`, and `processNeonDriftControlIntents`.
-- `NeonDriftControls` receives `SemanticInputWriter<NeonDriftAction>`.
-
 - [ ] **Step 1: Write failing composed multi-touch tests**
 
-Render `NeonDriftControls` with a real semantic input writer. Use distinct pointer IDs and deterministic stick bounds.
-
-Required cases:
-
-```text
-pointer 17 -> stick right
-pointer 22 -> Boost held
-reader.move.x > 0 AND reader.isHeld('boost') === true
-```
-
-and:
-
-```text
-pointer 17 -> stick up
-pointer 24 -> Deploy press
-reader.move.y < 0 AND reader.consumePress('deploy') === true
-```
-
-Cancel/release one pointer and assert the other intent remains active.
+With distinct pointers, prove stick movement + held Boost and stick movement + Deploy press coexist. Releasing/canceling one pointer must leave the other intent intact.
 
 - [ ] **Step 2: Implement `NeonDriftControls`**
 
-Compose one lower-left `DirectionalControl`, one lower-right hold-mode Boost `ActionButton`, and one adjacent/above press-mode Deploy `ActionButton`. Give each a unique source ID.
+Compose lower-left `DirectionalControl`, lower-right hold-mode Boost `ActionButton`, and adjacent/above press-mode Deploy `ActionButton`, each with a unique source ID.
 
-- [ ] **Step 3: Migrate raw-key runtime reads**
+- [ ] **Step 3: Replace raw key mechanics in `NeonDriftGame.tsx`**
 
-In `NeonDriftGame.tsx`:
+Create one `useSemanticInput(neonDriftKeyboardBindings)` instance; delete raw `Set<string>` and keydown/keyup listeners. Read `reader.move` and `reader.isHeld('boost')`. Create a `NeonDriftControlRuntime` facade over current mutable runtime state and call `processNeonDriftControlIntents(reader, runtime)` before any `!running || paused || gameOver` simulation return.
 
-1. create one `useSemanticInput(neonDriftKeyboardBindings)` instance;
-2. delete the raw `Set<string>` and global `keydown`/`keyup` handlers;
-3. replace `ix`/`iy` calculations with `reader.move.x` / `reader.move.y`;
-4. replace `keys.has('Space')` with `reader.isHeld('boost')`;
-5. construct a `NeonDriftControlRuntime` facade over current `running`, `paused`, `gameOver`, `start`, pause toggle, and `deployTurret` behavior;
-6. call `processNeonDriftControlIntents(reader, runtime)` before the active-simulation early return on every update;
-7. only after lifecycle/control processing, return early when `!running || paused || gameOver`;
-8. keep the existing game-specific blur-to-pause behavior, but remove key clearing because shared lifecycle reset now owns semantic-input clearing;
-9. change the intro/game-over panel button handler from calling `startRef` mechanics directly to `writer.pulseAction('start')`;
-10. preserve keyboard `Space`/`Enter` start/restart, `P` pause/resume, `R` deploy, movement, and boost behavior.
+Keep the current game-specific blur-to-pause behavior; shared lifecycle reset owns semantic-input clearing. Route the intro/game-over button into `writer.pulseAction('start')` instead of calling `start()` directly. Remove the obsolete `startRef` bridge after the semantic path is in place.
 
-- [ ] **Step 4: Mount touch controls through `GameViewport.inputOverlay`**
-
-Render Neon touch controls only while the run overlay is not visible:
+- [ ] **Step 4: Mount touch controls via `GameViewport.inputOverlay`**
 
 ```tsx
 <GameViewport
   game="neon-drift"
-  inputOverlay={
-    overlayVisible ? null : <NeonDriftControls writer={input.writer} />
-  }
+  inputOverlay={overlayVisible ? null : <NeonDriftControls writer={input.writer} />}
   label="Neon Drift game"
   ref={viewportRef}
 >
@@ -688,19 +497,13 @@ Render Neon touch controls only while the run overlay is not visible:
 </GameViewport>
 ```
 
-Unmounting the controls on overlay/game-over must clear their owned sources through the shared primitive cleanup paths.
+Unmounting the overlay on game-over clears touch sources through primitive cleanup.
 
-- [ ] **Step 5: Add safe-area-aware Neon control layout**
+- [ ] **Step 5: Add touch layout and catalog metadata**
 
-Update `neonDrift.css` so visual touch controls appear for coarse pointers and compact mobile layouts, preserve the fullscreen control, use safe-area insets, and do not obscure the Start/game-over panel. Shift the bottom Boost meter only enough to remain readable above thumb controls on touch layouts.
+Use coarse-pointer/compact-layout CSS, safe-area insets, and bounded HUD spacing so thumb controls do not obscure the Start/game-over panel or Boost meter. Change only Neon Drift's catalog inputs to `['touch', 'keyboard']`. Catalog tests assert both migrated games advertise touch + keyboard.
 
-Do not add continuous visual effects to the controls.
-
-- [ ] **Step 6: Update Neon catalog metadata**
-
-Change only Neon Drift's `inputs` from `['keyboard']` to `['touch', 'keyboard']`. Extend `gameCatalog.test.ts` to assert both Donut Run and Neon Drift advertise those two inputs.
-
-- [ ] **Step 7: Run all focused shared-input/game tests**
+- [ ] **Step 6: Run all focused tests and commit**
 
 ```bash
 npm test -- \
@@ -713,30 +516,22 @@ npm test -- \
   src/games/neon-drift/neonDriftInput.test.ts \
   src/games/neon-drift/NeonDriftControls.test.tsx \
   src/games/catalog/gameCatalog.test.ts
-```
 
-Expected: PASS.
-
-- [ ] **Step 8: Commit Neon migration**
-
-```bash
 git add src/games/neon-drift src/games/catalog/gameCatalog.ts src/games/catalog/gameCatalog.test.ts
 git commit -m "feat: migrate Neon Drift to semantic input"
 ```
 
+Expected: PASS.
+
 ---
 
-### Task 7: Run the release gate, perform player validation, and open the focused PR
+### Task 7: Validate, audit, and open the focused PR
 
 **Files:**
-- Modify only implementation/tests if validation exposes Issue #14 defects.
-- Use `.github/pull_request_template.md` as the PR body structure.
+- Modify implementation/tests only if validation exposes an Issue #14 defect.
+- Use `.github/pull_request_template.md` for the PR body.
 
-**Interfaces:**
-- Consumes the complete Issue #14 branch.
-- Produces a reviewable, unmerged PR to `main` containing `Closes #14`.
-
-- [ ] **Step 1: Run the complete automated repository gate**
+- [ ] **Step 1: Run the complete repository gate**
 
 ```bash
 npm test
@@ -744,79 +539,28 @@ npm run lint
 npm run build
 ```
 
-Expected: all commands exit `0`.
+Expected: all exit `0`. Fix only branch-caused failures with focused red/green cycles; do not absorb unrelated warnings or roadmap cleanup.
 
-If a validation failure is caused by this branch, fix it using a focused red/green cycle and rerun the full gate. Do not fix unrelated pre-existing warnings or roadmap status in this PR.
+- [ ] **Step 2: Audit final diff against `main`**
 
-- [ ] **Step 2: Audit the final diff against current `main`**
+Allowed scope: approved spec/plan, `src/games/shared/input/`, Donut Run input integration/tests/styles, Neon Drift input integration/tests/styles, and catalog input metadata/tests.
 
-Verify the diff is limited to:
+- [ ] **Step 3: Perform all available hands-on validation**
 
-- the approved spec/plan;
-- `src/games/shared/input/`;
-- Donut Run input integration/styles/tests;
-- Neon Drift input integration/styles/tests;
-- catalog input metadata/tests.
+Desktop/browser: Donut Space/ArrowUp/click-anywhere/start/death/restart; Neon WASD/arrows/Boost/Deploy/P pause-resume/Enter-Space start-restart; fullscreen, focus loss/regain, resize, interruption recovery, latency, and frame stability.
 
-Reject unrelated game, networking, Chat, server, monetization, analytics, account, deployment, or roadmap-status changes.
+Touch/device where available: Donut tap-anywhere + Jump; Neon stick, move+Boost, move+Deploy; portrait/landscape, safe areas, fullscreen, interruption, accidental page gestures, lower-powered performance. State exact hardware/browser gaps rather than manufacturing evidence.
 
-- [ ] **Step 3: Perform available desktop hands-on validation**
+- [ ] **Step 4: Push final branch and verify GitHub Actions**
 
-Exercise in a real browser where tooling allows:
+Confirm the branch validation workflow passes the same test/lint/build gate. Inspect logs and fix only branch-caused failures.
 
-- Donut Run Space, ArrowUp, game-surface mouse click, Start/death/restart;
-- Donut visible Jump control where touch emulation is available;
-- Neon WASD/arrows, Space Boost, R Deploy, P pause and resume, Enter/Space Start/Run It Back;
-- fullscreen enter/exit;
-- focus loss/regain;
-- resize;
-- no stuck input after interruption;
-- perceived latency and frame stability;
-- React controls do not render at frame rate.
+- [ ] **Step 5: Open PR to `main`**
 
-- [ ] **Step 4: Perform available touch/mobile validation**
-
-Where actual hardware/browser access is available, test:
-
-- Donut tap-anywhere and Jump control;
-- Neon stick movement;
-- Neon move + Boost multi-touch;
-- Neon move + Deploy multi-touch;
-- portrait/landscape rotation;
-- safe-area/control placement;
-- fullscreen transitions;
-- focus/interruption recovery;
-- accidental page/browser gestures around controls;
-- lower-powered-device frame stability.
-
-If iPhone/Android hardware or pointer-cancel tooling is unavailable, state that exact gap in the PR instead of implying coverage.
-
-- [ ] **Step 5: Confirm branch CI**
-
-After pushing the final branch head, wait for the repository's branch validation workflow and confirm the same test/lint/build gate is green. If GitHub Actions fails, inspect the job logs and repair only branch-caused failures.
-
-- [ ] **Step 6: Open the PR to `main` using the repository template**
-
-Use a focused title such as:
+Title:
 
 ```text
 feat: add shared semantic input foundation
 ```
 
-The PR body must include:
-
-```text
-Closes #14
-```
-
-and clearly separate:
-
-- automated validation evidence;
-- hands-on browser/device evidence;
-- any manual validation gaps;
-- performance impact;
-- review focus around input ownership/reset/double-fire behavior.
-
-- [ ] **Step 7: Leave the PR unmerged**
-
-Do not enable auto-merge and do not merge the PR without explicit user authorization.
+Use the repository PR template, include `Closes #14`, separate automated evidence from manual evidence/gaps, document performance impact and reset/ownership/double-fire review focus, and leave the PR unmerged with auto-merge disabled.
