@@ -84,7 +84,7 @@
   }
 
   .game-page-shell .game-viewport__fullscreen {
-    top: calc(8px + env(safe-area-inset-top));
+    top: calc(66px + env(safe-area-inset-top));
     right: max(8px, env(safe-area-inset-right));
   }
 }
