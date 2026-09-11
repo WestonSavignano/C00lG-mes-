@@ -1,12 +1,25 @@
 import { Maximize2, Minimize2 } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState, type ReactNode, type Ref } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+  type Ref,
+} from 'react'
+import './GameViewport.css'
 
 type GameViewportProps = {
   children: ReactNode
   game: string
+  inputOverlay?: ReactNode
   label: string
   ref?: Ref<HTMLDivElement>
 }
+
+const interactiveSelector =
+  'button, a, input, select, textarea, [contenteditable="true"]'
 
 function assignRef(ref: Ref<HTMLDivElement> | undefined, value: HTMLDivElement | null) {
   if (!ref) {
@@ -22,7 +35,17 @@ function assignRef(ref: Ref<HTMLDivElement> | undefined, value: HTMLDivElement |
   mutableRef.current = value
 }
 
-function GameViewport({ children, game, label, ref }: GameViewportProps) {
+function isInteractiveTarget(target: EventTarget | null) {
+  return target instanceof Element && Boolean(target.closest(interactiveSelector))
+}
+
+function GameViewport({
+  children,
+  game,
+  inputOverlay,
+  label,
+  ref,
+}: GameViewportProps) {
   const viewportRef = useRef<HTMLDivElement | null>(null)
   const [isFullscreen, setIsFullscreen] = useState(false)
 
@@ -33,6 +56,10 @@ function GameViewport({ children, game, label, ref }: GameViewportProps) {
     },
     [ref],
   )
+
+  const focusViewport = useCallback(() => {
+    viewportRef.current?.focus({ preventScroll: true })
+  }, [])
 
   useEffect(() => {
     const syncFullscreenState = () => {
@@ -47,6 +74,15 @@ function GameViewport({ children, game, label, ref }: GameViewportProps) {
     }
   }, [])
 
+  const handlePointerDown = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (!isInteractiveTarget(event.target)) {
+        focusViewport()
+      }
+    },
+    [focusViewport],
+  )
+
   const handleFullscreenClick = useCallback(async () => {
     const viewport = viewportRef.current
 
@@ -54,13 +90,18 @@ function GameViewport({ children, game, label, ref }: GameViewportProps) {
       return
     }
 
-    if (document.fullscreenElement === viewport) {
-      await document.exitFullscreen?.()
-      return
+    try {
+      if (document.fullscreenElement === viewport) {
+        await document.exitFullscreen?.()
+      } else {
+        await viewport.requestFullscreen?.()
+      }
+    } catch {
+      // Fullscreen is progressive enhancement. Keep gameplay usable if the
+      // browser, embed, or platform rejects the request.
+    } finally {
+      viewport.focus({ preventScroll: true })
     }
-
-    await viewport.requestFullscreen?.()
-    viewport.focus({ preventScroll: true })
   }, [])
 
   const fullscreenLabel = isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'
@@ -72,11 +113,20 @@ function GameViewport({ children, game, label, ref }: GameViewportProps) {
       className="game-viewport"
       data-game={game}
       data-testid="game-viewport"
+      onPointerDown={handlePointerDown}
       ref={setViewportRef}
       role="application"
       tabIndex={-1}
     >
       {children}
+      {inputOverlay ? (
+        <div
+          className="game-viewport__input-overlay"
+          data-testid="game-input-overlay"
+        >
+          {inputOverlay}
+        </div>
+      ) : null}
       <button
         aria-label={fullscreenLabel}
         aria-pressed={isFullscreen}
