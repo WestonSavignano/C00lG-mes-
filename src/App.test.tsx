@@ -95,12 +95,14 @@ describe('App routes', () => {
     expect(screen.getByRole('heading', { name: 'Games' })).toBeInTheDocument()
 
     const cards = screen.getAllByTestId('card')
-    expect(cards).toHaveLength(6)
-    expect(within(cards[0]).getByRole('heading', { name: 'Plane Blaster' }))
+    expect(cards).toHaveLength(7)
+    expect(within(cards[0]).getByRole('heading', { name: 'Bodi Island' }))
       .toBeInTheDocument()
-    expect(within(cards[2]).getByRole('heading', { name: 'Neon Drift' }))
+    expect(within(cards[1]).getByRole('heading', { name: 'Plane Blaster' }))
       .toBeInTheDocument()
-    expect(within(cards[5]).getByRole('heading', { name: 'Warrior2' }))
+    expect(within(cards[3]).getByRole('heading', { name: 'Neon Drift' }))
+      .toBeInTheDocument()
+    expect(within(cards[6]).getByRole('heading', { name: 'Warrior2' }))
       .toBeInTheDocument()
   })
 
