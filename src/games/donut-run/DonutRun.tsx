@@ -1,7 +1,11 @@
 ﻿import { useCallback, useRef, useState } from 'react'
 import type { GameObjects, Physics } from 'phaser'
 import GameViewport from '../shared/GameViewport'
+import { useSemanticInput } from '../shared/input/useSemanticInput'
 import usePhaserGame from '../shared/usePhaserGame'
+import DonutRunControls from './DonutRunControls'
+import { donutRunKeyboardBindings } from './donutRunInput'
+import './donutRun.css'
 
 const GAME_WIDTH = 960
 const GAME_HEIGHT = 540
@@ -31,6 +35,7 @@ type PhysicsSprite = Physics.Arcade.Sprite & {
 
 function DonutRun() {
   const stageRef = useRef<HTMLDivElement | null>(null)
+  const input = useSemanticInput(donutRunKeyboardBindings)
   const [engineStatus, setEngineStatus] = useState<'loading' | 'ready' | 'error'>('loading')
 
   const createGame = useCallback(
@@ -73,11 +78,14 @@ function DonutRun() {
           this.createWorld()
           this.createPlayer()
           this.createHud()
-          this.createInput()
           this.showMenu()
         }
 
         update(_: number, deltaMs: number) {
+          if (input.reader.consumePress('jump')) {
+            this.handleAction()
+          }
+
           const deltaSeconds = deltaMs / 1000
 
           this.animateMenu(deltaSeconds)
@@ -386,12 +394,6 @@ function DonutRun() {
             )
             .setOrigin(0.5)
             .setVisible(false)
-        }
-
-        private createInput() {
-          this.input.on('pointerdown', () => this.handleAction())
-          this.input.keyboard?.on('keydown-SPACE', () => this.handleAction())
-          this.input.keyboard?.on('keydown-UP', () => this.handleAction())
         }
 
         private showMenu() {
@@ -789,7 +791,7 @@ function DonutRun() {
         scene: DonutDashScene,
       })
     },
-    [],
+    [input.reader],
   )
 
   const handleReady = useCallback(() => {
@@ -805,14 +807,32 @@ function DonutRun() {
     onReady: handleReady,
   })
 
+  const handleSurfacePointerDown = useCallback(() => {
+    if (engineStatus === 'ready') {
+      input.writer.pulseAction('jump')
+    }
+  }, [engineStatus, input.writer])
+
   return (
-    <GameViewport game="donut-run" label="Donut Dash arcade game" ref={stageRef}>
-      {engineStatus === 'loading' ? (
-        <div className="game-loading">Loading Phaser engine...</div>
-      ) : null}
-      {engineStatus === 'error' ? (
-        <div className="game-loading">Phaser could not start.</div>
-      ) : null}
+    <GameViewport
+      game="donut-run"
+      inputOverlay={
+        engineStatus === 'ready' ? <DonutRunControls writer={input.writer} /> : null
+      }
+      label="Donut Dash arcade game"
+    >
+      <div
+        className="donut-run__surface"
+        onPointerDown={handleSurfacePointerDown}
+        ref={stageRef}
+      >
+        {engineStatus === 'loading' ? (
+          <div className="game-loading">Loading Phaser engine...</div>
+        ) : null}
+        {engineStatus === 'error' ? (
+          <div className="game-loading">Phaser could not start.</div>
+        ) : null}
+      </div>
     </GameViewport>
   )
 }
