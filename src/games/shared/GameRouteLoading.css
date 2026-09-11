@@ -1,0 +1,58 @@
+.game-route-loading {
+  min-height: min(62vw, 680px);
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 50% 40%, rgba(94, 234, 212, 0.08), transparent 35%),
+    #050914;
+}
+
+.game-route-loading__panel {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--color-text);
+  font-size: 0.9rem;
+  font-weight: 750;
+}
+
+.game-route-loading__pulse {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--color-accent);
+  box-shadow: 0 0 18px rgba(94, 234, 212, 0.5);
+  animation: game-loading-pulse 900ms ease-in-out infinite alternate;
+}
+
+@keyframes game-loading-pulse {
+  from {
+    opacity: 0.4;
+    transform: scale(0.78);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (max-width: 720px) {
+  .game-route-loading {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    padding:
+      calc(64px + env(safe-area-inset-top))
+      max(16px, env(safe-area-inset-right))
+      max(16px, env(safe-area-inset-bottom))
+      max(16px, env(safe-area-inset-left));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .game-route-loading__pulse {
+    animation: none;
+  }
+}
