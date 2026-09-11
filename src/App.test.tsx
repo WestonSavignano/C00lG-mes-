@@ -1,5 +1,4 @@
 import { render, screen, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
 import App from './App'
@@ -13,8 +12,7 @@ function renderRoute(route: string) {
 }
 
 describe('App routes', () => {
-  it('renders a responsive header with brand, Chat, Games, and a mobile menu', async () => {
-    const user = userEvent.setup()
+  it('renders the arcade shell with shared desktop and mobile destinations', () => {
     renderRoute('/')
 
     const header = screen.getByRole('banner')
@@ -25,28 +23,18 @@ describe('App routes', () => {
     const desktopNav = within(header).getByRole('navigation', {
       name: 'Primary',
     })
-    expect(within(desktopNav).getByRole('link', { name: 'Chat' }))
-      .toHaveAttribute('href', '/chat')
-    expect(within(desktopNav).getByRole('link', { name: 'Games' }))
-      .toHaveAttribute('href', '/games')
-
-    const menuButton = within(header).getByRole('button', {
-      name: /open navigation menu/i,
+    const mobileNav = screen.getByRole('navigation', {
+      name: 'Mobile primary',
     })
-    expect(menuButton).toHaveAttribute('aria-expanded', 'false')
 
-    await user.click(menuButton)
-
-    expect(menuButton).toHaveAttribute('aria-expanded', 'true')
-    const mobileNav = within(header).getByRole('navigation', {
-      name: 'Mobile',
-    })
-    const chatLink = within(mobileNav).getByRole('link', { name: 'Chat' })
-    expect(chatLink).toHaveAttribute('href', '/chat')
-
-    await user.click(chatLink)
-
-    expect(menuButton).toHaveAttribute('aria-expanded', 'false')
+    for (const navigation of [desktopNav, mobileNav]) {
+      expect(within(navigation).getByRole('link', { name: 'Home' }))
+        .toHaveAttribute('href', '/')
+      expect(within(navigation).getByRole('link', { name: 'Games' }))
+        .toHaveAttribute('href', '/games')
+      expect(within(navigation).getByRole('link', { name: 'Party' }))
+        .toHaveAttribute('href', '/chat')
+    }
   })
 
   it('links from the home page to Chat and Games', () => {
