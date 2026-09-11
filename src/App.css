@@ -48,65 +48,6 @@
   margin: 0;
 }
 
-.game-viewport {
-  position: relative;
-  overflow: hidden;
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  min-height: 280px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background:
-    radial-gradient(circle at 18% 22%, rgba(94, 234, 212, 0.2), transparent 20%),
-    linear-gradient(180deg, #071421 0%, #0f2638 100%);
-  box-shadow: var(--shadow-sm);
-}
-
-.game-viewport:fullscreen {
-  width: 100vw;
-  height: 100dvh;
-  aspect-ratio: auto;
-  border: 0;
-  border-radius: 0;
-  background: #071421;
-  box-shadow: none;
-}
-
-.game-viewport canvas {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-
-.game-viewport__fullscreen {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  z-index: 5;
-  display: inline-grid;
-  width: 44px;
-  height: 44px;
-  place-items: center;
-  border: 1px solid rgba(219, 234, 254, 0.36);
-  border-radius: var(--radius-sm);
-  color: #dbeafe;
-  background: rgba(7, 20, 33, 0.74);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
-  cursor: pointer;
-}
-
-.game-viewport__fullscreen:hover,
-.game-viewport__fullscreen:focus-visible {
-  color: #ffffff;
-  border-color: rgba(219, 234, 254, 0.72);
-  background: rgba(15, 38, 56, 0.9);
-}
-
-.game-viewport__fullscreen svg {
-  width: 22px;
-  height: 22px;
-}
-
 .game-loading {
   position: absolute;
   inset: 0;
