@@ -1,6 +1,6 @@
 import type { GameDefinition } from './gameTypes'
 
-export const gameCatalog = [
+export const gameCatalog: readonly GameDefinition[] = [
   {
     id: 'plane-blaster',
     route: '/games/plane-blaster',
@@ -69,10 +69,10 @@ export const gameCatalog = [
     artwork: { theme: 'shadow', label: 'Shadowy village battle' },
     loadPage: () => import('../warrior2/WarriorPage'),
   },
-] as const satisfies readonly GameDefinition[]
+]
 
 export const featuredGame =
-  gameCatalog.find((game) => game.featured) ?? gameCatalog[0]
+  gameCatalog.find((game) => game.featured) ?? gameCatalog[0]!
 
 export function getGameByRoute(pathname: string): GameDefinition | undefined {
   return gameCatalog.find((game) => game.route === pathname)
