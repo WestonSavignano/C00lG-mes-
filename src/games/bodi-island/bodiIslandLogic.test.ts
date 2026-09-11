@@ -17,11 +17,20 @@ describe('Bodi Island progression', () => {
     expect(logic).not.toBeNull()
     if (!logic) return
 
-    expect(logic.collectDarkFuzz(0, 'shadow-bug')).toBe(0)
-    expect(logic.collectDarkFuzz(0, 'dark-matter')).toBe(1)
-    expect(logic.collectDarkFuzz(9, 'dark-matter')).toBe(10)
-    expect(logic.collectDarkFuzz(10, 'dark-matter')).toBe(10)
+    expect(logic.collectDarkFuzz(0, 'shadow-bug', false)).toBe(0)
+    expect(logic.collectDarkFuzz(0, 'dark-matter', false)).toBe(1)
+    expect(logic.collectDarkFuzz(9, 'dark-matter', false)).toBe(10)
+    expect(logic.collectDarkFuzz(10, 'dark-matter', false)).toBe(10)
     expect(logic.DARK_FUZZ_REQUIRED).toBe(10)
+  })
+
+  it('stops Dark Fuzz drops once the Shadow Boots have been crafted', async () => {
+    const logic = await loadLogic()
+
+    expect(logic).not.toBeNull()
+    if (!logic) return
+
+    expect(logic.collectDarkFuzz(0, 'dark-matter', true)).toBe(0)
   })
 
   it('allows Blaze to craft Shadow Boots once Bodi has 10 Dark Fuzz', async () => {
