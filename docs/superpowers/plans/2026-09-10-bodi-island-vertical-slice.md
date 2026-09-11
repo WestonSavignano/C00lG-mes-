@@ -1,6 +1,6 @@
 # Bodi Island Vertical Slice Implementation Plan
 
-Status: Implemented in PR #6; automated validation green on the delivered code head. Final documentation-only status commit is subject to the same repository CI gate.
+Status: Implemented in PR #6. Automated validation passed on the delivered code; the PR remains subject to CI after documentation-only changes.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -100,4 +100,4 @@ Deferred by explicit scope: full village interiors, Town Hall opening cinematic,
 
 ## Delivery note
 
-Automated verification is complete for the delivered code head. The remaining gate is the user's local gameplay review, especially camera feel, movement responsiveness, enemy readability, mobile ergonomics, and visual direction. Any findings should be iterated on this PR before expanding into the next Bodi Island slice.
+The remaining product gate is local gameplay review, especially camera feel, movement responsiveness, enemy readability, mobile ergonomics, and visual direction. Any findings should be iterated on this PR before expanding into the next Bodi Island slice.
