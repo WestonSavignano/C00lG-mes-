@@ -27,3 +27,5 @@ export function useSemanticInput<Action extends string>(
 
   return input
 }
+
+export default useSemanticInput
