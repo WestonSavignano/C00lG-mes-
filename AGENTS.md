@@ -77,7 +77,7 @@ npm run lint
 npm run build
 ```
 
-Pull requests to `main` run the same gate in GitHub Actions.
+Pull requests to `main` and pushes to preferred work branches (`feature/**`, `fix/**`, `perf/**`, `docs/**`) run the same gate in GitHub Actions. This allows GitHub-only workflows to validate a branch before opening a PR.
 
 Add or update tests when behavior changes. Favor deterministic tests for game logic, protocol validation, catalog/routing behavior, storage failure behavior, and shared infrastructure. Automated checks are necessary but not sufficient for gameplay, visuals, input, networking, or performance changes.
 
