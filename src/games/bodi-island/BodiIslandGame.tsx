@@ -76,6 +76,7 @@ export function BodiIslandControls({ onDirectionChange, onAction }: ControlsProp
         <button
           aria-label="Move forward"
           className="bodi-island__control bodi-island__control--up"
+          onLostPointerCapture={directionHandler('forward', false)}
           onPointerCancel={directionHandler('forward', false)}
           onPointerDown={directionHandler('forward', true)}
           onPointerUp={directionHandler('forward', false)}
@@ -86,6 +87,7 @@ export function BodiIslandControls({ onDirectionChange, onAction }: ControlsProp
         <button
           aria-label="Move left"
           className="bodi-island__control bodi-island__control--left"
+          onLostPointerCapture={directionHandler('left', false)}
           onPointerCancel={directionHandler('left', false)}
           onPointerDown={directionHandler('left', true)}
           onPointerUp={directionHandler('left', false)}
@@ -96,6 +98,7 @@ export function BodiIslandControls({ onDirectionChange, onAction }: ControlsProp
         <button
           aria-label="Move right"
           className="bodi-island__control bodi-island__control--right"
+          onLostPointerCapture={directionHandler('right', false)}
           onPointerCancel={directionHandler('right', false)}
           onPointerDown={directionHandler('right', true)}
           onPointerUp={directionHandler('right', false)}
@@ -106,6 +109,7 @@ export function BodiIslandControls({ onDirectionChange, onAction }: ControlsProp
         <button
           aria-label="Move backward"
           className="bodi-island__control bodi-island__control--down"
+          onLostPointerCapture={directionHandler('backward', false)}
           onPointerCancel={directionHandler('backward', false)}
           onPointerDown={directionHandler('backward', true)}
           onPointerUp={directionHandler('backward', false)}
@@ -184,8 +188,9 @@ function BodiIslandGame() {
         onComplete: () => setComplete(true),
       })
     } catch (error) {
-      setGraphicsError(error instanceof Error ? error.message : 'Bodi Island could not start.')
-      return
+      const errorMessage = error instanceof Error ? error.message : 'Bodi Island could not start.'
+      const timeoutId = window.setTimeout(() => setGraphicsError(errorMessage), 0)
+      return () => window.clearTimeout(timeoutId)
     }
 
     controllerRef.current = controller
