@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { attachInputResetLifecycle } from './inputLifecycle'
 import { attachKeyboardInput, type KeyboardBinding } from './keyboardInput'
 import {
@@ -9,13 +9,7 @@ import {
 export function useSemanticInput<Action extends string>(
   bindings: readonly KeyboardBinding<Action>[],
 ): SemanticInput<Action> {
-  const inputRef = useRef<SemanticInput<Action> | null>(null)
-
-  if (!inputRef.current) {
-    inputRef.current = createSemanticInput<Action>()
-  }
-
-  const input = inputRef.current
+  const [input] = useState(() => createSemanticInput<Action>())
 
   useEffect(() => {
     const detachKeyboard = attachKeyboardInput(window, input.writer, bindings)
