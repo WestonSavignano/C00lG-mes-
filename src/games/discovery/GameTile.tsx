@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import type { GameDefinition } from '../catalog/gameTypes'
 import GameArtwork from './GameArtwork'
-import './discovery.css'
+import './GameTile.css'
 
 type GameTileProps = {
   game: GameDefinition
