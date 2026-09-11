@@ -1,16 +1,15 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import './App.css'
-import HeaderNav from './components/HeaderNav'
 import { gameRouteEntries } from './games/catalog/gameRoutes'
 import ChatPage from './pages/ChatPage'
 import GamesPage from './pages/GamesPage'
 import HomePage from './pages/HomePage'
 import NotFoundPage from './pages/NotFoundPage'
+import AppShell from './shell/AppShell'
 
 function App() {
   return (
-    <>
-      <HeaderNav />
+    <AppShell>
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/chat" element={<ChatPage />} />
@@ -22,7 +21,7 @@ function App() {
         ))}
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
-    </>
+    </AppShell>
   )
 }
 
