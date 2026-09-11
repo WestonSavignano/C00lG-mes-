@@ -1,6 +1,7 @@
 import { useId } from 'react'
 import type { GameDefinition } from '../catalog/gameTypes'
 import GameTile from './GameTile'
+import './GameRail.css'
 
 type GameRailProps = {
   games: readonly GameDefinition[]
