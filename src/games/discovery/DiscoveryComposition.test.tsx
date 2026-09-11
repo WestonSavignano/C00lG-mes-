@@ -1,6 +1,6 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { beforeEach, describe, expect, it, waitFor } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { featuredGame, gameCatalog } from '../catalog/gameCatalog'
 import FeaturedGame from './FeaturedGame'
 import GameGrid from './GameGrid'
