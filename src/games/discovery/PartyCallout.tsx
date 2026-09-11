@@ -1,5 +1,6 @@
 import { ArrowRight, UsersRound } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import './PartyCallout.css'
 
 function PartyCallout() {
   return (
