@@ -1,4 +1,5 @@
 import { Play } from 'lucide-react'
+import { useId } from 'react'
 import { Link } from 'react-router-dom'
 import type { GameDefinition } from '../catalog/gameTypes'
 import GameArtwork from './GameArtwork'
@@ -8,14 +9,16 @@ type FeaturedGameProps = {
 }
 
 function FeaturedGame({ game }: FeaturedGameProps) {
+  const headingId = useId()
+
   return (
-    <section aria-labelledby="featured-game-title" className="featured-game">
+    <section aria-labelledby={headingId} className="featured-game">
       <GameArtwork game={game} />
       <div className="featured-game__content">
         <p className="featured-game__eyebrow">
           Featured · {game.category}
         </p>
-        <h2 id="featured-game-title">{game.title}</h2>
+        <h2 id={headingId}>{game.title}</h2>
         <p className="featured-game__description">{game.shortDescription}</p>
         <div className="featured-game__actions">
           <Link
