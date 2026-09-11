@@ -110,23 +110,23 @@ describe('App routes', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Loading Neon Drift…')
   })
 
-  it('renders Plane Blaster as the primary page content', () => {
+  it('renders Plane Blaster as the primary page content', async () => {
     renderRoute('/games/plane-blaster')
 
-    expect(screen.getByRole('heading', { level: 1, name: 'Plane Blaster' }))
+    expect(await screen.findByRole('heading', { level: 1, name: 'Plane Blaster' }))
       .toBeInTheDocument()
-    expect(screen.getByTestId('game-viewport')).toHaveAttribute(
+    expect(await screen.findByTestId('game-viewport')).toHaveAttribute(
       'data-game',
       'bit-planes',
     )
   })
 
-  it('renders Neon Drift as a game route', () => {
+  it('renders Neon Drift as a game route', async () => {
     renderRoute('/games/neon-drift')
 
-    expect(screen.getByRole('heading', { level: 1, name: 'Neon Drift' }))
+    expect(await screen.findByRole('heading', { level: 1, name: 'Neon Drift' }))
       .toBeInTheDocument()
-    expect(screen.getByTestId('game-viewport')).toHaveAttribute(
+    expect(await screen.findByTestId('game-viewport')).toHaveAttribute(
       'data-game',
       'neon-drift',
     )
