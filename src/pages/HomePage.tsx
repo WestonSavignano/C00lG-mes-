@@ -12,11 +12,11 @@ function HomePage() {
   return (
     <main className="arcade-home">
       <div className="discovery-page">
-        <header className="arcade-home__intro">
+        <div className="arcade-home__intro">
           <p className="discovery-kicker">C00lG@mes+</p>
           <h1>Pick a game. Get into it.</h1>
           <p>Instant browser games built to feel great, wherever you play.</p>
-        </header>
+        </div>
 
         <FeaturedGame game={featuredGame} />
 
@@ -27,12 +27,12 @@ function HomePage() {
         <PartyCallout />
 
         <section aria-labelledby="home-games-heading" className="discovery-section">
-          <header className="discovery-section__header">
+          <div className="discovery-section__header">
             <div>
               <p className="discovery-kicker">The arcade</p>
               <h2 id="home-games-heading">Play something good.</h2>
             </div>
-          </header>
+          </div>
           <GameGrid games={gameCatalog} />
         </section>
       </div>
