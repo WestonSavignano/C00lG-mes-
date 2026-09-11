@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import GameViewport from './GameViewport'
@@ -60,6 +60,7 @@ describe('GameViewport', () => {
 
     expect(requestFullscreen).toHaveBeenCalledTimes(1)
     expect(requestFullscreen.mock.instances[0]).toBe(viewport)
+    expect(document.activeElement).toBe(viewport)
     await waitFor(() => {
       expect(
         screen.getByRole('button', { name: 'Exit fullscreen' }),
@@ -69,10 +70,64 @@ describe('GameViewport', () => {
     await user.click(screen.getByRole('button', { name: 'Exit fullscreen' }))
 
     expect(exitFullscreen).toHaveBeenCalledTimes(1)
+    expect(document.activeElement).toBe(viewport)
     await waitFor(() => {
       expect(
         screen.getByRole('button', { name: 'Enter fullscreen' }),
       ).toBeInTheDocument()
     })
+  })
+
+  it('exposes a dedicated future input-overlay mount point', () => {
+    render(
+      <GameViewport
+        game="neon-drift"
+        inputOverlay={<button type="button">Boost</button>}
+        label="Neon Drift game"
+      >
+        <canvas />
+      </GameViewport>,
+    )
+
+    expect(screen.getByTestId('game-input-overlay')).toContainElement(
+      screen.getByRole('button', { name: 'Boost' }),
+    )
+  })
+
+  it('focuses the game surface from non-interactive pointer input', () => {
+    render(
+      <GameViewport game="neon-drift" label="Neon Drift game">
+        <canvas data-testid="runtime-canvas" />
+      </GameViewport>,
+    )
+
+    const viewport = screen.getByTestId('game-viewport')
+
+    fireEvent.pointerDown(screen.getByTestId('runtime-canvas'))
+
+    expect(document.activeElement).toBe(viewport)
+  })
+
+  it('keeps the viewport usable when fullscreen is rejected', async () => {
+    const user = userEvent.setup()
+    setFullscreenElement(null)
+
+    Object.defineProperty(HTMLElement.prototype, 'requestFullscreen', {
+      configurable: true,
+      value: vi.fn().mockRejectedValue(new Error('Fullscreen blocked')),
+    })
+
+    render(
+      <GameViewport game="neon-drift" label="Neon Drift game">
+        <p>Runtime</p>
+      </GameViewport>,
+    )
+
+    const viewport = screen.getByTestId('game-viewport')
+
+    await user.click(screen.getByRole('button', { name: 'Enter fullscreen' }))
+
+    expect(document.activeElement).toBe(viewport)
+    expect(screen.getByTestId('game-viewport')).toBeInTheDocument()
   })
 })
