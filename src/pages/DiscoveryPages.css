@@ -6,7 +6,7 @@
 .discovery-page {
   width: min(100%, 1280px);
   margin: 0 auto;
-  padding: 44px 28px 72px;
+  padding: 44px max(28px, env(safe-area-inset-right)) 72px max(28px, env(safe-area-inset-left));
 }
 
 .arcade-home .discovery-page {
@@ -57,7 +57,7 @@
 
 @media (max-width: 720px) {
   .discovery-page {
-    padding: 26px 14px 48px;
+    padding: 26px max(14px, env(safe-area-inset-right)) 48px max(14px, env(safe-area-inset-left));
   }
 
   .arcade-home .discovery-page {
