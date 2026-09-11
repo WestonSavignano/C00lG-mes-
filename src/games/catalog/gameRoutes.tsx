@@ -1,4 +1,7 @@
 import { lazy, Suspense, type ReactNode } from 'react'
+import GamePageShell from '../shared/GamePageShell'
+import GameRouteLoading from '../shared/GameRouteLoading'
+import GameRuntimeErrorBoundary from '../shared/GameRuntimeErrorBoundary'
 import { gameCatalog } from './gameCatalog'
 import type { GameDefinition } from './gameTypes'
 
@@ -15,18 +18,13 @@ export const gameRouteEntries: readonly GameRouteEntry[] = gameCatalog.map((game
     game,
     path: game.route,
     element: (
-      <Suspense
-        fallback={(
-          <main className="game-route-loading" aria-live="polite">
-            <div className="game-route-loading__panel" role="status">
-              <span className="game-route-loading__pulse" aria-hidden="true" />
-              <span>Loading {game.title}…</span>
-            </div>
-          </main>
-        )}
-      >
-        <GamePage />
-      </Suspense>
+      <GamePageShell game={game}>
+        <GameRuntimeErrorBoundary game={game}>
+          <Suspense fallback={<GameRouteLoading game={game} />}>
+            <GamePage />
+          </Suspense>
+        </GameRuntimeErrorBoundary>
+      </GamePageShell>
     ),
   }
 })
