@@ -1,0 +1,74 @@
+.arcade-home,
+.games-library {
+  min-height: 100%;
+}
+
+.discovery-page {
+  width: min(100%, 1280px);
+  margin: 0 auto;
+  padding: 44px 28px 72px;
+}
+
+.arcade-home .discovery-page {
+  display: grid;
+  gap: clamp(30px, 5vw, 56px);
+}
+
+.arcade-home__intro,
+.games-library__header {
+  display: grid;
+  gap: 10px;
+}
+
+.arcade-home__intro {
+  max-width: 800px;
+}
+
+.arcade-home__intro h1 {
+  max-width: 11ch;
+  font-size: clamp(2.5rem, 7vw, 5.4rem);
+  font-weight: 860;
+  letter-spacing: -0.06em;
+  line-height: 0.94;
+  text-wrap: balance;
+}
+
+.arcade-home__intro > p:last-child,
+.games-library__header > p:last-child {
+  color: var(--color-muted);
+  font-size: clamp(0.95rem, 2vw, 1.08rem);
+}
+
+.games-library__header {
+  max-width: 720px;
+  margin-bottom: 32px;
+}
+
+.games-library__header h1 {
+  font-size: clamp(2.7rem, 6vw, 5rem);
+  font-weight: 860;
+  letter-spacing: -0.055em;
+  line-height: 0.95;
+}
+
+.discovery-section {
+  min-width: 0;
+}
+
+@media (max-width: 720px) {
+  .discovery-page {
+    padding: 26px 14px 48px;
+  }
+
+  .arcade-home .discovery-page {
+    gap: 32px;
+  }
+
+  .arcade-home__intro h1 {
+    font-size: clamp(2.35rem, 12vw, 3.5rem);
+  }
+
+  .games-library__header {
+    margin-bottom: 24px;
+  }
+}
