@@ -6,11 +6,11 @@ function GamesPage() {
   return (
     <main className="games-library">
       <div className="discovery-page">
-        <header className="games-library__header">
+        <div className="games-library__header">
           <p className="discovery-kicker">C00lG@mes+ arcade</p>
           <h1>Games</h1>
           <p>Six worlds. No installs. Pick one and play.</p>
-        </header>
+        </div>
 
         <GameGrid games={gameCatalog} />
       </div>
