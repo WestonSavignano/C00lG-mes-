@@ -7,8 +7,12 @@ export type ProgressionState = {
   hasShadowBoots: boolean
 }
 
-export function collectDarkFuzz(current: number, enemyKind: EnemyKind) {
-  if (enemyKind !== 'dark-matter') {
+export function collectDarkFuzz(
+  current: number,
+  enemyKind: EnemyKind,
+  hasShadowBoots: boolean,
+) {
+  if (enemyKind !== 'dark-matter' || hasShadowBoots) {
     return current
   }
 
