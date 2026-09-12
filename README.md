@@ -1,4 +1,4 @@
-# C00lG@mes+
+# Cool Games Plus
 
 Browser games and experiments built with React, TypeScript, Vite, and Phaser.
 
@@ -80,7 +80,7 @@ UPSTASH_REDIS_REST_URL=<Upstash REST URL>
 UPSTASH_REDIS_REST_TOKEN=<Upstash REST token>
 ```
 
-If Redis is not configured or unavailable, the rest of C00lG@mes+ still loads normally and Chat reports that rooms are temporarily unavailable.
+If Redis is not configured or unavailable, the rest of Cool Games Plus still loads normally and Chat reports that rooms are temporarily unavailable.
 
 Optional local profanity/phrase masking is configured with:
 

@@ -1,11 +1,11 @@
-# C00lG@mes+ Mobile-First Arcade Shell Design
+# Cool Games Plus Mobile-First Arcade Shell Design
 
 Date: 2026-09-10
 Status: Direction approved in chat; pending written-spec review
 
 ## Goal
 
-Evolve C00lG@mes+ from a clean website that contains browser games into a first-class, mobile-first gaming destination that feels intentional on phones, scales naturally to desktop, and remains fast on older hardware.
+Evolve Cool Games Plus from a clean website that contains browser games into a first-class, mobile-first gaming destination that feels intentional on phones, scales naturally to desktop, and remains fast on older hardware.
 
 The product target is a **premium boutique arcade** rather than a large portal clone: a small, curated catalog where the games provide most of the visual energy and the site shell makes discovery, launch, replay, and multiplayer entry effortless.
 
@@ -15,7 +15,7 @@ The core architectural principle is:
 
 > **Prefer explicit product-level composition over either duplicated page code or overly generic UI abstractions.**
 
-A future contributor should be able to open the component tree and recognize C00lG@mes+ concepts such as `AppShell`, `GameTile`, `GameRail`, `GamePageShell`, and `GameViewport` without tracing styling props through layers of generic wrappers.
+A future contributor should be able to open the component tree and recognize Cool Games Plus concepts such as `AppShell`, `GameTile`, `GameRail`, `GamePageShell`, and `GameViewport` without tracing styling props through layers of generic wrappers.
 
 ## Current state
 
@@ -682,7 +682,7 @@ Only after the fundamentals are validated:
 
 ### A. Keep current site structure and restyle it
 
-Lowest implementation cost, but it preserves the core problem: C00lG@mes+ continues to feel like a website containing experiments rather than a gaming destination. It also leaves duplicated catalog/routing knowledge in place.
+Lowest implementation cost, but it preserves the core problem: Cool Games Plus continues to feel like a website containing experiments rather than a gaming destination. It also leaves duplicated catalog/routing knowledge in place.
 
 Rejected.
 
@@ -733,7 +733,7 @@ The redesign is successful when:
 
 ## Decision summary
 
-C00lG@mes+ will evolve into a **mobile-first premium boutique arcade** using explicit, reusable product-level composition.
+Cool Games Plus will evolve into a **mobile-first premium boutique arcade** using explicit, reusable product-level composition.
 
 The architecture centers on:
 

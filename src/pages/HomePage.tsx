@@ -13,9 +13,9 @@ function HomePage() {
     <main className="arcade-home">
       <div className="discovery-page">
         <div className="arcade-home__intro">
-          <p className="discovery-kicker">C00lG@mes+</p>
-          <h1>Pick a game. Get into it.</h1>
-          <p>Instant browser games built to feel great, wherever you play.</p>
+          <p className="discovery-kicker">Cool Games Plus</p>
+          <h1>Game Grind Repeat</h1>
+          <p> Grind your way to victory, whenever you play.</p>
         </div>
 
         <FeaturedGame game={featuredGame} />
@@ -37,6 +37,7 @@ function HomePage() {
         </section>
       </div>
     </main>
+
   )
 }
 

@@ -1,4 +1,4 @@
-# C00lG@mes+ Roadmap
+# Cool Games Plus Roadmap
 
 This roadmap defines durable product/business direction and evidence gates. It is deliberately not a backlog and not a calendar commitment.
 
@@ -6,7 +6,7 @@ Executable work belongs in GitHub Issues. The current execution horizon belongs 
 
 ## North Star
 
-Build C00lG@mes+ into a premium boutique browser arcade and browser-game studio: a small portfolio of genuinely fun, polished, mobile-first games that run well on lower-end hardware, earn sustainable recurring revenue, and strengthen the C00lG@mes+ brand.
+Build Cool Games Plus into a premium boutique browser arcade and browser-game studio: a small portfolio of genuinely fun, polished, mobile-first games that run well on lower-end hardware, earn sustainable recurring revenue, and strengthen the Cool Games Plus brand.
 
 Optimize in this order:
 
@@ -15,7 +15,7 @@ Optimize in this order:
 3. game quality and differentiation;
 4. low operational burden;
 5. scalability across multiple games;
-6. control of the C00lG@mes+ brand;
+6. control of the Cool Games Plus brand;
 7. performance on lower-end hardware;
 8. simple, durable architecture and process.
 
@@ -23,7 +23,7 @@ Visual polish and performance are both product requirements.
 
 ## Business and product thesis
 
-Build excellent independently monetizable browser games, maintain C00lG@mes+ as the canonical premium arcade, and distribute selected games through external platforms such as CrazyGames to acquire audience and revenue.
+Build excellent independently monetizable browser games, maintain Cool Games Plus as the canonical premium arcade, and distribute selected games through external platforms such as CrazyGames to acquire audience and revenue.
 
 Use external distribution to learn whether strangers choose and keep playing the games before investing heavily in owned-site acquisition or monetization infrastructure.
 
@@ -149,7 +149,7 @@ Prove that the workflow is repeatable across multiple games rather than a one-ga
 
 ### Goal
 
-Invest more heavily in C00lG@mes+ direct acquisition, retention, SEO, sharing, and owned audience only after the external-game thesis has evidence.
+Invest more heavily in Cool Games Plus direct acquisition, retention, SEO, sharing, and owned audience only after the external-game thesis has evidence.
 
 ### Evidence required to exit
 

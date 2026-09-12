@@ -746,7 +746,7 @@ function NeonDriftGame() {
         {overlayVisible ? (
           <div className="neon-drift__overlay">
             <div className="neon-drift__panel">
-              <div className="neon-drift__eyebrow">Arcade survival // C00lG@mes+</div>
+              <div className="neon-drift__eyebrow">Arcade survival // Cool Games Plus</div>
               <h2 className="neon-drift__title">Neon Drift</h2>
               <p className="neon-drift__subtitle">{copy.description}</p>
               <div className="neon-drift__controls">

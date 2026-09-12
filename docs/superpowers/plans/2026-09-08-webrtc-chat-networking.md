@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - Exactly two peers in the MVP.
-- No C00lG@mes+ application server, ECS service, RDS/database, accounts, persistence, matchmaking, or TURN relay.
+- No Cool Games Plus application server, ECS service, RDS/database, accounts, persistence, matchmaking, or TURN relay.
 - WebRTC `RTCDataChannel` carries realtime application messages peer-to-peer.
 - Manual non-trickle offer/answer signaling is required for the first version.
 - Generic WebRTC transport must not depend on React or Chat semantics.

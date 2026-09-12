@@ -1,4 +1,4 @@
-# C00lG@mes+ Repository Working Agreement
+# Cool Games Plus Repository Working Agreement
 
 This file is the operational guide for engineers and AI agents working in this repository. For product direction and stage gates, read [`ROADMAP.md`](ROADMAP.md). For current implementation state, GitHub `main`, open Issues, open/recent Pull Requests, and Actions are authoritative.
 
