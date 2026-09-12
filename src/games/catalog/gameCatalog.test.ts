@@ -15,4 +15,15 @@ describe('game catalog', () => {
     expect(getGameByRoute('/games/neon-drift')?.id).toBe('neon-drift')
     expect(getGameByRoute('/games/not-real')).toBeUndefined()
   })
+
+  it('advertises touch and keyboard for migrated semantic-input games', () => {
+    expect(getGameByRoute('/games/donut-run')?.inputs).toEqual([
+      'touch',
+      'keyboard',
+    ])
+    expect(getGameByRoute('/games/neon-drift')?.inputs).toEqual([
+      'touch',
+      'keyboard',
+    ])
+  })
 })

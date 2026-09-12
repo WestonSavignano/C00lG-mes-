@@ -1,5 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import GameViewport from '../shared/GameViewport'
+import useSemanticInput from '../shared/input/useSemanticInput'
+import NeonDriftControls from './NeonDriftControls'
+import {
+  neonDriftKeyboardBindings,
+  processNeonDriftControlIntents,
+  type NeonDriftControlRuntime,
+} from './neonDriftInput'
 import {
   damageTurret,
   increaseMultiplier,
@@ -60,11 +67,11 @@ function NeonDriftGame() {
   const bestRef = useRef<HTMLElement>(null)
   const boostRef = useRef<HTMLDivElement>(null)
   const messageRef = useRef<HTMLDivElement>(null)
-  const startRef = useRef<() => void>(() => undefined)
   const [overlayVisible, setOverlayVisible] = useState(true)
   const [copy, setCopy] = useState(initialCopy)
+  const input = useSemanticInput(neonDriftKeyboardBindings)
 
-  const handleStart = useCallback(() => startRef.current(), [])
+  const handleStart = () => input.writer.pulseAction('start')
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -79,7 +86,6 @@ function NeonDriftGame() {
     }
     if (!ctx) return
 
-    const keys = new Set<string>()
     const drones: Drone[] = []
     const turrets: Turret[] = []
     const bullets: Bullet[] = []
@@ -245,7 +251,12 @@ function NeonDriftGame() {
       viewport.focus({ preventScroll: true })
       beep(430, 0.08)
     }
-    startRef.current = start
+
+    const togglePause = () => {
+      if (!running || gameOver) return
+      paused = !paused
+      if (!paused) lastTime = performance.now()
+    }
 
     const finish = () => {
       if (gameOver) return
@@ -348,15 +359,20 @@ function NeonDriftGame() {
       beep(610, 0.07)
     }
 
+    const controlRuntime: NeonDriftControlRuntime = {
+      isRunning: () => running,
+      isPaused: () => paused,
+      isGameOver: () => gameOver,
+      start,
+      togglePause,
+      deploy: deployTurret,
+    }
+
     const updatePlayer = (dt: number) => {
-      let ix = Number(keys.has('ArrowRight') || keys.has('KeyD')) - Number(keys.has('ArrowLeft') || keys.has('KeyA'))
-      let iy = Number(keys.has('ArrowDown') || keys.has('KeyS')) - Number(keys.has('ArrowUp') || keys.has('KeyW'))
-      if (ix || iy) {
-        const length = Math.hypot(ix, iy)
-        ix /= length
-        iy /= length
-      }
-      const boosting = keys.has('Space') && player.boost > 0.02 && Boolean(ix || iy)
+      const ix = input.reader.move.x
+      const iy = input.reader.move.y
+      const moving = Boolean(ix || iy)
+      const boosting = input.reader.isHeld('boost') && player.boost > 0.02 && moving
       const acceleration = boosting ? 980 : 650
       const maxSpeed = boosting ? 520 : 305
       player.vx += ix * acceleration * dt
@@ -366,7 +382,7 @@ function NeonDriftGame() {
         player.vx *= maxSpeed / speed
         player.vy *= maxSpeed / speed
       }
-      const damping = Math.exp(-(ix || iy ? 0.8 : 4.2) * dt)
+      const damping = Math.exp(-(moving ? 0.8 : 4.2) * dt)
       player.vx *= damping
       player.vy *= damping
       player.x = clamp(player.x + player.vx * dt, 24, width - 24)
@@ -538,6 +554,7 @@ function NeonDriftGame() {
     }
 
     const update = (dt: number) => {
+      processNeonDriftControlIntents(input.reader, controlRuntime)
       if (!running || paused || gameOver) return
       elapsed += dt
       score += dt * 14 * multiplier
@@ -683,23 +700,7 @@ function NeonDriftGame() {
       raf = requestAnimationFrame(loop)
     }
 
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(event.code)) event.preventDefault()
-      if (event.code === 'KeyP' && running) {
-        paused = !paused
-        if (!paused) lastTime = performance.now()
-        return
-      }
-      if (event.code === 'KeyR' && !event.repeat) {
-        deployTurret()
-        return
-      }
-      keys.add(event.code)
-      if (!running && (event.code === 'Enter' || event.code === 'Space')) start()
-    }
-    const onKeyUp = (event: KeyboardEvent) => keys.delete(event.code)
     const onBlur = () => {
-      keys.clear()
       if (running) paused = true
     }
 
@@ -710,25 +711,25 @@ function NeonDriftGame() {
     const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(resize)
     observer?.observe(viewport)
     window.addEventListener('resize', resize)
-    window.addEventListener('keydown', onKeyDown)
-    window.addEventListener('keyup', onKeyUp)
     window.addEventListener('blur', onBlur)
 
     return () => {
       cancelAnimationFrame(raf)
       observer?.disconnect()
       window.removeEventListener('resize', resize)
-      window.removeEventListener('keydown', onKeyDown)
-      window.removeEventListener('keyup', onKeyUp)
       window.removeEventListener('blur', onBlur)
       if (gameOverTimer) clearTimeout(gameOverTimer)
-      startRef.current = () => undefined
       void audio?.close()
     }
-  }, [])
+  }, [input])
 
   return (
-    <GameViewport game="neon-drift" label="Neon Drift game" ref={viewportRef}>
+    <GameViewport
+      game="neon-drift"
+      inputOverlay={overlayVisible ? null : <NeonDriftControls writer={input.writer} />}
+      label="Neon Drift game"
+      ref={viewportRef}
+    >
       <div className="neon-drift">
         <canvas aria-label="Neon Drift arena" className="neon-drift__canvas" ref={canvasRef} />
         <div className="neon-drift__hud" aria-hidden={overlayVisible}>
@@ -750,9 +751,9 @@ function NeonDriftGame() {
               <h2 className="neon-drift__title">Neon Drift</h2>
               <p className="neon-drift__subtitle">{copy.description}</p>
               <div className="neon-drift__controls">
-                <div className="neon-drift__control"><span>Move</span><b>WASD / Arrows</b></div>
-                <div className="neon-drift__control"><span>Emergency thrust</span><b>Space — Boost</b></div>
-                <div className="neon-drift__control"><span>Defense system</span><b>R — Deploy turret</b></div>
+                <div className="neon-drift__control"><span>Move</span><b>Touch stick / WASD / Arrows</b></div>
+                <div className="neon-drift__control"><span>Emergency thrust</span><b>Hold Boost / Space</b></div>
+                <div className="neon-drift__control"><span>Defense system</span><b>Deploy / R</b></div>
               </div>
               <button className="neon-drift__start" onClick={handleStart} type="button">{copy.button}</button>
               <p className="neon-drift__tip">Turrets draw nearby drone aggression. Skim drones for near-miss bonuses. Press P to pause.</p>
