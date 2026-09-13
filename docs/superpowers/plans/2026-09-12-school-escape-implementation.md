@@ -34,11 +34,11 @@
 **Interfaces:**
 - Produces `rgbMatchScore`, `blendQuality`, `camouflageVisibilityMultiplier`, `updateTeacherState`, and `nextGamePhase`.
 
-- [ ] **Step 1: Write failing tests** for exact RGB match, poor mismatch, still-near-wall camouflage, moving-player visibility, patrol→suspicious→chase, chase→search→patrol, catch→fail, exit→final-chase, and house→won.
-- [ ] **Step 2: Run** `npm test -- src/games/school-escape/schoolEscapeLogic.test.ts` and confirm failure because the module/exports do not exist.
-- [ ] **Step 3: Implement minimal pure logic** with explicit constants from the spec and discriminated string unions for teacher/game phases.
-- [ ] **Step 4: Re-run the focused test** and keep all assertions deterministic.
-- [ ] **Step 5: Commit** `feat: define School Escape stealth logic`.
+- [x] **Step 1: Write failing tests** for exact RGB match, poor mismatch, still-near-wall camouflage, moving-player visibility, patrol→suspicious→chase, chase→search→patrol, catch→fail, exit→final-chase, and house→won.
+- [x] **Step 2: Run** `npm test -- src/games/school-escape/schoolEscapeLogic.test.ts` and confirm failure because the module/exports do not exist.
+- [x] **Step 3: Implement minimal pure logic** with explicit constants from the spec and discriminated string unions for teacher/game phases.
+- [x] **Step 4: Re-run the focused test** and keep all assertions deterministic.
+- [x] **Step 5: Commit** the stealth-logic slice.
 
 ### Task 2: Fixed school geometry, navigation, and collision helpers
 
@@ -49,11 +49,11 @@
 **Interfaces:**
 - Produces authored `WALLS`, `PATROL_NODES`, `SCHOOL_START`, `SCHOOL_EXIT`, `HOUSE_TRIGGER`, `EXTERIOR_BOUNDS`, `resolveCircleAgainstWalls`, `hasLineOfSight`, and `nearestCamouflageWall`.
 
-- [ ] **Step 1: Write failing tests** proving the start and exit are separated by the maze, collision keeps a player circle outside a wall, line-of-sight is blocked by a wall rectangle, and nearest camouflage wall returns color + distance.
-- [ ] **Step 2: Run** `npm test -- src/games/school-escape/schoolEscapeLevel.test.ts` and confirm expected failure.
-- [ ] **Step 3: Implement one compact authored layout** containing the start classroom, classroom hall, locker junction, cross hall, quiet wing, exit lobby, outside sidewalk, and house trigger.
-- [ ] **Step 4: Re-run focused tests**.
-- [ ] **Step 5: Commit** `feat: add School Escape level data`.
+- [x] **Step 1: Write failing tests** proving the start and exit are separated by the maze, collision keeps a player circle outside a wall, line-of-sight is blocked by a wall rectangle, and nearest camouflage wall returns color + distance.
+- [x] **Step 2: Run** focused tests and confirm the level module is missing.
+- [x] **Step 3: Implement one compact authored layout** containing the start classroom, classroom hall, locker junction, cross hall, quiet wing, exit lobby, outside sidewalk, and house trigger.
+- [x] **Step 4: Re-run focused tests**.
+- [x] **Step 5: Commit** the fixed level slice.
 
 ### Task 3: Input contract and catalog registration
 
@@ -68,12 +68,12 @@
 **Interfaces:**
 - Produces `SchoolEscapeAction = 'sprint' | 'jump'`, `SCHOOL_ESCAPE_KEYBOARD_BINDINGS`, and a lazy catalog entry at `/games/school-escape`.
 
-- [ ] **Step 1: Add failing tests** for WASD movement, Shift sprint hold, Space jump press, and catalog metadata `inputs: ['touch','keyboard','mouse']` with `orientation: 'landscape'`.
-- [ ] **Step 2: Update `App.test.tsx` expected catalog counts from 6 to 7 and repair the two stale shell-copy assertions to current accessible UI (`Cool Games Plus home`, `Game Grind Repeat`) because this file must change for the new game count anyway.
-- [ ] **Step 3: Run** focused input/catalog/App tests and confirm School Escape assertions fail before production registration exists.
-- [ ] **Step 4: Implement bindings, add `school` artwork theme, and register the lazy page import.
-- [ ] **Step 5: Re-run focused tests**.
-- [ ] **Step 6: Commit** `feat: register School Escape controls and route`.
+- [x] **Step 1: Add failing tests** for WASD movement, Shift sprint hold, Space jump press, and catalog metadata `inputs: ['touch','keyboard','mouse']` with `orientation: 'landscape'`.
+- [x] **Step 2: Update `App.test.tsx` expected catalog counts from 6 to 7 and repair the two stale shell-copy assertions to current accessible UI (`Cool Games Plus home`, `Game Grind Repeat`) because this file must change for the new game count anyway.
+- [x] **Step 3: Run** focused input/catalog/App tests and confirm School Escape assertions fail before production registration exists.
+- [x] **Step 4: Implement bindings, add `school` artwork theme, and register the lazy page import.
+- [x] **Step 5: Re-run focused tests**.
+- [x] **Step 6: Commit** the input/catalog slice.
 
 ### Task 4: Native WebGL scene runtime
 
@@ -85,11 +85,11 @@
 - Consumes deterministic logic/level data and `SemanticInputReader<SchoolEscapeAction>`.
 - Produces `createSchoolEscapeScene(canvas, input, callbacks): SchoolEscapeSceneController` with `setCameraDrag`, `setCamouflageColor`, `resize`, `restart`, and `dispose`.
 
-- [ ] **Step 1: Write failing tests** around exported non-WebGL helpers/state stepping: sprint speed exceeds teacher chase speed, exit transition fires only in school phase, catch callback fires inside catch radius, and restart returns clean starting state.
-- [ ] **Step 2: Run** focused scene tests and confirm expected failure.
-- [ ] **Step 3: Implement the scene runtime** with one cube vertex buffer, one shader program, reusable matrices, third-person camera, wall/floor/locker/door geometry, low-poly player/teacher/principal, jump/gravity, collision, nav-node teacher steering, line-of-sight perception, final exterior chase, win/catch transitions, hidden-tab pause, delta clamp, DPR 1.5→1.0 fallback, and full GL/event cleanup.
-- [ ] **Step 4: Re-run focused tests**.
-- [ ] **Step 5: Commit** `feat: add School Escape 3D runtime`.
+- [x] **Step 1: Write failing tests** around exported non-WebGL helpers/state stepping: sprint speed exceeds teacher chase speed, exit transition fires only in school phase, catch callback fires inside catch radius, and restart returns clean starting state.
+- [x] **Step 2: Run** focused scene tests and confirm expected failure.
+- [x] **Step 3: Implement the scene runtime** with one cube vertex buffer, one shader program, reusable matrices, third-person camera, wall/floor/locker/door geometry, low-poly player/teacher/principal, jump/gravity, collision, nav-node teacher steering, line-of-sight perception, final exterior chase, win/catch transitions, hidden-tab pause, delta clamp, DPR 1.5→1.0 fallback, and full GL/event cleanup.
+- [x] **Step 4: Re-run focused tests**.
+- [x] **Step 5: Commit** the native WebGL runtime.
 
 ### Task 5: React game lifecycle, HUD, RGB mixer, and touch controls
 
@@ -102,37 +102,39 @@
 **Interfaces:**
 - Consumes `useSemanticInput`, `DirectionalControl`, `ActionButton`, `GameViewport`, and scene controller.
 
-- [ ] **Step 1: Write failing component tests** proving the game renders an RGB mixer, Sprint and Jump touch controls, blend/status text, and Retry/Play Again actions for fail/win callbacks without requiring a working WebGL context.
-- [ ] **Step 2: Run** focused component tests and confirm expected failure.
-- [ ] **Step 3: Implement** `SchoolEscapeGame` lifecycle around a canvas, semantic controls, game-specific camera drag, accessible RGB sliders, subtitle/status region, retry/win overlays, and WebGL-unavailable fallback. Keep only low-frequency UI in React state.
-- [ ] **Step 4: Implement** thin `SchoolEscapePage` adapter and landscape-first safe-area CSS.
-- [ ] **Step 5: Re-run focused component tests**.
-- [ ] **Step 6: Commit** `feat: add School Escape game UI`.
+- [x] **Step 1: Write failing component tests** proving the game renders an RGB mixer, Sprint and Jump touch controls, blend/status text, and Retry/Play Again actions for fail/win callbacks without requiring a working WebGL context.
+- [x] **Step 2: Run** focused component tests and confirm expected failure.
+- [x] **Step 3: Implement** `SchoolEscapeGame` lifecycle around a canvas, semantic controls, game-specific camera drag, accessible RGB sliders, subtitle/status region, retry/win overlays, and WebGL-unavailable fallback. Keep only low-frequency UI in React state.
+- [x] **Step 4: Implement** thin `SchoolEscapePage` adapter and landscape-first safe-area CSS.
+- [x] **Step 5: Re-run focused component tests**.
+- [x] **Step 6: Commit** the game UI slice.
 
 ### Task 6: Audio/presentation and gameplay polish
 
 **Files:**
-- Modify: `src/games/school-escape/schoolEscapeScene.ts`
+- Create: `src/games/school-escape/schoolEscapeAudio.test.ts`
+- Create: `src/games/school-escape/schoolEscapeAudio.ts`
 - Modify: `src/games/school-escape/SchoolEscapeGame.tsx`
 - Modify: `src/games/school-escape/schoolEscape.css`
+- Modify: `src/games/discovery/GameArtwork.css`
 
 **Interfaces:**
 - Adds bounded Web Audio cues and subtitle fallback for `COME BACK HERE!`.
 
-- [ ] **Step 1: Add/extend tests** proving chase subtitle fires once on chase entry and retry clears it.
-- [ ] **Step 2: Run focused tests** and confirm failure for the new presentation behavior.
-- [ ] **Step 3: Add procedural footsteps, door cue, detection/chase/win/fail tones and optional speech synthesis after user gesture; ensure hidden/unmount cleanup.
-- [ ] **Step 4: Add low-cost atmosphere** (fog, fluorescent color variation/flicker, lockers, bulletin-board blocks, exterior sidewalk/house) without new assets.
-- [ ] **Step 5: Re-run focused tests**.
-- [ ] **Step 6: Commit** `feat: polish School Escape chase presentation`.
+- [x] **Step 1: Add failing tests** for chase-entry cue selection, faster chase footsteps, and bounded procedural sound profiles.
+- [x] **Step 2: Run focused tests** and confirm failure while the audio module is absent.
+- [x] **Step 3: Add procedural footsteps, door cue, low teacher muttering texture, detection/chase/win/fail tones, and optional speech synthesis after user gesture; ensure hidden/unmount cleanup.
+- [x] **Step 4: Add low-cost atmosphere** with fog, fluorescent color variation/flicker, lockers, bulletin-board blocks, exterior sidewalk/house, principal-office scene, and an additive School Escape discovery treatment without new assets.
+- [x] **Step 5: Re-run focused tests**.
+- [x] **Step 6: Commit** the presentation polish.
 
 ### Task 7: Full validation and PR evidence
 
 **Files:**
 - Modify: PR #17 body only unless validation exposes a code defect.
 
-- [ ] **Step 1: Run** `npm test` and record exact totals.
-- [ ] **Step 2: Run** `npm run lint`.
-- [ ] **Step 3: Run** `npm run build` and record the School Escape chunk size plus any pre-existing warnings.
-- [ ] **Step 4: Audit** `main...feature/school-escape` for unrelated changes.
-- [ ] **Step 5: Update PR #17** with implementation summary, automated evidence, performance notes, and an explicit manual playtest checklist/gap. Keep it Draft until real browser/device validation is performed.
+- [x] **Step 1: Run** `npm test` — GitHub Actions confirms 51 test files / 200 tests passed.
+- [x] **Step 2: Run** `npm run lint` — passed.
+- [x] **Step 3: Run** `npm run build` — passed; School Escape is isolated as ~25.82 kB JS / ~9.07 kB gzip plus ~4.24 kB CSS / ~1.35 kB gzip.
+- [x] **Step 4: Audit** the final branch diff; the School Escape discovery artwork is additive-only and the PR merge ref was validated against current `main` including the GitHub Pages cleanup.
+- [ ] **Step 5: Record real gameplay validation** for desktop/mobile controls, camouflage readability, chase/re-hide, final chase, fail/win/retry, orientation/focus/fullscreen, and representative lower-powered hardware before taking the PR out of Draft.
