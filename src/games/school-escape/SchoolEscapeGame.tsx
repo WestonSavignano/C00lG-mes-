@@ -11,6 +11,12 @@ import ActionButton from '../shared/input/ActionButton'
 import DirectionalControl from '../shared/input/DirectionalControl'
 import useSemanticInput from '../shared/input/useSemanticInput'
 import {
+  createSchoolEscapeAudio,
+  footstepCadence,
+  teacherStateCue,
+  type SchoolEscapeAudioController,
+} from './schoolEscapeAudio'
+import {
   SCHOOL_ESCAPE_KEYBOARD_BINDINGS,
   type SchoolEscapeAction,
 } from './schoolEscapeInput'
@@ -19,7 +25,12 @@ import {
   type SchoolEscapeSceneCallbacks,
   type SchoolEscapeSceneController,
 } from './schoolEscapeScene'
-import type { BlendQuality, GamePhase, RGBColor } from './schoolEscapeLogic'
+import type {
+  BlendQuality,
+  GamePhase,
+  RGBColor,
+  TeacherState,
+} from './schoolEscapeLogic'
 import './schoolEscape.css'
 
 const INITIAL_CAMOUFLAGE: RGBColor = { r: 30, g: 30, b: 34 }
@@ -46,28 +57,92 @@ function SchoolEscapeGame({
   const input = useSemanticInput<SchoolEscapeAction>(SCHOOL_ESCAPE_KEYBOARD_BINDINGS)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const sceneRef = useRef<SchoolEscapeSceneController | null>(null)
+  const audioRef = useRef<SchoolEscapeAudioController | null>(null)
+  const teacherStateRef = useRef<TeacherState>('patrol')
   const cameraDragRef = useRef<CameraDrag | null>(null)
   const [phase, setPhase] = useState<GamePhase>('school')
   const [camouflage, setCamouflage] = useState<RGBColor>(INITIAL_CAMOUFLAGE)
   const [blend, setBlend] = useState<BlendQuality>('poor')
   const [blendScore, setBlendScore] = useState(0)
-  const [teacherState, setTeacherState] = useState('patrol')
+  const [teacherState, setTeacherState] = useState<TeacherState>('patrol')
   const [subtitle, setSubtitle] = useState(
     'Match the wall color. Stay still. Find the exit.',
   )
   const [webGLAvailable, setWebGLAvailable] = useState(true)
 
   useEffect(() => {
+    const audio = createSchoolEscapeAudio()
+    audioRef.current = audio
+
+    const activateFromKeyboard = () => audio.activate()
+    const syncVisibility = () => {
+      if (document.hidden) audio.suspend()
+    }
+
+    window.addEventListener('keydown', activateFromKeyboard, { once: true })
+    document.addEventListener('visibilitychange', syncVisibility)
+
+    return () => {
+      window.removeEventListener('keydown', activateFromKeyboard)
+      document.removeEventListener('visibilitychange', syncVisibility)
+      audioRef.current = null
+      audio.dispose()
+    }
+  }, [])
+
+  useEffect(() => {
+    if (phase !== 'school' && phase !== 'final-chase') return
+    const cadence = footstepCadence(teacherState)
+    const timer = window.setInterval(() => {
+      audioRef.current?.play('teacher-step')
+    }, cadence * 1000)
+    return () => window.clearInterval(timer)
+  }, [phase, teacherState])
+
+  useEffect(() => {
+    if (phase !== 'school' || teacherState === 'chase') return
+    const mutterTimer = window.setInterval(() => {
+      audioRef.current?.play('mutter')
+    }, 4800)
+    const doorTimer = window.setInterval(() => {
+      audioRef.current?.play('door')
+    }, 6800)
+    return () => {
+      window.clearInterval(mutterTimer)
+      window.clearInterval(doorTimer)
+    }
+  }, [phase, teacherState])
+
+  useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
 
     const callbacks: SchoolEscapeSceneCallbacks = {
-      onPhaseChange: setPhase,
+      onPhaseChange(nextPhase) {
+        setPhase(nextPhase)
+        if (nextPhase === 'final-chase') {
+          audioRef.current?.play('detection')
+          audioRef.current?.speakComeBackHere()
+        } else if (nextPhase === 'failed') {
+          audioRef.current?.play('fail')
+        } else if (nextPhase === 'won') {
+          audioRef.current?.play('win')
+        }
+      },
       onBlendChange(quality, score) {
         setBlend(quality)
         setBlendScore(score)
       },
-      onTeacherStateChange: setTeacherState,
+      onTeacherStateChange(nextState) {
+        const previousState = teacherStateRef.current
+        teacherStateRef.current = nextState
+        setTeacherState(nextState)
+        const cue = teacherStateCue(previousState, nextState)
+        if (cue) {
+          audioRef.current?.play(cue)
+          audioRef.current?.speakComeBackHere()
+        }
+      },
       onSubtitle: setSubtitle,
       onWebGLUnavailable() {
         setWebGLAvailable(false)
@@ -84,6 +159,10 @@ function SchoolEscapeGame({
     }
   }, [input.reader, sceneFactory])
 
+  const activateAudio = useCallback(() => {
+    audioRef.current?.activate()
+  }, [])
+
   const setChannel = useCallback(
     (channel: keyof RGBColor, event: ChangeEvent<HTMLInputElement>) => {
       const value = Number(event.target.value)
@@ -98,6 +177,7 @@ function SchoolEscapeGame({
 
   const beginCameraDrag = useCallback(
     (event: ReactPointerEvent<HTMLCanvasElement>) => {
+      activateAudio()
       if (cameraDragRef.current) return
       cameraDragRef.current = {
         pointerId: event.pointerId,
@@ -107,7 +187,7 @@ function SchoolEscapeGame({
       event.currentTarget.setPointerCapture(event.pointerId)
       event.preventDefault()
     },
-    [],
+    [activateAudio],
   )
 
   const moveCameraDrag = useCallback(
@@ -142,6 +222,7 @@ function SchoolEscapeGame({
 
   const restart = useCallback(() => {
     input.writer.reset()
+    teacherStateRef.current = 'patrol'
     setPhase('school')
     setCamouflage(INITIAL_CAMOUFLAGE)
     setBlend('poor')
@@ -154,7 +235,7 @@ function SchoolEscapeGame({
   }, [input.writer])
 
   const inputOverlay = (
-    <div className="school-escape-overlay">
+    <div className="school-escape-overlay" onPointerDownCapture={activateAudio}>
       <section className="school-escape-hud" aria-label="Camouflage controls">
         <div className="school-escape-hud__status">
           <strong>Blend: {qualityLabel(blend)}</strong>
