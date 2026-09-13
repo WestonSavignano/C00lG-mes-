@@ -1,0 +1,20 @@
+name: Issue 18 Preview Verify
+
+on:
+  push:
+    branches:
+      - feature/issue-18-trystero-poc-preview
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+      - run: npx vitest run src/networking/poc/trysteroPocModel.test.ts src/networking/poc/trysteroPocStats.test.ts src/pages/TrysteroPocPage.test.tsx
