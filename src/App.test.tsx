@@ -21,7 +21,7 @@ describe('App routes', () => {
 
     const header = screen.getByRole('banner')
     expect(
-      within(header).getByRole('link', { name: /C00lG@mes\+ home/i }),
+      within(header).getByRole('link', { name: /Cool Games Plus home/i }),
     ).toHaveAttribute('href', '/')
 
     const desktopNav = within(header).getByRole('navigation', {
@@ -45,7 +45,7 @@ describe('App routes', () => {
     renderRoute('/')
 
     expect(
-      screen.getByRole('heading', { level: 1, name: /Pick a game/i }),
+      screen.getByRole('heading', { level: 1, name: /Game Grind Repeat/i }),
     ).toBeInTheDocument()
 
     const featured = screen.getByRole('region', { name: 'Neon Drift' })
@@ -54,7 +54,7 @@ describe('App routes', () => {
 
     expect(screen.getByRole('link', { name: 'Start a party' }))
       .toHaveAttribute('href', '/chat')
-    expect(screen.getAllByTestId('game-tile')).toHaveLength(6)
+    expect(screen.getAllByTestId('game-tile')).toHaveLength(7)
   })
 
   it('surfaces recently played games when history exists', () => {
@@ -93,11 +93,13 @@ describe('App routes', () => {
     expect(screen.queryByTestId('game-page-shell')).not.toBeInTheDocument()
 
     const tiles = screen.getAllByTestId('game-tile')
-    expect(tiles).toHaveLength(6)
+    expect(tiles).toHaveLength(7)
     expect(screen.getByRole('link', { name: 'Play Plane Blaster' }))
       .toHaveAttribute('href', '/games/plane-blaster')
     expect(screen.getByRole('link', { name: 'Play Neon Drift' }))
       .toHaveAttribute('href', '/games/neon-drift')
+    expect(screen.getByRole('link', { name: 'Play School Escape' }))
+      .toHaveAttribute('href', '/games/school-escape')
     expect(screen.getByRole('link', { name: 'Play Warrior2' }))
       .toHaveAttribute('href', '/games/warrior2')
   })
