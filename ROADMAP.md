@@ -69,7 +69,6 @@ Finish the mobile-first arcade foundation and establish the lightweight reposito
 - Game input quality is uneven: the catalog on `main` still describes the existing games as keyboard-driven.
 - Visual ambition can outpace lower-end performance unless every game treats frame stability as a release constraint.
 - The repository is public, so roadmap and design documentation should remain useful without exposing secrets or unnecessarily sensitive commercial detail.
-- GitHub Pages deployment remains configured even though `README.md` identifies Vercel as the deployment target; its ongoing purpose should be confirmed before changing or removing it.
 
 ## Stage 1 — Distribution-Ready Game
 
