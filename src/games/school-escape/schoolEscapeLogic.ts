@@ -77,7 +77,7 @@ export function updateTeacherState(
   previous: TeacherStateSnapshot,
   sample: TeacherPerceptionSample,
 ): TeacherStateSnapshot {
-  const dt = clamp(sample.dt, 0, 0.25)
+  const dt = Math.max(0, Number.isFinite(sample.dt) ? sample.dt : 0)
   const visibility = clamp(sample.visibility, 0, 1)
 
   if (previous.state === 'patrol') {
