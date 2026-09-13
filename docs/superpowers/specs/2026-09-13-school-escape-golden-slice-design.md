@@ -2,7 +2,7 @@
 
 ## Status
 
-Approved in product/design discussion on September 13, 2026. This document records the replacement design direction for School Escape before implementation planning.
+The design direction was approved in product/design discussion on September 13, 2026. This written spec is pending final user review before implementation planning begins.
 
 This design supersedes the visual/runtime direction embodied by draft PR #17 and its branch-only `2026-09-11-school-escape-design.md`. PR #17 remains useful as a mechanics prototype and reference implementation, but its dependency-free native-WebGL renderer, cube-built characters/environment, debug-style HUD, and full-game-first scope are not the target architecture for the production-quality game.
 
@@ -85,6 +85,21 @@ The first implementation slice contains only the systems and content required to
 
 If the teacher catches the player during the golden slice, use a concise temporary caught/retry presentation. The final principal-office sequence remains a later full-game slice.
 
+## Golden-slice routing and publication
+
+The current game catalog couples published discovery metadata with game route registration. Do not add a speculative `discoverable`/feature-flag abstraction just to stage one unfinished game.
+
+For the golden slice:
+
+- expose a temporary, explicitly lazy app route at `/game-preview/school-escape`;
+- keep that route out of `gameCatalog`, Home/Games discovery, and recent-game tracking;
+- have the preview route mount the same `SchoolEscapePage`/runtime that the final game will use;
+- reuse `GameViewport` and existing shared input/lifecycle infrastructure inside the game page;
+- use the branch/Vercel preview URL for real player validation before merge;
+- after the complete game is ready for publication, remove the temporary preview route and register `/games/school-escape` through the normal typed catalog/GamePageShell path.
+
+This is intentionally a one-game staging route, not a new platform subsystem.
+
 ## Experience flow
 
 ### 1. Art classroom
@@ -122,9 +137,9 @@ The slice is not complete until both the near-miss path and chase/re-hide path f
 School Escape remains isolated under its game boundary. Babylon.js is a game-local runtime choice, not a new site-wide engine layer.
 
 ```text
-C00lG@mes+ shell / routing
-  -> lazy School Escape route
-    -> thin SchoolEscapePage
+C00lG@mes+ App
+  -> temporary lazy /game-preview/school-escape route
+    -> SchoolEscapePage
       -> shared GameViewport
         -> SchoolEscapeGame (React lifecycle/UI boundary)
           -> schoolEscapeRuntime (Babylon scene + imperative update loop)
@@ -135,11 +150,11 @@ C00lG@mes+ shell / routing
           -> schoolEscapeQuality (adaptive quality policy)
 ```
 
+When the complete game is publishable, only the route/catalog composition changes; the page/runtime boundaries remain the same.
+
 ### `SchoolEscapePage`
 
-A thin route adapter. It composes School Escape into the existing game shell and must not contain simulation logic.
-
-The golden slice should be launchable through a branch/preview and may have an unlisted direct route after merge, but it should not be promoted as a finished catalog game until the complete School Escape release meets its own acceptance gate. Do not invent a general feature-flag platform solely for this purpose.
+A thin route adapter. It composes School Escape into `GameViewport` and must not contain simulation logic.
 
 ### `SchoolEscapeGame`
 
@@ -176,7 +191,7 @@ Owns the Babylon engine/scene and the frame loop:
 Pure deterministic logic remains the primary unit-test boundary. It owns:
 
 - paint-mixture color calculation;
-- perceptual color-match score;
+- OKLab color-match score;
 - camouflage eligibility/effectiveness;
 - teacher perception/suspicion integration;
 - teacher state transitions;
@@ -352,9 +367,9 @@ Camouflage is the signature mechanic and must feel like part of the game world r
 
 ### Contextual paint palette
 
-When the player is close to a valid hideable surface, a compact contextual palette appears near the lower portion of the screen.
+When the player is close to a valid hideable surface, a compact radial palette appears near the lower portion of the screen.
 
-Five pigment controls are available:
+Five pigment controls surround a current-mixture swatch:
 
 - red;
 - yellow;
@@ -362,13 +377,22 @@ Five pigment controls are available:
 - white;
 - black.
 
-The center/current-mixture swatch changes as the player adjusts the mix. The exact interaction should support both tap/hold and pointer input without exposing numeric channel values. Provide a small reset/clean action so an overmixed color never traps the player in an unrecoverable state.
+Pointer/touch interaction with a pigment increases its contribution continuously while held/dragged. The player can reset the mixture with a small clean/rag action, so an overmixed color never traps the run. The UI shows the resulting color visually and never exposes numeric channel values.
 
 The palette should be easy to reach with the right thumb on mobile and must not cover the teacher or the key hiding surface.
 
 ### Paint model
 
-The deterministic logic converts pigment contributions into a displayed clothing color. The implementation may use a simple bounded subtractive-inspired model or a perceptually tuned weighted model, but it must satisfy these player-facing rules:
+Use one deterministic, game-local **RYB-to-sRGB** paint model:
+
+1. Store red/yellow/blue mixture contributions as bounded RYB values.
+2. Convert RYB to sRGB through trilinear interpolation across a small authored eight-corner RYB color cube.
+3. Apply white as a bounded mix toward white and black as a bounded mix toward black.
+4. Clamp the final sRGB result and use the same output for clothing material color and match scoring input.
+
+The corner colors and adjustment rates are tuning constants owned by `schoolEscapeLogic`; the algorithm family is fixed and must not switch between unrelated mixing models during implementation.
+
+Player-facing invariants:
 
 - red + yellow moves toward orange;
 - yellow + blue moves toward green;
@@ -378,13 +402,15 @@ The deterministic logic converts pigment contributions into a displayed clothing
 - repeated adjustments converge smoothly rather than jumping;
 - the same mixture always produces the same color.
 
-The implementation plan must lock the exact formula with unit tests before UI tuning. Do not expose the internal values to players.
+Unit tests must lock these invariants before UI tuning.
 
-### Match feedback
+### Match feedback and scoring
 
-A subtle ring around the current swatch becomes cleaner/more complete as the mixture approaches the nearby surface color. Do not show RGB numbers, percentages, or `POOR/CLOSE/BLENDED` debug labels.
+Convert both the current clothing sRGB color and the hideable surface’s canonical sRGB camouflage color to OKLab. Use deterministic Euclidean distance in OKLab, normalized/clamped by one game-owned maximum-distance constant, as the color-match score.
 
-Use a perceptual color-distance function for deterministic scoring rather than raw per-channel distance if practical; OKLab is an appropriate lightweight option. Hideable surfaces store canonical camouflage colors so lighting changes do not make the scoring rule arbitrary.
+A subtle ring around the current swatch becomes cleaner/more complete as the score improves. Do not show RGB values, percentages, or `POOR/CLOSE/BLENDED` debug labels.
+
+Hideable surfaces store canonical camouflage colors specifically tuned to how those materials read under their authored lighting. The score is based on those canonical values rather than sampling rendered screen pixels, so the rule remains stable and testable.
 
 The clothing material updates continuously so the player sees paint spread/shift across the jacket and pants while mixing.
 
@@ -393,7 +419,7 @@ The clothing material updates continuously so the player sees paint spread/shift
 A color match alone never makes the player invisible. Camouflage benefit depends on all of:
 
 - proximity to an authored hideable surface;
-- perceptual color-match quality;
+- OKLab color-match quality;
 - player movement/stillness;
 - being grounded/in a valid hiding posture;
 - teacher distance/viewing angle/line of sight;
@@ -440,7 +466,7 @@ Keep the AI small and legible. The golden slice uses:
 
 `patrol -> suspicious -> investigate/search -> chase -> recover`
 
-The state model should remain deterministic and testable outside Babylon rendering.
+The state model remains deterministic and testable outside Babylon rendering.
 
 ### Patrol
 
@@ -468,7 +494,7 @@ After a bounded search without reacquisition, the teacher visibly de-escalates a
 
 ### Perception signals
 
-Perception should combine:
+Perception combines:
 
 - distance;
 - field of view;
@@ -504,13 +530,15 @@ The chosen direction is **continuous adventure soundtrack plus strong environmen
 
 ### Music
 
-Use an original/licensed-for-commercial-use musical identity rather than browser-generated tones. The golden slice should support at least:
+Use an original or clearly licensed-for-commercial-use musical identity. The golden slice acceptance build must include final-quality audio for:
 
 - exploration theme/loop;
 - increased suspicion/tension layer or arrangement;
 - chase-intensity arrangement.
 
 Prefer smooth layering/crossfades over abrupt unrelated track changes so the soundtrack feels coherent.
+
+Temporary development placeholders are acceptable while implementing, but the golden slice cannot pass its player-experience gate with browser-generated tones or unclear asset licensing.
 
 ### Environmental audio
 
@@ -529,7 +557,7 @@ Gameplay-critical teacher proximity cues must survive low audio-quality tiers.
 
 ### Voice
 
-The teacher’s `Come back here!` should ultimately be an original recorded/licensed voice asset with subtitle support, not a requirement on inconsistent browser `speechSynthesis` behavior. If the recorded line is not ready in the first golden-slice implementation, use a clearly temporary local placeholder plus authoritative subtitle during development; do not ship the final game depending on speech synthesis.
+The teacher’s `Come back here!` must be represented by an original or clearly licensed recorded voice asset plus subtitle support in the golden-slice acceptance build. Development placeholders are allowed before that gate, but the final-quality slice must not depend on browser `speechSynthesis`.
 
 ## Desktop controls
 
@@ -575,7 +603,7 @@ Required lifecycle behavior:
 
 - route unmount disposes Babylon scene/engine resources owned by the game;
 - visibility loss pauses nonessential simulation/render/audio work;
-- return from a hidden tab clamps/reset frame timing so the player does not teleport or receive a giant simulation step;
+- return from a hidden tab clamps/resets frame timing so the player does not teleport or receive a giant simulation step;
 - focus/pointer cancellation clears held input;
 - resize/orientation updates canvas/camera/HUD safely;
 - audio resumes only after browser/user-gesture policy permits it;
@@ -597,20 +625,26 @@ Performance is a product requirement, not a post-polish optimization pass.
 
 ### Quality tiers
 
-Use a small automatic quality policy with at least high, medium, and low behavior. Candidate scalable knobs include:
+Use a small automatic quality policy with high, medium, and low behavior.
+
+Every tier must scale at minimum:
 
 - render resolution/device-pixel-ratio cap;
-- shadow map resolution/softness and number of casters;
+- shadow resolution/softness or shadow fallback behavior;
+- decorative effect/particle density.
+
+It may also scale:
+
 - secondary light detail;
-- decorative props/particles;
+- decorative prop density;
 - reflection/material detail;
-- number of simultaneous ambient audio emitters.
+- simultaneous ambient audio emitters.
 
 Gameplay-critical collision, landmarks, hideable surfaces, teacher readability, UI, voice/subtitles, and detection rules must not change across quality tiers.
 
-Start from a conservative device capability estimate and allow the runtime to step down when sustained frame timing proves the current tier unstable. Prefer one-way downgrade/hysteresis during a play session over constant quality oscillation. A later implementation may cautiously step back up only after long stable evidence.
+Start from a conservative device capability estimate and allow the runtime to step down when sustained frame timing proves the current tier unstable. Use hysteresis and prefer one-way downgrade during a play session over constant quality oscillation. A later implementation may cautiously step back up only after long stable evidence.
 
-Target stable 60 FPS on capable hardware and stable degraded play (preferably 30+ FPS) on representative lower-powered devices. Stable lower fidelity is better than unstable high fidelity.
+Target stable 60 FPS on capable hardware and stable degraded play, preferably 30+ FPS, on representative lower-powered devices. Stable lower fidelity is better than unstable high fidelity.
 
 Mobile validation must include sustained-session heat/thermal behavior, not only the first minute.
 
@@ -635,8 +669,8 @@ Automated tests remain necessary but cannot approve the visual/game-feel gate.
 
 Prioritize deterministic coverage for:
 
-- pigment mixing formula and invariants;
-- perceptual color-match scoring;
+- RYB paint mixing and the red/yellow/blue/white/black invariants;
+- sRGB -> OKLab conversion and normalized match scoring;
 - camouflage eligibility/effectiveness;
 - teacher perception accumulation/decay;
 - teacher state transitions;
@@ -655,7 +689,8 @@ Cover:
 - reset/clean paint action;
 - mobile control availability/layout semantics;
 - caught/retry/loading/error states;
-- lazy/unlisted route behavior as implemented.
+- lazy `/game-preview/school-escape` route;
+- absence from published catalog/discovery while it remains a golden slice.
 
 ### Integration/build validation
 
@@ -711,9 +746,10 @@ Do not expand School Escape beyond this slice until the following are true:
 - Suspicion, chase, search, and recovery are understandable through world/audio feedback plus minimal contextual UI.
 - The teacher is threatening but escapable; a successful break-LOS/re-hide sequence works.
 - Desktop and mobile controls both feel intentional rather than one being a fallback for the other.
-- The continuous adventure soundtrack and environmental audio support the tone without becoming repetitive or masking gameplay cues.
+- The continuous adventure soundtrack, teacher voice, and environmental audio are final-quality for the slice and support the tone without masking gameplay cues.
 - The experience remains stable across resize, orientation, focus, visibility, retry, and route lifecycle changes.
 - Adaptive quality preserves readable gameplay and acceptable frame stability on representative lower-powered hardware.
+- Babylon/School Escape remains lazy-loaded away from unrelated routes.
 - `npm test`, `npm run lint`, and `npm run build` pass.
 - Hands-on player review explicitly approves the slice as the visual/experiential bar for the rest of School Escape.
 
@@ -728,7 +764,7 @@ Likely later slices include:
 1. Expand the school into the fixed readable escape route using the proven art/camera/stealth language.
 2. Add the complete outdoor cinematic sprint home, with camouflage disabled and stronger chase music/camera framing.
 3. Add the stylized principal-office fail cutscene: normal-looking red-faced principal, dramatic desk/gesture/camera treatment, concise yelling beat, and quick retry.
-4. Complete win/replay flow, catalog presentation, final mobile/performance tuning, and stranger-ready validation.
+4. Complete win/replay flow, final `/games/school-escape` catalog presentation, mobile/performance tuning, and stranger-ready validation.
 
 The outdoor finale remains a player-controlled sprint rather than a mostly scripted cutscene. The principal scene remains stylized dramatic rather than comedic or full horror.
 
@@ -754,7 +790,8 @@ The following are no longer open questions for the golden slice:
 - Normal-looking teacher with an unnatural red face.
 - Art classroom -> hallway -> locker bay as the first environment.
 - Warm sunset classroom / cooler fluorescent hallway lighting.
-- Contextual five-pigment paint palette: red, yellow, blue, white, black.
+- Contextual radial five-pigment paint palette: red, yellow, blue, white, black.
+- Deterministic game-local RYB-to-sRGB mixing and OKLab match scoring.
 - Paint changes the outfit, not the player’s skin/hair.
 - Minimal world-first HUD.
 - Subtle contextual teacher-alert feedback.
@@ -762,9 +799,11 @@ The following are no longer open questions for the golden slice:
 - Responsive adventure movement rather than heavy animation-driven control.
 - Minimal dual-zone mobile controls.
 - Continuous adventure soundtrack with dynamic danger intensity.
+- Final-quality original/licensed audio required before the slice passes.
 - Adaptive quality tiers.
 - Babylon.js standard engine/runtime, with WebGL compatibility baseline and no WebGPU requirement.
 - Small custom authored asset set instead of broad premade packs or primitive-only visible art.
+- Temporary unlisted `/game-preview/school-escape` route rather than exposing an unfinished catalog game or adding a general discovery flag.
 - Golden-slice-first implementation instead of another full-game-first rewrite.
 
 Any future change to one of these should be justified by real playtest/performance evidence and reflected in the design before implementation diverges.
