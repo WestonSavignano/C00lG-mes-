@@ -1,0 +1,264 @@
+.school-escape-stage {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: #101416;
+}
+
+.school-escape-canvas {
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  cursor: grab;
+}
+
+.school-escape-canvas:active {
+  cursor: grabbing;
+}
+
+.school-escape-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  font-family: inherit;
+}
+
+.school-escape-hud {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 2;
+  display: grid;
+  width: min(330px, calc(100% - 88px));
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid rgba(232, 239, 242, 0.24);
+  border-radius: 12px;
+  color: #f4f7f8;
+  background: rgba(12, 16, 18, 0.78);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(8px);
+  pointer-events: auto;
+}
+
+.school-escape-hud__status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  font-size: 0.72rem;
+  letter-spacing: 0.03em;
+}
+
+.school-escape-hud__status strong {
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+}
+
+.school-escape-hud__teacher {
+  opacity: 0.76;
+}
+
+.school-escape-hud__teacher--chase {
+  color: #ffafa5;
+  opacity: 1;
+  font-weight: 800;
+}
+
+.school-escape-rgb {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 34px;
+  align-items: center;
+  gap: 8px;
+}
+
+.school-escape-rgb label {
+  display: grid;
+  grid-template-columns: 14px minmax(42px, 1fr);
+  align-items: center;
+  min-height: 44px;
+  gap: 4px;
+  font-size: 0.7rem;
+  font-weight: 900;
+}
+
+.school-escape-rgb input[type='range'] {
+  width: 100%;
+  min-width: 0;
+  height: 32px;
+  margin: 0;
+  cursor: pointer;
+}
+
+.school-escape-rgb__swatch {
+  width: 34px;
+  height: 34px;
+  border: 2px solid rgba(255, 255, 255, 0.72);
+  border-radius: 8px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.28);
+}
+
+.school-escape-subtitle {
+  position: absolute;
+  right: 80px;
+  bottom: 18px;
+  left: 80px;
+  z-index: 2;
+  max-width: 620px;
+  margin-inline: auto;
+  padding: 8px 14px;
+  border-radius: 999px;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.7);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  text-align: center;
+  font-size: 0.85rem;
+  font-weight: 800;
+  letter-spacing: 0.025em;
+}
+
+.school-escape-touch-controls {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  transition: opacity 120ms ease;
+}
+
+.school-escape-touch-controls__move {
+  position: absolute;
+  bottom: max(18px, env(safe-area-inset-bottom));
+  left: max(18px, env(safe-area-inset-left));
+}
+
+.school-escape-touch-controls__actions {
+  position: absolute;
+  right: max(18px, env(safe-area-inset-right));
+  bottom: max(18px, env(safe-area-inset-bottom));
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.school-escape-touch-controls__actions .semantic-action-button:first-child {
+  width: 70px;
+  height: 70px;
+}
+
+.school-escape-touch-controls__actions .semantic-action-button:last-child {
+  width: 64px;
+  height: 64px;
+}
+
+.school-escape-result {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  color: #fff;
+  background: rgba(7, 9, 10, 0.7);
+  backdrop-filter: blur(5px);
+  pointer-events: auto;
+}
+
+.school-escape-result > div {
+  width: min(420px, 100%);
+  padding: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 18px;
+  background: rgba(19, 24, 27, 0.94);
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.45);
+  text-align: center;
+}
+
+.school-escape-result h2 {
+  margin: 4px 0 10px;
+  font-size: clamp(1.8rem, 6vw, 3.2rem);
+}
+
+.school-escape-result p {
+  margin: 0 0 16px;
+  line-height: 1.5;
+}
+
+.school-escape-result__eyebrow {
+  margin-bottom: 4px !important;
+  color: #cfd8dc;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+}
+
+.school-escape-result button {
+  min-width: 120px;
+  min-height: 48px;
+  padding: 10px 18px;
+  border: 1px solid rgba(255, 255, 255, 0.56);
+  border-radius: 999px;
+  color: #fff;
+  background: #24333b;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 900;
+}
+
+.school-escape-result button:focus-visible {
+  outline: 3px solid var(--color-accent);
+  outline-offset: 3px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .school-escape-touch-controls {
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .school-escape-hud {
+    top: calc(66px + env(safe-area-inset-top));
+    left: max(8px, env(safe-area-inset-left));
+    width: min(300px, calc(100% - 72px - env(safe-area-inset-left) - env(safe-area-inset-right)));
+    padding: 7px 9px;
+  }
+
+  .school-escape-hud__status {
+    font-size: 0.64rem;
+  }
+
+  .school-escape-rgb {
+    gap: 5px;
+  }
+
+  .school-escape-rgb label {
+    min-height: 40px;
+  }
+
+  .school-escape-subtitle {
+    right: 96px;
+    bottom: max(8px, env(safe-area-inset-bottom));
+    left: 146px;
+    padding: 7px 10px;
+    font-size: 0.72rem;
+  }
+
+  .school-escape-touch-controls__move {
+    bottom: max(10px, env(safe-area-inset-bottom));
+    left: max(10px, env(safe-area-inset-left));
+    transform: scale(0.9);
+    transform-origin: bottom left;
+  }
+
+  .school-escape-touch-controls__actions {
+    right: max(10px, env(safe-area-inset-right));
+    bottom: max(10px, env(safe-area-inset-bottom));
+    gap: 7px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .school-escape-touch-controls {
+    transition: none;
+  }
+}
