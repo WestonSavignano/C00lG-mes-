@@ -259,42 +259,58 @@
   border-radius: 999px;
   background: #172019;
   content: '';
-  transform: translateX(-50%) rotate(-10deg);
+  transform: translateX(-50%) rotate(-8deg);
 }
 
 .game-artwork--shadow {
-  --art-bg: linear-gradient(145deg, #191523 0%, #0c0a11 56%, #020203 100%);
-  --art-glow: rgba(168, 85, 247, 0.48);
-  --art-subject: #050505;
-  --art-accent: #c084fc;
+  --art-bg: linear-gradient(145deg, #15111e 0%, #29203a 45%, #0e0b13 100%);
+  --art-glow: rgba(167, 139, 250, 0.42);
+  --art-subject: #08070a;
+  --art-accent: #a78bfa;
 }
 
 .game-artwork--shadow .game-artwork__atmosphere {
   background:
-    radial-gradient(circle at 25% 35%, rgba(126, 34, 206, 0.26), transparent 18%),
-    radial-gradient(circle at 74% 30%, rgba(88, 28, 135, 0.28), transparent 22%),
-    radial-gradient(circle at 52% 76%, rgba(216, 180, 254, 0.12), transparent 18%);
+    radial-gradient(circle at 25% 28%, rgba(167, 139, 250, 0.2), transparent 18%),
+    radial-gradient(circle at 78% 62%, rgba(244, 63, 94, 0.13), transparent 22%);
 }
 
 .game-artwork--shadow .game-artwork__horizon {
-  background: linear-gradient(180deg, #25182f, #09070d);
+  background: linear-gradient(180deg, #262036, #120f19);
 }
 
 .game-artwork--shadow .game-artwork__subject {
-  top: 51%;
-  width: 22%;
-  height: 30%;
-  border: 1px solid rgba(216, 180, 254, 0.18);
-  border-radius: 48% 52% 36% 42%;
-  background: #040404;
+  top: 46%;
+  width: 25%;
+  height: auto;
+  aspect-ratio: 1;
+  border: 2px solid #3f354d;
+  border-radius: 46% 54% 42% 58%;
+  background: #050506;
   box-shadow:
-    -18px 10px 24px rgba(0, 0, 0, 0.62),
-    0 0 24px rgba(126, 34, 206, 0.22);
+    0 0 0 7px rgba(8, 7, 10, 0.4),
+    0 14px 36px rgba(0, 0, 0, 0.65);
+  transform: translate(-50%, -50%) rotate(8deg);
 }
 
-.game-artwork--shadow .game-artwork__accent {
-  height: 2px;
-  background: linear-gradient(90deg, transparent, #c084fc, transparent);
+.game-artwork--shadow .game-artwork__subject::before,
+.game-artwork--shadow .game-artwork__subject::after {
+  position: absolute;
+  top: 36%;
+  width: 18%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: #f8fafc;
+  box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.25);
+  content: '';
+}
+
+.game-artwork--shadow .game-artwork__subject::before {
+  left: 22%;
+}
+
+.game-artwork--shadow .game-artwork__subject::after {
+  right: 22%;
 }
 
 .game-artwork--school {
@@ -339,10 +355,4 @@
   height: 2px;
   background: linear-gradient(90deg, transparent, #d7d7b8, transparent);
   transform: rotate(0deg);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .game-artwork::before {
-    filter: none;
-  }
 }
