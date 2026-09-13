@@ -3,7 +3,7 @@ import { featuredGame, gameCatalog, getGameByRoute } from './gameCatalog'
 
 describe('game catalog', () => {
   it('registers each current game exactly once with unique ids and routes', () => {
-    expect(gameCatalog).toHaveLength(6)
+    expect(gameCatalog).toHaveLength(7)
     expect(new Set(gameCatalog.map((game) => game.id)).size).toBe(gameCatalog.length)
     expect(new Set(gameCatalog.map((game) => game.route)).size).toBe(gameCatalog.length)
     expect(gameCatalog.every((game) => game.route === game.route.trim())).toBe(true)
@@ -16,7 +16,7 @@ describe('game catalog', () => {
     expect(getGameByRoute('/games/not-real')).toBeUndefined()
   })
 
-  it('advertises touch and keyboard for migrated semantic-input games', () => {
+  it('advertises accurate semantic inputs for migrated games', () => {
     expect(getGameByRoute('/games/donut-run')?.inputs).toEqual([
       'touch',
       'keyboard',
@@ -25,5 +25,10 @@ describe('game catalog', () => {
       'touch',
       'keyboard',
     ])
+    expect(getGameByRoute('/games/school-escape')).toMatchObject({
+      id: 'school-escape',
+      orientation: 'landscape',
+      inputs: ['touch', 'keyboard', 'mouse'],
+    })
   })
 })
