@@ -12,7 +12,6 @@ import {
   parsePocHandshake,
   validateRemoteHandshake,
   type PocHandshake,
-  type PocRole,
 } from '../networking/poc/trysteroPocModel'
 import {
   summarizeRtcStats,
@@ -218,12 +217,6 @@ export function TrysteroPocPage() {
 
   useEffect(() => {
     if (route.kind !== 'party') {
-      setRuntimeState('idle')
-      setAppIdentity(null)
-      setTransportIdentity(null)
-      setActualPassive(null)
-      setPeers([])
-      setRelays([])
       return
     }
 
@@ -295,7 +288,10 @@ export function TrysteroPocPage() {
           ? loadOrCreateIdentity(localStorage, HOST_IDENTITY_KEY)
           : loadOrCreateIdentity(localStorage, guestIdentityKey(route.partyId))
       } catch (error) {
-        throw new Error(error instanceof Error ? `Local identity unavailable: ${error.message}` : 'Local identity unavailable.')
+        const message = error instanceof Error
+          ? `Local identity unavailable: ${error.message}`
+          : 'Local identity unavailable.'
+        throw new Error(message, { cause: error })
       }
 
       if (route.role === 'host' && localIdentity !== route.hostId) {
