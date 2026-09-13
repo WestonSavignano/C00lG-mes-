@@ -37,6 +37,18 @@ export const gameCatalog: readonly GameDefinition[] = [
     loadPage: () => import('../neon-drift/NeonDriftPage'),
   },
   {
+    id: 'monster-color-rush',
+    route: '/games/monster-color-rush',
+    title: 'Monster Color Rush',
+    shortDescription: 'Match the monster, dodge wrong colors, and beat the clock.',
+    category: 'Arcade chase',
+    new: true,
+    orientation: 'landscape',
+    inputs: ['touch', 'keyboard'],
+    artwork: { theme: 'neon', label: 'Color-matching monster chase' },
+    loadPage: () => import('../monster-color-rush/MonsterColorRushPage'),
+  },
+  {
     id: 'worm-battles',
     route: '/games/worm-battles',
     title: 'Worm Battles',
