@@ -3,7 +3,7 @@ import { featuredGame, gameCatalog, getGameByRoute } from './gameCatalog'
 
 describe('game catalog', () => {
   it('registers each current game exactly once with unique ids and routes', () => {
-    expect(gameCatalog).toHaveLength(6)
+    expect(gameCatalog).toHaveLength(7)
     expect(new Set(gameCatalog.map((game) => game.id)).size).toBe(gameCatalog.length)
     expect(new Set(gameCatalog.map((game) => game.route)).size).toBe(gameCatalog.length)
     expect(gameCatalog.every((game) => game.route === game.route.trim())).toBe(true)
@@ -13,6 +13,9 @@ describe('game catalog', () => {
     expect(gameCatalog.filter((game) => game.featured)).toHaveLength(1)
     expect(featuredGame.title).toBe('Neon Drift')
     expect(getGameByRoute('/games/neon-drift')?.id).toBe('neon-drift')
+    expect(getGameByRoute('/games/monster-color-rush')?.id).toBe(
+      'monster-color-rush',
+    )
     expect(getGameByRoute('/games/not-real')).toBeUndefined()
   })
 
@@ -22,6 +25,10 @@ describe('game catalog', () => {
       'keyboard',
     ])
     expect(getGameByRoute('/games/neon-drift')?.inputs).toEqual([
+      'touch',
+      'keyboard',
+    ])
+    expect(getGameByRoute('/games/monster-color-rush')?.inputs).toEqual([
       'touch',
       'keyboard',
     ])
