@@ -6,6 +6,7 @@ import {
   evaluateGuestAdmission,
   loadOrCreateIdentity,
   parsePartyHash,
+  parsePocHandshake,
   validateRemoteHandshake,
   type PocHandshake,
   type StorageLike,
@@ -134,6 +135,14 @@ describe('Trystero POC application handshake', () => {
     role: 'guest',
     appIdentity: GUEST_ID,
   }
+
+  it('parses untrusted handshake input and rejects malformed payloads', () => {
+    expect(parsePocHandshake(guestHandshake)).toEqual(guestHandshake)
+    expect(parsePocHandshake(null)).toBeNull()
+    expect(parsePocHandshake({ ...guestHandshake, version: 2 })).toBeNull()
+    expect(parsePocHandshake({ ...guestHandshake, role: 'hostile' })).toBeNull()
+    expect(parsePocHandshake({ ...guestHandshake, appIdentity: 'guest-1' })).toBeNull()
+  })
 
   it('lets a guest pin the expected logical host independently from the transport peer id', () => {
     expect(validateRemoteHandshake({
