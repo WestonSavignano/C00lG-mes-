@@ -37,6 +37,18 @@ export const gameCatalog: readonly GameDefinition[] = [
     loadPage: () => import('../neon-drift/NeonDriftPage'),
   },
   {
+    id: 'school-escape',
+    route: '/games/school-escape',
+    title: 'School Escape',
+    shortDescription: 'Blend into the walls, lose the teacher, and make it home.',
+    category: '3D stealth',
+    new: true,
+    orientation: 'landscape',
+    inputs: ['touch', 'keyboard', 'mouse'],
+    artwork: { theme: 'school', label: 'Creepy school hallway escape' },
+    loadPage: () => import('../school-escape/SchoolEscapePage'),
+  },
+  {
     id: 'worm-battles',
     route: '/games/worm-battles',
     title: 'Worm Battles',
