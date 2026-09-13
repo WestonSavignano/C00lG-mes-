@@ -1,5 +1,7 @@
+import SchoolEscapeGame from './SchoolEscapeGame'
+
 function SchoolEscapePage() {
-  return <div data-testid="school-escape-page">School Escape</div>
+  return <SchoolEscapeGame />
 }
 
 export default SchoolEscapePage
