@@ -103,6 +103,29 @@ export function parsePartyHash(hash: string): PocPartyRoute {
   }
 }
 
+export function parsePocHandshake(value: unknown): PocHandshake | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null
+  }
+
+  const candidate = value as Partial<Record<keyof PocHandshake, unknown>>
+  if (
+    candidate.version !== 1
+    || !isPocIdentity(candidate.partyId)
+    || (candidate.role !== 'host' && candidate.role !== 'guest')
+    || !isPocIdentity(candidate.appIdentity)
+  ) {
+    return null
+  }
+
+  return {
+    version: 1,
+    partyId: candidate.partyId,
+    role: candidate.role,
+    appIdentity: candidate.appIdentity,
+  }
+}
+
 export function loadOrCreateIdentity(
   storage: StorageLike,
   storageKey: string,
