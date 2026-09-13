@@ -11,6 +11,7 @@ export type GameArtworkTheme =
   | 'arena'
   | 'forest'
   | 'shadow'
+  | 'school'
 
 export type GameArtwork = {
   label: string
