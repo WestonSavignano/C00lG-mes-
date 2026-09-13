@@ -19,6 +19,13 @@ describe('game catalog', () => {
     expect(getGameByRoute('/games/not-real')).toBeUndefined()
   })
 
+  it('gives Monster Color Rush distinct discovery artwork', () => {
+    expect(getGameByRoute('/games/neon-drift')?.artwork.theme).toBe('neon')
+    expect(getGameByRoute('/games/monster-color-rush')?.artwork.theme).toBe(
+      'color-rush',
+    )
+  })
+
   it('advertises touch and keyboard for migrated semantic-input games', () => {
     expect(getGameByRoute('/games/donut-run')?.inputs).toEqual([
       'touch',
