@@ -1,4 +1,5 @@
-import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { FormEvent } from 'react'
 import BackLink from '../components/BackLink'
 import H1 from '../components/H1'
 import P from '../components/P'
@@ -162,6 +163,8 @@ export function HostAuthorityPocPage() {
   const [lastRetainedFromSequence, setLastRetainedFromSequence] = useState<number | null>(null)
   const [connectedMemberIds, setConnectedMemberIds] = useState<string[]>([])
   const [chatDraft, setChatDraft] = useState('')
+  const [guestCredentialView, setGuestCredentialView] = useState<{ credentialId: string; nextClientSequence: number } | null>(null)
+  const [canReplayGuestIntent, setCanReplayGuestIntent] = useState(false)
 
   const roomRef = useRef<TrysteroRoom | null>(null)
   const actionRef = useRef<TrysteroAction<unknown> | null>(null)
@@ -246,6 +249,10 @@ export function HostAuthorityPocPage() {
     }
     saveGuestAuthority(localStorage, nextCredentials)
     guestCredentialsRef.current = nextCredentials
+    setGuestCredentialView({
+      credentialId: nextCredentials.credentialId,
+      nextClientSequence: nextCredentials.nextClientSequence,
+    })
     guestReplicaRef.current = nextReplica
     setGuestReplica(nextReplica)
     setLastSyncMode(sync.mode)
@@ -335,6 +342,7 @@ export function HostAuthorityPocPage() {
     let room: TrysteroRoom | null = null
     let action: TrysteroAction<unknown> | null = null
     let hostStore: IndexedDbHostAuthorityStore | null = null
+    let hostMessageQueue: Promise<void> = Promise.resolve()
     const peerAppIdentity = peerAppIdentityRef.current
     const guestPeerByIdentity = guestPeerByIdentityRef.current
     const peerPing = peerPingRef.current
@@ -572,6 +580,8 @@ export function HostAuthorityPocPage() {
       hostSessionRef.current = null
       hostPeerRef.current = null
       lastGuestIntentRef.current = null
+      setGuestCredentialView(null)
+      setCanReplayGuestIntent(false)
       setGuestAuthState(route.role === 'guest' ? 'pending' : 'not-applicable')
 
       let localIdentity: string
@@ -610,6 +620,10 @@ export function HostAuthorityPocPage() {
           throw new Error('Guest durable credential no longer matches its application identity')
         }
         guestCredentialsRef.current = credentials
+        setGuestCredentialView({
+          credentialId: credentials.credentialId,
+          nextClientSequence: credentials.nextClientSequence,
+        })
         const cached = credentials.cachedReplica
         if (cached
           && credentials.memberId
@@ -684,7 +698,9 @@ export function HostAuthorityPocPage() {
       actionRef.current = action
       action.onMessage = (data, context) => {
         if (route.role === 'host') {
-          void handleHostAuthorityMessage(data, context.peerId).catch((error) => {
+          hostMessageQueue = hostMessageQueue
+          .then(() => handleHostAuthorityMessage(data, context.peerId))
+          .catch((error) => {
             const message = error instanceof Error ? error.message : 'Host authority handler failed'
             addLog(`host authority error: ${message}`)
             setRuntimeError(message)
@@ -790,7 +806,12 @@ export function HostAuthorityPocPage() {
     try {
       saveGuestAuthority(localStorage, nextCredentials)
       guestCredentialsRef.current = nextCredentials
+    setGuestCredentialView({
+      credentialId: nextCredentials.credentialId,
+      nextClientSequence: nextCredentials.nextClientSequence,
+    })
       lastGuestIntentRef.current = intent
+      setCanReplayGuestIntent(true)
       setChatDraft('')
       await action.send(intent, { target: peerId })
       addLog(`guest sent intent #${intent.clientSequence}; awaiting host canonicalization`)
@@ -825,6 +846,10 @@ export function HostAuthorityPocPage() {
     }
     saveGuestAuthority(localStorage, nextCredentials)
     guestCredentialsRef.current = nextCredentials
+    setGuestCredentialView({
+      credentialId: nextCredentials.credentialId,
+      nextClientSequence: nextCredentials.nextClientSequence,
+    })
     guestReplicaRef.current = stale
     setGuestReplica(stale)
     addLog('guest deliberately reset its cached replica to canonical seq 0')
@@ -924,8 +949,8 @@ export function HostAuthorityPocPage() {
       locked: guestReplica.locked,
       members: guestReplica.members,
       messageCount: guestReplica.messages.length,
-      nextClientSequence: guestCredentialsRef.current?.nextClientSequence ?? null,
-      credentialId: guestCredentialsRef.current?.credentialId ?? null,
+      nextClientSequence: guestCredentialView?.nextClientSequence ?? null,
+      credentialId: guestCredentialView?.credentialId ?? null,
     } : null,
     transport: {
       peerCount: peers.length,
@@ -1117,7 +1142,7 @@ export function HostAuthorityPocPage() {
             <button className="trystero-poc__button trystero-poc__button--secondary" type="button" disabled={guestAuthState !== 'accepted'} onClick={() => void forceGuestSnapshot()}>
               Force snapshot recovery
             </button>
-            <button className="trystero-poc__button trystero-poc__button--secondary" type="button" disabled={!lastGuestIntentRef.current} onClick={() => void replayLastGuestIntent()}>
+            <button className="trystero-poc__button trystero-poc__button--secondary" type="button" disabled={!canReplayGuestIntent} onClick={() => void replayLastGuestIntent()}>
               Replay last guest intent
             </button>
           </div>

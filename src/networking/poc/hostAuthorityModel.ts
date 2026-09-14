@@ -539,7 +539,12 @@ function isCanonicalMember(value: unknown): value is CanonicalMemberView {
 }
 
 function isHostMember(value: unknown): value is HostAuthorityMember {
-  return isCanonicalMember(value)
+  return isRecord(value)
+    && isPocIdentity(value.memberId)
+    && typeof value.label === 'string'
+    && value.label.length > 0
+    && value.label.length <= 64
+    && typeof value.removed === 'boolean'
     && isPocIdentity(value.credentialId)
     && isCredentialVerifier(value.credentialVerifier)
     && isNonNegativeInteger(value.lastClientSequence)
