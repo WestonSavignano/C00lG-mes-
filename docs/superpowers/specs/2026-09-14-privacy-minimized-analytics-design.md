@@ -23,6 +23,8 @@ The selected identifier model is **no analytics client ID and no analytics sessi
 
 That choice deliberately gives up exact cross-session user retention, unique-user counts, person-level funnels, and per-browser lifetime value. Those are not currently necessary to answer the product decisions that matter most: which discovery surfaces produce game starts, whether games become playable successfully, whether players restart/complete them, whether releases improve those aggregate rates, and whether controlled error/performance signals show quality regressions.
 
+The implementation may keep a **small non-identifying acquisition/activation context in memory for the current page load**. This is not a session ID: it generates and emits no identifier, is never persisted, and exists only to remember the coarse approved acquisition category/campaign plus whether the first route entry and first game start have already occurred. Those safe dimensions/booleans may then be copied onto individual events so aggregate acquisition-to-first-start conversion is measurable without correlating records through an identifier.
+
 ## Why this is the right boundary for C00lG@mes+
 
 C00lG@mes+ is an all-ages boutique arcade and game studio that may attract children and families. It also has peer-to-peer Chat/party functionality whose invite and authority capabilities live in browser-local state and URL fragments.
@@ -68,9 +70,9 @@ Every event and property must exist because it supports a named decision. If a f
 
 **Decision:** Which coarse acquisition channels produce meaningful game starts rather than empty visits?
 
-**Minimum measurement:** a local classification such as `direct`, `search`, `social`, `distribution_platform`, `campaign`, `referral`, or `other`, plus an optional pre-approved campaign code.
+**Minimum measurement:** classify the initial page load locally as `direct`, `search`, `social`, `distribution_platform`, `campaign`, `referral`, or `other`, plus an optional pre-approved campaign code. Keep only that coarse classification in memory for the page load. Mark the first recognized `page_view` with `visitEntry: true`, copy the approved acquisition fields onto `game_start`, and mark only the first game launch in that page load with `firstStartInVisit: true`. Aggregate `firstStartInVisit` counts divided by `visitEntry` counts by acquisition category/campaign provide a page-load activation rate without any emitted visit/session identifier.
 
-**Less identifying alternative:** Search Console remains the source for Google query/click details. Product analytics receives only the coarse category; it never receives the raw referrer URL or arbitrary UTM/query parameters.
+**Less identifying alternative:** Search Console remains the source for Google query/click details. Product analytics receives only the coarse category; it never receives the raw referrer URL or arbitrary UTM/query parameters. A reload is a new page-load visit for this aggregate metric; the system does not attempt to recognize that it may be the same browser/person.
 
 **Cross-visit recognition required:** no.
 
@@ -110,7 +112,7 @@ Every event and property must exist because it supports a named decision. If a f
 
 **Minimum measurement:** a small `game_error` enum and one bounded `performance_sample` per game run at most, with low-cardinality client/runtime classes.
 
-**Less identifying alternative:** locally classify the environment into a few operationally useful buckets rather than sending full User-Agent, OS version, device model, screen size, memory, CPU count, WebGL renderer, or feature fingerprint.
+**Less identifying alternative:** locally classify the environment into a few operationally useful buckets rather than sending full User-Agent, OS version, device model, screen size, memory, CPU count, WebGL renderer, or hardware fingerprint.
 
 **Cross-visit recognition required:** no.
 
@@ -149,6 +151,8 @@ The first implementation intentionally does **not** answer:
 - raw referrer/search-query attribution;
 - Chat-message behavior or content;
 - person-level experiment assignment.
+
+The v1 acquisition metric is deliberately a **page-load activation rate**, not a unique-user or persistent-session conversion rate. A reload starts a new in-memory context and no analytics record contains an identifier that links the two page loads.
 
 These are not bugs in the architecture. They are the privacy cost avoided by declining to create a browser identity before the business case exists.
 
@@ -211,11 +215,15 @@ type AnalyticsEvent =
       gameId?: string
       acquisitionSource: AcquisitionSource
       campaignId?: string
+      visitEntry: boolean
     }
   | {
       name: 'game_start'
       gameId: string
       surfaceId: DiscoverySurface
+      acquisitionSource: AcquisitionSource
+      campaignId?: string
+      firstStartInVisit: boolean
     }
   | {
       name: 'game_ready'
@@ -267,6 +275,7 @@ The example `string` properties above are not permission for free-form values:
 
 - `gameId` must resolve from the typed game catalog;
 - `campaignId`, if enabled, must come from a checked-in or build-time allow-list and unknown values collapse to `other`/absent;
+- `visitEntry` and `firstStartInVisit` are derived by the analytics facade from memory-only page-load state; callers do not invent or persist a visit/session identifier to produce them;
 - `completionKind` is an enum owned by the individual game and must never contain score, player-entered text, or arbitrary state;
 - `errorCode` and `failureCode` are closed enums, not exception messages;
 - `releaseId` is a controlled build value, not a deployment URL;
@@ -290,11 +299,15 @@ Emit once when the application enters a recognized public product route on the c
 
 The analytics layer receives `routeId` from application routing, never `location.href` or a generic URL. For a game route, it may receive the catalog `gameId`. Diagnostic/POC routes should produce no product analytics.
 
-Acquisition classification happens locally. If `document.referrer` is consulted, inspect only enough to classify the origin/hostname into a small enum and immediately discard the raw string. Never send the raw referrer. If a query parameter is used for a known campaign, read only the exact approved parameter, validate against the known allow-list, map unknown values to `other`, and never forward `location.search`.
+Acquisition classification happens **once per page load** and is retained only in the analytics facade's memory. If `document.referrer` is consulted, inspect only enough to classify the origin/hostname into a small enum and immediately discard the raw string. Never send the raw referrer. If a query parameter is used for a known campaign, read only the exact approved parameter, validate against the known allow-list, map unknown values to `other`, and never forward `location.search`.
+
+The first recognized route event after initialization has `visitEntry: true`; subsequent SPA route transitions in the same page load have `visitEntry: false`. All may reuse the same coarse in-memory acquisition classification, but no visit/session identifier is created, stored, or transmitted.
 
 ### `game_start`
 
 Emit once when a catalog game route is intentionally launched/mounted for a play attempt. `surfaceId` comes from the application action that launched it; direct/deep-link routes use `direct`.
+
+The analytics facade copies the current page-load's coarse `acquisitionSource` and optional allow-listed `campaignId` onto the event. The first game launch in the current page load has `firstStartInVisit: true`; any later game launch before a full reload has `false`. This lets reporting compare first-game-start counts with entry-page-view counts by acquisition source without a session/client ID. Reloading creates a fresh in-memory context.
 
 ### `game_ready`
 
@@ -430,16 +443,18 @@ Vercel preview URLs can create duplicate product data, accidental secret-bearing
 - Browser storage: none for analytics.
 - Lifetime: none.
 - Vendor exposure: no application-level visitor/session identifier.
-- Answers: aggregate traffic, starts, readiness, restart/completion ratios, controlled errors/performance, release comparisons.
+- Answers: aggregate traffic, starts, page-load acquisition activation, readiness, restart/completion ratios, controlled errors/performance, release comparisons.
 - Does not answer: unique people, cross-session retention, user-level funnels.
 - Reset/deletion behavior: no analytics identifier to reset/delete from the browser.
 - COPPA/California impact: avoids intentionally creating a persistent analytics identifier; this does **not** by itself resolve all legal questions concerning network addresses, child-directed treatment, vendors, or notice.
+
+The memory-only acquisition/activation context described above is compatible with this option because it contains no random/stable identifier and no value that is emitted for later record linkage. It is discarded on reload/tab close and only supplies approved low-cardinality dimensions/booleans to the individual events themselves.
 
 ### Option B — Ephemeral in-memory/session ID
 
 **Decision: DEFER.**
 
-This could correlate page/game events within one open tab/session but still adds an identifier to vendor records. It is unnecessary for the approved first decisions because aggregate event ratios are sufficient.
+This could correlate page/game events within one open tab/session but still adds an identifier to vendor records. It is unnecessary for the approved first decisions because aggregate event ratios and the non-identifying page-load acquisition context are sufficient.
 
 If later adopted, it should exist only in memory, never local/session storage, and die on reload/tab close. Counsel should still review how an analytics provider combines it with network/device data.
 
@@ -692,6 +707,7 @@ React shell / catalog / game lifecycle / Chat semantics
        - runtime allow-list validation
        - production-host gate
        - local acquisition mapping
+       - memory-only acquisition/activation context (no identifier)
        - secret/URL/error deny rules
        - bounded memory queue
                 |
@@ -897,6 +913,8 @@ Outcome:
 - add the closed TypeScript event contract/facade;
 - enable only on canonical production host;
 - implement local acquisition mapping without raw URLs/referrers/query capture;
+- retain only coarse acquisition/first-entry/first-start state in memory for the current page load; generate or emit no visit/session identifier;
+- propagate approved acquisition fields onto `game_start` and validate page-load activation reporting;
 - instrument approved page/game/party semantics;
 - implement bounded performance samples;
 - add canary/privacy tests and blocked/offline tests;
@@ -904,7 +922,7 @@ Outcome:
 - verify actual provider export contains only the allow-list;
 - publish the required privacy/notice/retention/vendor documentation before enabling production collection.
 
-No persistent client ID, session replay, autocapture, or ad-tech SDK is part of this Issue.
+No persistent client ID, session ID, session replay, autocapture, or ad-tech SDK is part of this Issue.
 
 ### Follow-up C — Review first measurement window
 
@@ -918,7 +936,7 @@ Remove low-value events before adding more. Only raise the identifier/retention 
 
 ### Product architecture — **ADOPT**
 
-Adopt a no-client-ID, explicitly typed, allow-listed product analytics boundary. This is enough for the next product decisions and materially reduces privacy, security, child-audience, and vendor-default risk.
+Adopt a no-client-ID/no-session-ID, explicitly typed, allow-listed product analytics boundary. A small non-identifying memory-only page-load context may carry coarse acquisition and first-entry/first-start state so acquisition activation can be measured without record-linking identity. This is enough for the next product decisions and materially reduces privacy, security, child-audience, and vendor-default risk.
 
 ### Hosted provider — **ADOPT WITH CONSTRAINTS: Simple Analytics**
 
@@ -928,7 +946,7 @@ If those constraints cannot be met, the correct fallback is **DEFER client produ
 
 ### Persistent identity — **DEFER/REJECT for v1**
 
-There is no demonstrated product decision that justifies recognizing a browser across visits. Revisit only through a separate Issue with explicit necessity and legal/privacy review.
+There is no demonstrated product decision that justifies recognizing a browser across visits or emitting a session identifier. Revisit only through a separate Issue with explicit necessity and legal/privacy review.
 
 ### First-party analytics backend — **DEFER**
 
