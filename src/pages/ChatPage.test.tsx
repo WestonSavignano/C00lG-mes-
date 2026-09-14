@@ -170,7 +170,7 @@ describe('ChatPage client-only party UX', () => {
     expect(await screen.findByText(/reconnecting/i)).toBeInTheDocument()
     act(() => guest.emit({ status: 'removed' }))
     expect(await screen.findByText(/removed from this chat/i)).toBeInTheDocument()
-    expect(screen.queryByText(/webrtc|nostr|ice/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/\b(?:webrtc|nostr|ice)\b/i)).not.toBeInTheDocument()
   })
 
   it('sends Chat text through canonical party authority rather than a coordinator endpoint', async () => {
@@ -179,7 +179,7 @@ describe('ChatPage client-only party UX', () => {
     const sessionFactory = factory({ restoreHost: vi.fn(async () => start(host)) })
     renderChat('/chat#v=2&party=party-a&role=host', sessionFactory)
 
-    const composer = await screen.findByLabelText(/message/i)
+    const composer = await screen.findByRole('textbox', { name: 'Message' })
     await user.type(composer, 'hello from host')
     await user.click(screen.getByRole('button', { name: /send/i }))
 
