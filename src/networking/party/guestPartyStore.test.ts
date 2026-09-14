@@ -71,7 +71,7 @@ describe('guest party durable state', () => {
 
     expect(sanitizeGuestPartyRecord(corrupted)).toEqual({
       ...record,
-      incarnationId: null,
+      incarnationId: 'inc-a',
       memberId: 'member-a',
       label: 'Guest 1',
       canonicalSequence: 0,
