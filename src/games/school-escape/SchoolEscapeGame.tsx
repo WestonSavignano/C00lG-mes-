@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import ActionButton from '../shared/input/ActionButton'
 import DirectionalControl from '../shared/input/DirectionalControl'
 import useSemanticInput from '../shared/input/useSemanticInput'
@@ -8,17 +8,49 @@ import {
   schoolEscapeKeyboardBindings,
   type SchoolEscapeAction,
 } from './schoolEscapeInput'
+import { createSchoolEscapeRuntime } from './schoolEscapeRuntime'
 import './schoolEscape.css'
 
 function SchoolEscapeGame() {
   const input = useSemanticInput<SchoolEscapeAction>(schoolEscapeKeyboardBindings)
   const [look] = useState(createLookAccumulator)
+  const canvasRef = useRef<HTMLCanvasElement | null>(null)
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) {
+      return
+    }
+
+    let disposed = false
+    let runtime: Awaited<ReturnType<typeof createSchoolEscapeRuntime>> | null = null
+
+    void createSchoolEscapeRuntime({
+      canvas,
+      input: input.reader,
+      look,
+      onFatalError: () => undefined,
+    }).then((controller) => {
+      if (disposed) {
+        controller.dispose()
+        return
+      }
+
+      runtime = controller
+    })
+
+    return () => {
+      disposed = true
+      runtime?.dispose()
+    }
+  }, [input.reader, look])
 
   return (
     <>
       <canvas
         aria-label="School Escape 3D scene"
         className="school-escape__canvas"
+        ref={canvasRef}
       />
       <div className="school-escape__controls">
         <SchoolEscapeLookSurface look={look} />
