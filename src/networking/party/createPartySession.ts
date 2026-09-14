@@ -187,17 +187,33 @@ export function createBrowserPartySessionFactory(dependencies: Dependencies = {}
   return {
     startHost: async () => createHostSession(generatePartyId(), 'new'),
     restoreHost: async (partyId) => createHostSession(partyId, 'restore'),
-    joinGuestInvite: async (route) => createGuestSession({
-      record: createInitialGuestPartyRecord({
-        partyId: route.partyId,
-        rendezvousCapability: route.rendezvousCapability,
-        hostFingerprint: route.hostFingerprint,
-        credentialId: generateCredentialId(),
-        credentialSecret: generateCapability(),
-      }),
-      admissionCapability: route.admissionCapability,
-      scrubInviteAfterConnect: true,
-    }),
+    joinGuestInvite: async (route) => {
+      const existing = await guestStore.load(route.partyId)
+      if (existing) {
+        if (existing.hostFingerprint !== route.hostFingerprint) {
+          throw new Error('This invite points to a different host than the member credentials stored in this browser.')
+        }
+        if (existing.rendezvousCapability !== route.rendezvousCapability) {
+          throw new Error('This invite has a different rendezvous capability than the stored Chat party.')
+        }
+        return createGuestSession({
+          record: existing,
+          scrubInviteAfterConnect: true,
+        })
+      }
+
+      return createGuestSession({
+        record: createInitialGuestPartyRecord({
+          partyId: route.partyId,
+          rendezvousCapability: route.rendezvousCapability,
+          hostFingerprint: route.hostFingerprint,
+          credentialId: generateCredentialId(),
+          credentialSecret: generateCapability(),
+        }),
+        admissionCapability: route.admissionCapability,
+        scrubInviteAfterConnect: true,
+      })
+    },
     restoreGuest: async (partyId) => {
       const record = await guestStore.load(partyId)
       if (!record) {
