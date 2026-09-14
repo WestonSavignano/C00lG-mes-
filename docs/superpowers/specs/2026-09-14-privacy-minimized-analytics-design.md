@@ -112,7 +112,7 @@ Every event and property must exist because it supports a named decision. If a f
 
 **Minimum measurement:** a small `game_error` enum and one bounded `performance_sample` per game run at most, with low-cardinality client/runtime classes.
 
-**Less identifying alternative:** locally classify the environment into a few operationally useful buckets rather than sending full User-Agent, OS version, device model, screen size, memory, CPU count, WebGL renderer, or hardware fingerprint.
+**Less identifying alternative:** locally classify the environment into a few operationally useful buckets rather than sending full User-Agent, OS version, device model, screen size, memory, CPU count, WebGL renderer, or feature fingerprint.
 
 **Cross-visit recognition required:** no.
 
