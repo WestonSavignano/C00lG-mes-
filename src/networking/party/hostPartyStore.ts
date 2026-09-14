@@ -173,7 +173,8 @@ export function isValidHostPartyRecord(value: unknown): value is HostPartyRecord
     return false
   }
 
-  if (value.history.some((event) => event.canonicalSequence > value.canonicalSequence)) {
+  const canonicalSequence = value.canonicalSequence
+  if (value.history.some((event) => event.canonicalSequence > canonicalSequence)) {
     return false
   }
 
@@ -241,7 +242,11 @@ export async function createInitialHostPartyRecord(input: { partyId?: string } =
 }
 
 export class IndexedDbHostPartyStore implements HostPartyStore {
-  constructor(private readonly factory: IDBFactory | undefined = globalThis.indexedDB) {}
+  private readonly factory: IDBFactory | undefined
+
+  constructor(factory: IDBFactory | undefined = globalThis.indexedDB) {
+    this.factory = factory
+  }
 
   async load(partyId: string) {
     const db = await openPartyStorageDb(this.factory)
