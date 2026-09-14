@@ -81,7 +81,7 @@ describe('ChatPage leave behavior', () => {
     await user.click(screen.getByRole('button', { name: 'Leave Chat' }))
 
     await waitFor(() => expect(session.dispose).toHaveBeenCalledTimes(1))
-    expect(screen.getByTestId('location-hash')).toHaveTextContent('')
+    await waitFor(() => expect(screen.getByTestId('location-hash')).toBeEmptyDOMElement())
     expect(screen.getByRole('button', { name: 'Start Chat' })).toBeEnabled()
   })
 })
