@@ -163,7 +163,7 @@ Issues #18 and #19 proved the architecture on tested paths; they did not prove u
 
 ### Current production
 
-The site remains deployed on Vercel until the approved AWS cutover sequence reaches #23. Vercel now serves the application as a static SPA surface for Chat; production Chat does not require `/api/chat/*` or runtime coordinator secrets.
+The site remains deployed on Vercel until the approved AWS cutover sequence reaches #23. Vercel now serves the application as a static SPA surface for Chat; production Chat does not require `/api/chat/*` or runtime coordinator secrets. Automatic Git deployments are restricted to `main`; ordinary PR/feature branches rely on GitHub Actions validation rather than Vercel previews.
 
 ### Approved hosting sequence
 
@@ -172,6 +172,6 @@ The evidence-backed sequence is:
 1. **#20** — approve/document the browser-hosted networking target;
 2. **#21** — migrate production Chat to client-only host authority and remove the dynamic coordinator dependency;
 3. **#22** — provision/validate static AWS production hosting using Route 53, CloudFront, private S3, and GitHub Actions OIDC;
-4. **#23** — cut `coolgamesplus.com` over to AWS and retire obsolete legacy hosting/deployment resources after validation.
+4. **#23** — cut `coolgamesplus.com` over to AWS, make AWS the canonical production host, retain the existing Vercel project as staging, and retire obsolete Vercel Functions/Upstash/backend production assumptions after validation.
 
-AWS/static hosting is the planned target, **not yet the current production host**.
+AWS/static hosting is the planned production target, **not yet the current production host**.
