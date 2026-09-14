@@ -9,9 +9,17 @@ describe('game catalog', () => {
     expect(gameCatalog.every((game) => game.route === game.route.trim())).toBe(true)
   })
 
-  it('defines one featured game and resolves games by route', () => {
-    expect(gameCatalog.filter((game) => game.featured)).toHaveLength(1)
-    expect(featuredGame.title).toBe('Neon Drift')
+  it('features the newest catalog game and resolves games by route', () => {
+    expect(
+      gameCatalog.every((game) => Number.isFinite(Date.parse(game.addedAt))),
+    ).toBe(true)
+
+    const newestAddedAt = Math.max(
+      ...gameCatalog.map((game) => Date.parse(game.addedAt)),
+    )
+
+    expect(featuredGame.title).toBe('Monster Color Rush')
+    expect(Date.parse(featuredGame.addedAt)).toBe(newestAddedAt)
     expect(getGameByRoute('/games/neon-drift')?.id).toBe('neon-drift')
     expect(getGameByRoute('/games/monster-color-rush')?.id).toBe(
       'monster-color-rush',
