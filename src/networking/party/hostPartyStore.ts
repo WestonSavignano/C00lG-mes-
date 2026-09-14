@@ -1,5 +1,6 @@
 import { MAX_CHAT_HISTORY, MAX_CHAT_MESSAGE_LENGTH } from '../../chat/chatProtocol'
 import {
+  createHostProofChallenge,
   deriveAdmissionVerifier,
   exportHostPublicKey,
   fingerprintHostPublicKey,
@@ -7,6 +8,10 @@ import {
   generateHostKeyPair,
   generateIncarnationId,
   generatePartyId,
+  importHostPublicKey,
+  secureVerifierEquals,
+  signHostProof,
+  verifyHostProof,
 } from './partyCrypto'
 import type { PartyCanonicalWireEvent } from './partyProtocol'
 import {
@@ -175,6 +180,38 @@ export function isValidHostPartyRecord(value: unknown): value is HostPartyRecord
   return true
 }
 
+export async function validateHostPartyCryptography(record: HostPartyRecord) {
+  if (!isValidHostPartyRecord(record)) {
+    return false
+  }
+
+  try {
+    if (record.admissionCapability && record.admissionVerifier) {
+      const admissionVerifier = await deriveAdmissionVerifier(record.admissionCapability)
+      if (!secureVerifierEquals(admissionVerifier, record.admissionVerifier)) {
+        return false
+      }
+    }
+
+    const publicKey = await importHostPublicKey(record.hostPublicKey)
+    if ((await fingerprintHostPublicKey(publicKey)) !== record.hostFingerprint) {
+      return false
+    }
+
+    const challenge = createHostProofChallenge({
+      partyId: record.partyId,
+      incarnationId: record.incarnationId,
+      guestNonce: 'storage-integrity-check',
+      hostNonce: 'storage-integrity-check',
+      transportAttemptId: 'storage-integrity-check',
+    })
+    const signature = await signHostProof(record.hostPrivateKey, challenge)
+    return verifyHostProof(publicKey, challenge, signature)
+  } catch {
+    return false
+  }
+}
+
 export async function createInitialHostPartyRecord(input: { partyId?: string } = {}): Promise<HostPartyRecord> {
   const keyPair = await generateHostKeyPair()
   const hostPublicKey = await exportHostPublicKey(keyPair.publicKey)
@@ -197,7 +234,7 @@ export async function createInitialHostPartyRecord(input: { partyId?: string } =
     history: [],
     messages: [],
   }
-  if (!isValidHostPartyRecord(record)) {
+  if (!isValidHostPartyRecord(record) || !(await validateHostPartyCryptography(record))) {
     throw new Error('Failed to create valid host party authority')
   }
   return record
@@ -213,7 +250,7 @@ export class IndexedDbHostPartyStore implements HostPartyStore {
       if (record === null) {
         return null
       }
-      if (!isValidHostPartyRecord(record)) {
+      if (!isValidHostPartyRecord(record) || !(await validateHostPartyCryptography(record))) {
         throw new Error('Durable host state is invalid or incompatible')
       }
       return record
