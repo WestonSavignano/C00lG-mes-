@@ -84,6 +84,33 @@ describe('HostAuthoritySession', () => {
     expect(store.value?.canonicalSequence).toBe(2)
   })
 
+  it('restores durable lock and removal state and keeps both authoritative', async () => {
+    const store = new MemoryStore()
+    const session = await HostAuthoritySession.create(store, state())
+    const admitted = await session.authenticate({
+      credentialId: CREDENTIAL_ID,
+      credentialVerifier: VERIFIER,
+    }, () => MEMBER_ID)
+    expect(admitted.accepted).toBe(true)
+
+    await session.setLocked(true)
+    await session.removeMember(MEMBER_ID)
+
+    const restored = await HostAuthoritySession.restore(store, PARTY_ID)
+    expect(restored.state.locked).toBe(true)
+    expect(restored.state.members.find((member) => member.memberId === MEMBER_ID)?.removed).toBe(true)
+
+    expect(await restored.authenticate({
+      credentialId: CREDENTIAL_ID,
+      credentialVerifier: VERIFIER,
+    })).toMatchObject({ accepted: false, reason: 'member-removed' })
+
+    expect(await restored.authenticate({
+      credentialId: '66666666-6666-4666-8666-666666666666',
+      credentialVerifier: 'sha256:new-credential',
+    })).toMatchObject({ accepted: false, reason: 'party-locked' })
+  })
+
   it('fails closed when durable state is missing or corrupt', async () => {
     const missing = new MemoryStore()
     await expect(HostAuthoritySession.restore(missing, PARTY_ID)).rejects.toThrow('No durable host state')
