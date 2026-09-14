@@ -3,9 +3,10 @@ import { MAX_PARTY_GUESTS, PARTY_PROTOCOL_GENERATION, type PartyChatMessage, typ
 
 export { PARTY_PROTOCOL_GENERATION } from './partyTypes'
 
-export const MAX_PARTY_WIRE_MESSAGE_BYTES = 512 * 1024
+export const MAX_PARTY_WIRE_MESSAGE_BYTES = 2 * 1024 * 1024
 const MAX_ID_LENGTH = 256
 const MAX_CRYPTO_VALUE_LENGTH = 8_192
+const encoder = new TextEncoder()
 
 export type PartyWireMessage =
   | {
@@ -154,6 +155,10 @@ function isSequence(value: unknown): value is number {
   return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0
 }
 
+function byteLength(value: string) {
+  return encoder.encode(value).byteLength
+}
+
 function isMember(value: unknown): value is PartyMemberView {
   return isRecord(value)
     && isString(value.memberId)
@@ -175,7 +180,7 @@ function isChatMessage(value: unknown): value is PartyChatMessage {
     || value.text.length > MAX_CHAT_MESSAGE_LENGTH) {
     return false
   }
-  return JSON.stringify(value).length <= MAX_SERIALIZED_CHAT_MESSAGE_LENGTH
+  return byteLength(JSON.stringify(value)) <= MAX_SERIALIZED_CHAT_MESSAGE_LENGTH
 }
 
 function isCanonicalEvent(value: unknown): value is PartyCanonicalWireEvent {
@@ -241,7 +246,7 @@ function validatePartyMessage(value: unknown): value is PartyWireMessage {
         && typeof value.text === 'string'
         && value.text.trim().length > 0
         && value.text.length <= MAX_CHAT_MESSAGE_LENGTH
-        && JSON.stringify(value).length <= MAX_SERIALIZED_CHAT_MESSAGE_LENGTH
+        && byteLength(JSON.stringify(value)) <= MAX_SERIALIZED_CHAT_MESSAGE_LENGTH
     case 'canonical-chat':
       return isString(value.incarnationId)
         && isSequence(value.canonicalSequence)
@@ -275,10 +280,6 @@ function validatePartyMessage(value: unknown): value is PartyWireMessage {
     default:
       return false
   }
-}
-
-function byteLength(value: string) {
-  return new TextEncoder().encode(value).byteLength
 }
 
 export function serializePartyMessage(message: PartyWireMessage) {
