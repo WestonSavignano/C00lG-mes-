@@ -1,3 +1,4 @@
+import { commitHostChat } from './hostAuthorityHostMessage'
 import {
   authenticateMember,
   buildSyncResponse,
@@ -75,6 +76,15 @@ export class HostAuthoritySession {
     return { ...result, state: this.currentState }
   }
 
+  async commitHostChat(text: string) {
+    const result = commitHostChat(this.currentState, text)
+    if (!result.accepted) {
+      return result
+    }
+    await this.commitState(result.state)
+    return { ...result, state: this.currentState }
+  }
+
   async setLocked(locked: boolean): Promise<AuthorityMutationResult<PartyLockedEvent>> {
     const result = setPartyLocked(this.currentState, locked)
     if (!result.event) {
@@ -120,6 +130,10 @@ export class HostAuthoritySession {
 
   transportForMember(memberId: string) {
     return this.transportByMember.get(memberId) ?? null
+  }
+
+  authenticatedTransports() {
+    return [...this.memberByTransport.keys()]
   }
 
   unbindTransport(peerId: string) {
