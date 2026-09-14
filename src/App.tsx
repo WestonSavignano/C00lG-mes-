@@ -10,6 +10,7 @@ import NotFoundPage from './pages/NotFoundPage'
 import AppShell from './shell/AppShell'
 
 const TrysteroPocPage = lazy(() => import('./pages/TrysteroPocPage'))
+const HostAuthorityPocPage = lazy(() => import('./pages/HostAuthorityPocPage'))
 
 function App() {
   return (
@@ -25,6 +26,14 @@ function App() {
           element={(
             <Suspense fallback={<div>Loading networking POC…</div>}>
               <TrysteroPocPage />
+            </Suspense>
+          )}
+        />
+        <Route
+          path="/networking-poc/host-authority"
+          element={(
+            <Suspense fallback={<div>Loading host-authority POC…</div>}>
+              <HostAuthorityPocPage />
             </Suspense>
           )}
         />
