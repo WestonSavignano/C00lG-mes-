@@ -120,7 +120,10 @@ export function isValidGuestPartyRecord(value: unknown): value is GuestPartyReco
     || !value.messages.every(isMessage)) {
     return false
   }
-  return true
+
+  const admittedFields = [value.incarnationId, value.memberId, value.label]
+  const admittedFieldCount = admittedFields.filter((field) => field !== null).length
+  return admittedFieldCount === 0 || admittedFieldCount === admittedFields.length
 }
 
 export function sanitizeGuestPartyRecord(value: unknown): GuestPartyRecord | null {
@@ -139,6 +142,24 @@ export function sanitizeGuestPartyRecord(value: unknown): GuestPartyRecord | nul
     return value
   }
 
+  const hasAdmittedIdentity = value.incarnationId !== null
+    || value.memberId !== null
+    || value.label !== null
+  let incarnationId: string | null = null
+  let memberId: string | null = null
+  let label: string | null = null
+
+  if (hasAdmittedIdentity) {
+    if (!isString(value.incarnationId, 256)
+      || !isString(value.memberId, 256)
+      || !isString(value.label, 64)) {
+      return null
+    }
+    incarnationId = value.incarnationId
+    memberId = value.memberId
+    label = value.label
+  }
+
   const reset = createInitialGuestPartyRecord({
     partyId: value.partyId,
     rendezvousCapability: value.rendezvousCapability,
@@ -148,8 +169,9 @@ export function sanitizeGuestPartyRecord(value: unknown): GuestPartyRecord | nul
   })
   return {
     ...reset,
-    memberId: value.memberId === null || isString(value.memberId, 256) ? value.memberId : null,
-    label: value.label === null || isString(value.label, 64) ? value.label : null,
+    incarnationId,
+    memberId,
+    label,
   }
 }
 
