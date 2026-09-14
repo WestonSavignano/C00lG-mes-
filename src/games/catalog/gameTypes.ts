@@ -24,7 +24,7 @@ export type GameDefinition = {
   title: string
   shortDescription: string
   category: string
-  featured?: boolean
+  addedAt: string
   new?: boolean
   multiplayer?: boolean
   orientation: GameOrientation
