@@ -79,6 +79,7 @@ export class HostPartySession implements PartySessionClient {
   private readonly postJoin = new Map<string, HostHandshakeAuthenticated>()
   private error: string | null = null
   private disposed = false
+  private disposePromise: Promise<{ requiresReload: boolean }> | null = null
 
   constructor(private readonly input: {
     authority: HostPartyAuthority
@@ -140,6 +141,7 @@ export class HostPartySession implements PartySessionClient {
   }
 
   handleAuthenticated(authenticated: HostHandshakeAuthenticated) {
+    if (this.disposed) return
     this.bindingByMember.set(authenticated.member.memberId, {
       peerId: authenticated.peerId,
       transportAttemptId: authenticated.transportAttemptId,
@@ -148,6 +150,7 @@ export class HostPartySession implements PartySessionClient {
   }
 
   handlePeerJoin(peerId: string) {
+    if (this.disposed) return
     this.connectedPeers.add(peerId)
     const authenticated = this.postJoin.get(peerId)
     this.postJoin.delete(peerId)
@@ -169,6 +172,7 @@ export class HostPartySession implements PartySessionClient {
           this.input.transport.disconnectPeer(authenticated.replaced.peerId)
         }
       } catch (error) {
+        if (this.disposed) return
         this.error = error instanceof Error ? error.message : 'Unable to publish party state'
         this.emit()
       }
@@ -181,10 +185,11 @@ export class HostPartySession implements PartySessionClient {
     for (const [memberId, binding] of this.bindingByMember.entries()) {
       if (binding.peerId === peerId) this.bindingByMember.delete(memberId)
     }
-    this.emit()
+    if (!this.disposed) this.emit()
   }
 
   async handleMessage(data: string, peerId: string) {
+    if (this.disposed) return
     const message = parsePartyMessage(data)
     if (!message || message.partyId !== this.input.authority.state.partyId) return
 
@@ -243,6 +248,7 @@ export class HostPartySession implements PartySessionClient {
   }
 
   async sendMessage(text: string) {
+    if (this.disposed) throw new Error('Host party session is disposed')
     const result = await this.input.authority.commitHostChat({
       clientMessageId: generateCapability(),
       sentAt: Date.now(),
@@ -254,12 +260,14 @@ export class HostPartySession implements PartySessionClient {
   }
 
   async setLocked(locked: boolean) {
+    if (this.disposed) throw new Error('Host party session is disposed')
     const result = await this.input.authority.setAdmissionLocked(locked)
     if (result.event) await this.broadcastEvent(result.event)
     this.emit()
   }
 
   async removeMember(memberId: string) {
+    if (this.disposed) throw new Error('Host party session is disposed')
     const binding = this.bindingByMember.get(memberId) ?? null
     const result = await this.input.authority.removeMember(memberId)
     if (!result.accepted) throw new Error(result.reason)
@@ -279,12 +287,32 @@ export class HostPartySession implements PartySessionClient {
     this.emit()
   }
 
-  async dispose() {
-    if (this.disposed) return { requiresReload: false }
-    this.disposed = true
-    const transportResult = await this.input.transport.dispose()
-    this.input.lock.release()
-    await this.input.lock.released
+  dispose() {
+    if (!this.disposePromise) {
+      this.disposed = true
+      this.disposePromise = this.disposeInternal()
+    }
+    return this.disposePromise
+  }
+
+  private async disposeInternal() {
+    await this.input.authority.close()
+
+    let transportResult: { requiresReload: boolean }
+    try {
+      transportResult = await this.input.transport.dispose()
+    } catch {
+      transportResult = { requiresReload: true }
+    }
+
+    if (!transportResult.requiresReload) {
+      this.input.lock.release()
+      await this.input.lock.released
+    }
+
+    this.connectedPeers.clear()
+    this.bindingByMember.clear()
+    this.postJoin.clear()
     this.subscribers.clear()
     return transportResult
   }
@@ -303,6 +331,7 @@ export class GuestPartySession implements PartySessionClient {
   private transportAttemptId: string | null = null
   private pendingMessage: PendingGuestMessage | null = null
   private disposed = false
+  private disposePromise: Promise<{ requiresReload: boolean }> | null = null
 
   constructor(private readonly input: {
     replica: GuestPartyReplica
@@ -337,6 +366,7 @@ export class GuestPartySession implements PartySessionClient {
   }
 
   handleAuthenticated(authenticated: GuestHandshakeAuthenticated) {
+    if (this.disposed) return
     this.hostPeerId = authenticated.hostPeerId
     this.transportAttemptId = authenticated.transportAttemptId
     this.error = null
@@ -345,7 +375,7 @@ export class GuestPartySession implements PartySessionClient {
   }
 
   async handlePeerJoin(peerId: string) {
-    if (peerId !== this.hostPeerId || !this.transportAttemptId) return
+    if (this.disposed || peerId !== this.hostPeerId || !this.transportAttemptId) return
     this.status = 'connected'
     this.error = null
     this.emit()
@@ -356,14 +386,14 @@ export class GuestPartySession implements PartySessionClient {
     if (peerId !== this.hostPeerId) return
     this.hostPeerId = null
     this.transportAttemptId = null
-    if (this.status !== 'removed' && this.status !== 'error') {
+    if (!this.disposed && this.status !== 'removed' && this.status !== 'error') {
       this.status = 'reconnecting'
       this.emit()
     }
   }
 
   private async requestSync() {
-    if (!this.hostPeerId || !this.transportAttemptId) return
+    if (this.disposed || !this.hostPeerId || !this.transportAttemptId) return
     await this.input.transport.send(serializePartyMessage({
       version: PARTY_PROTOCOL_GENERATION,
       type: 'sync-request',
@@ -386,7 +416,7 @@ export class GuestPartySession implements PartySessionClient {
   }
 
   async handleMessage(data: string, peerId: string) {
-    if (!this.hostPeerId || peerId !== this.hostPeerId) return
+    if (this.disposed || !this.hostPeerId || peerId !== this.hostPeerId) return
     const message = parsePartyMessage(data)
     if (!message || message.partyId !== this.input.replica.state.partyId) return
 
@@ -455,6 +485,7 @@ export class GuestPartySession implements PartySessionClient {
   }
 
   async sendMessage(text: string) {
+    if (this.disposed) throw new Error('Guest party session is disposed')
     if (!this.hostPeerId || !this.transportAttemptId || this.status !== 'connected') {
       throw new Error('The host is not connected')
     }
@@ -482,10 +513,24 @@ export class GuestPartySession implements PartySessionClient {
     }
   }
 
-  async dispose() {
-    if (this.disposed) return { requiresReload: false }
-    this.disposed = true
-    const result = await this.input.transport.dispose()
+  dispose() {
+    if (!this.disposePromise) {
+      this.disposed = true
+      this.disposePromise = this.disposeInternal()
+    }
+    return this.disposePromise
+  }
+
+  private async disposeInternal() {
+    let result: { requiresReload: boolean }
+    try {
+      result = await this.input.transport.dispose()
+    } catch {
+      result = { requiresReload: true }
+    }
+    this.hostPeerId = null
+    this.transportAttemptId = null
+    this.pendingMessage = null
     this.subscribers.clear()
     return result
   }
