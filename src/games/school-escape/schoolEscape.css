@@ -7,6 +7,32 @@
   touch-action: none;
 }
 
+.school-escape__runtime-error {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 8;
+  display: grid;
+  width: min(420px, calc(100% - 40px));
+  gap: 8px;
+  padding: 18px 20px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 16px;
+  color: #f8fafc;
+  background: rgba(12, 15, 19, 0.92);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.44);
+  transform: translate(-50%, -50%);
+}
+
+.school-escape__runtime-error strong {
+  font-size: 1rem;
+}
+
+.school-escape__runtime-error span {
+  color: rgba(248, 250, 252, 0.78);
+  line-height: 1.45;
+}
+
 .school-escape__controls {
   position: absolute;
   inset: 0;
