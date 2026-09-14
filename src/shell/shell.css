@@ -1,8 +1,8 @@
 .app-shell {
   min-height: 100svh;
   background:
-    radial-gradient(circle at 50% -20%, rgba(45, 212, 191, 0.08), transparent 38rem),
-    var(--color-bg);
+    radial-gradient(circle at 50% -20%, var(--color-ambient-glow), transparent 38rem),
+    var(--color-surface-page);
 }
 
 .app-shell__content {
@@ -13,8 +13,8 @@
   position: sticky;
   top: 0;
   z-index: 40;
-  border-bottom: 1px solid var(--color-border);
-  background: rgba(6, 9, 20, 0.86);
+  border-bottom: 1px solid var(--color-border-subtle);
+  background: var(--color-surface-chrome);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
 }
@@ -35,14 +35,14 @@
   align-items: center;
   gap: 10px;
   min-width: 0;
-  color: var(--color-text-strong);
+  color: var(--color-text-primary);
   font-weight: 850;
   letter-spacing: -0.025em;
   text-decoration: none;
 }
 
 .app-brand:hover {
-  color: var(--color-text-strong);
+  color: var(--color-text-primary);
 }
 
 .app-brand__icon {
@@ -67,7 +67,7 @@
   position: relative;
   border-radius: var(--radius-sm);
   padding: 9px 13px;
-  color: var(--color-text);
+  color: var(--color-text-secondary);
   font-size: 0.9rem;
   font-weight: 750;
   text-decoration: none;
@@ -86,12 +86,12 @@
 
 .primary-navigation__link:hover,
 .primary-navigation__link.active {
-  color: var(--color-text-strong);
+  color: var(--color-text-primary);
   background: var(--color-surface-raised);
 }
 
 .primary-navigation__link.active::after {
-  background: var(--color-accent);
+  background: var(--color-brand-emphasis);
 }
 
 .mobile-bottom-navigation {
@@ -125,8 +125,8 @@
     left: 0;
     z-index: 50;
     display: block;
-    border-top: 1px solid var(--color-border);
-    background: rgba(6, 9, 20, 0.92);
+    border-top: 1px solid var(--color-border-subtle);
+    background: var(--color-surface-chrome-strong);
     padding-right: env(safe-area-inset-right);
     padding-bottom: env(safe-area-inset-bottom);
     padding-left: env(safe-area-inset-left);
@@ -148,7 +148,7 @@
     place-items: center;
     align-content: center;
     gap: 3px;
-    color: var(--color-muted);
+    color: var(--color-text-muted);
     font-size: 0.68rem;
     font-weight: 760;
     line-height: 1;
@@ -168,11 +168,11 @@
   }
 
   .mobile-bottom-navigation__link.active {
-    color: var(--color-text-strong);
+    color: var(--color-text-primary);
   }
 
   .mobile-bottom-navigation__link.active::before {
-    background: var(--color-accent);
+    background: var(--color-brand-emphasis);
   }
 
   .mobile-bottom-navigation__icon {

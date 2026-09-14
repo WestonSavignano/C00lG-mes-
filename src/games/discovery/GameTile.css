@@ -1,9 +1,9 @@
 .game-tile {
   min-width: 0;
   overflow: hidden;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-md);
-  background: var(--color-surface);
+  background: var(--color-surface-panel);
   box-shadow: var(--shadow-sm);
 }
 
@@ -26,7 +26,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  color: var(--color-muted);
+  color: var(--color-text-muted);
   font-size: 0.7rem;
   font-weight: 760;
   letter-spacing: 0.045em;
@@ -47,11 +47,11 @@
 }
 
 .game-badge {
-  border: 1px solid rgba(94, 234, 212, 0.28);
+  border: 1px solid var(--color-brand-border);
   border-radius: 999px;
   padding: 3px 6px;
-  color: var(--color-accent);
-  background: rgba(45, 212, 191, 0.08);
+  color: var(--color-link);
+  background: var(--color-brand-surface);
   font-size: 0.58rem;
   line-height: 1;
 }
@@ -59,7 +59,7 @@
 .game-tile h3 {
   overflow: hidden;
   margin: 0;
-  color: var(--color-text-strong);
+  color: var(--color-text-primary);
   font-size: clamp(1rem, 3vw, 1.18rem);
   font-weight: 790;
   letter-spacing: -0.025em;

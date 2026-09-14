@@ -9,16 +9,16 @@
   width: min(100%, 520px);
   display: grid;
   gap: 12px;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-md);
   padding: 24px;
-  background: var(--color-surface);
+  background: var(--color-surface-panel);
   box-shadow: var(--shadow-sm);
 }
 
 .game-runtime-error__eyebrow {
   margin: 0;
-  color: var(--color-accent);
+  color: var(--color-link);
   font-size: 0.72rem;
   font-weight: 800;
   letter-spacing: 0.06em;
@@ -31,12 +31,12 @@
 }
 
 .game-runtime-error h2 {
-  color: var(--color-text-strong);
+  color: var(--color-text-primary);
   font-size: clamp(1.25rem, 3vw, 1.7rem);
 }
 
 .game-runtime-error p:not(.game-runtime-error__eyebrow) {
-  color: var(--color-muted);
+  color: var(--color-text-muted);
   line-height: 1.55;
 }
 
@@ -63,15 +63,29 @@
 
 .game-runtime-error__actions button {
   border: 1px solid transparent;
-  color: #041513;
-  background: var(--color-accent);
+  color: var(--color-action-on-primary);
+  background: var(--color-action-primary);
   cursor: pointer;
 }
 
+.game-runtime-error__actions button:hover {
+  background: var(--color-action-primary-hover);
+}
+
+.game-runtime-error__actions button:active {
+  background: var(--color-action-primary-pressed);
+}
+
 .game-runtime-error__actions a {
-  border: 1px solid var(--color-border);
-  color: var(--color-text-strong);
+  border: 1px solid var(--color-border-subtle);
+  color: var(--color-text-primary);
   background: var(--color-surface-raised);
+}
+
+.game-runtime-error__actions a:hover {
+  color: var(--color-text-primary);
+  border-color: var(--color-border-strong);
+  background: var(--color-action-secondary-hover);
 }
 
 @media (max-width: 720px) {

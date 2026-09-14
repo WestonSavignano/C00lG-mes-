@@ -2,11 +2,11 @@
   flex: 1 1 260px;
   max-width: 360px;
   min-height: 220px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--color-border-subtle);
   border-radius: 8px;
-  background: var(--surface);
+  background: var(--color-surface-panel);
   color: inherit;
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-sm);
 }
 
 .card__link,
@@ -34,7 +34,7 @@
 
 .card__label {
   margin: 0;
-  color: var(--accent);
+  color: var(--color-link);
   font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 0;
@@ -43,10 +43,10 @@
 
 .card__action {
   margin-top: auto;
-  color: var(--link);
+  color: var(--color-link);
   font-weight: 700;
 }
 
 .card__link:hover .card__action {
-  color: var(--accent);
+  color: var(--color-link-hover);
 }

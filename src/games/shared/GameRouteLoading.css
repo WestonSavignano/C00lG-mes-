@@ -4,15 +4,15 @@
   place-items: center;
   padding: 24px;
   background:
-    radial-gradient(circle at 50% 40%, rgba(94, 234, 212, 0.08), transparent 35%),
-    #050914;
+    radial-gradient(circle at 50% 40%, var(--color-brand-surface), transparent 35%),
+    var(--color-surface-inset);
 }
 
 .game-route-loading__panel {
   display: inline-flex;
   align-items: center;
   gap: 12px;
-  color: var(--color-text);
+  color: var(--color-text-secondary);
   font-size: 0.9rem;
   font-weight: 750;
 }
@@ -21,8 +21,8 @@
   width: 10px;
   height: 10px;
   border-radius: 999px;
-  background: var(--color-accent);
-  box-shadow: 0 0 18px rgba(94, 234, 212, 0.5);
+  background: var(--color-link-hover);
+  box-shadow: 0 0 18px var(--color-brand-glow);
   animation: game-loading-pulse 900ms ease-in-out infinite alternate;
 }
 

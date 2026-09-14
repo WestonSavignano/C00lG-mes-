@@ -5,12 +5,12 @@
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 24px;
-  border: 1px solid rgba(129, 140, 248, 0.22);
+  border: 1px solid var(--color-brand-border);
   border-radius: var(--radius-lg);
   padding: clamp(22px, 4vw, 34px);
   background:
-    radial-gradient(circle at 92% 8%, rgba(99, 102, 241, 0.22), transparent 34%),
-    linear-gradient(135deg, #10182a, #111526);
+    radial-gradient(circle at 92% 8%, var(--color-brand-surface), transparent 34%),
+    linear-gradient(135deg, var(--color-surface-panel), var(--color-surface-raised));
 }
 
 .party-callout::after {
@@ -19,7 +19,7 @@
   right: -30px;
   width: 150px;
   height: 150px;
-  border: 1px solid rgba(165, 180, 252, 0.12);
+  border: 1px solid var(--color-border-subtle);
   border-radius: 50%;
   content: '';
 }
@@ -30,7 +30,7 @@
 }
 
 .party-callout .discovery-kicker {
-  color: var(--color-accent);
+  color: var(--color-link);
   font-size: 0.7rem;
   font-weight: 820;
   letter-spacing: 0.1em;
@@ -45,7 +45,7 @@
 .party-callout p:last-child {
   max-width: 40rem;
   margin-top: 9px;
-  color: var(--color-text);
+  color: var(--color-text-secondary);
 }
 
 .party-callout__link {
@@ -56,11 +56,11 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  border: 1px solid rgba(165, 180, 252, 0.28);
+  border: 1px solid var(--color-brand-border);
   border-radius: 999px;
   padding: 0 18px;
-  color: #eef2ff;
-  background: rgba(99, 102, 241, 0.16);
+  color: var(--color-action-on-secondary);
+  background: var(--color-action-secondary);
   font-size: 0.85rem;
   font-weight: 820;
   text-decoration: none;
@@ -68,13 +68,17 @@
 }
 
 .party-callout__link:hover {
-  color: #ffffff;
-  border-color: rgba(165, 180, 252, 0.52);
-  background: rgba(99, 102, 241, 0.26);
+  color: var(--color-action-on-secondary);
+  border-color: var(--color-border-strong);
+  background: var(--color-action-secondary-hover);
+}
+
+.party-callout__link:active {
+  background: var(--color-action-secondary-pressed);
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .party-callout__link:hover {
+  .party-callout__link:hover:not(:active) {
     transform: translateY(-1px);
   }
 }

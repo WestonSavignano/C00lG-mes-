@@ -1,0 +1,94 @@
+:root {
+  color-scheme: dark;
+
+  /* Brand reference palette. Site components consume semantic tokens below. */
+  --palette-midnight: #0A1026;
+  --palette-blue: #2563FF;
+  --palette-sky: #00B0FF;
+  --palette-cyan: #00E5FF;
+  --palette-teal: #2EE6C4;
+  --palette-aqua: #A7F3E9;
+  --palette-gold: #FFD95B;
+  --palette-white: #F8FAFF;
+
+  /* Semantic site colors. */
+  --color-surface-page: var(--palette-midnight);
+  --color-surface-panel: #111936;
+  --color-surface-raised: #172448;
+  --color-surface-inset: #060B1C;
+  --color-surface-chrome: rgba(10, 16, 38, 0.88);
+  --color-surface-chrome-strong: rgba(10, 16, 38, 0.94);
+
+  --color-overlay-subtle: rgba(10, 16, 38, 0.12);
+  --color-overlay-soft: rgba(10, 16, 38, 0.42);
+  --color-overlay-medium: rgba(10, 16, 38, 0.68);
+  --color-overlay-strong: rgba(10, 16, 38, 0.92);
+  --color-overlay-solid: rgba(10, 16, 38, 0.97);
+
+  --color-text-primary: var(--palette-white);
+  --color-text-secondary: #C9D4EE;
+  --color-text-muted: #96A6C7;
+  --color-text-on-media: var(--palette-white);
+
+  --color-border-subtle: rgba(167, 243, 233, 0.16);
+  --color-border-strong: rgba(167, 243, 233, 0.32);
+  --color-border-on-media: rgba(248, 250, 255, 0.4);
+  --color-border-on-media-strong: rgba(248, 250, 255, 0.72);
+
+  --color-action-primary: var(--palette-teal);
+  --color-action-primary-hover: var(--palette-aqua);
+  --color-action-primary-pressed: #23CDB0;
+  --color-action-on-primary: var(--palette-midnight);
+  --color-action-secondary: rgba(0, 176, 255, 0.12);
+  --color-action-secondary-hover: rgba(0, 176, 255, 0.2);
+  --color-action-secondary-pressed: rgba(0, 176, 255, 0.28);
+  --color-action-on-secondary: var(--palette-white);
+
+  --color-link: var(--palette-sky);
+  --color-link-hover: var(--palette-cyan);
+  --color-focus-ring: var(--palette-cyan);
+  --color-brand-emphasis: var(--palette-blue);
+  --color-brand-highlight: var(--palette-gold);
+  --color-brand-surface: rgba(0, 176, 255, 0.1);
+  --color-brand-border: rgba(0, 229, 255, 0.28);
+  --color-brand-glow: rgba(46, 230, 196, 0.22);
+  --color-ambient-glow: rgba(0, 176, 255, 0.08);
+
+  --color-status-success-surface: rgba(16, 185, 129, 0.13);
+  --color-status-success-border: rgba(52, 211, 153, 0.3);
+  --color-status-success-text: #A7F3D0;
+  --color-status-danger-surface: rgba(127, 29, 29, 0.42);
+  --color-status-danger-border: rgba(248, 113, 113, 0.42);
+  --color-status-danger-text: #FECACA;
+
+  /* Shared layout, type, elevation, and motion decisions. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-xl: 30px;
+
+  --shadow-sm: 0 12px 32px rgba(0, 0, 0, 0.24);
+  --shadow-lg: 0 28px 80px rgba(0, 0, 0, 0.36);
+
+  --motion-fast: 140ms;
+  --motion-base: 220ms;
+  --ease-out: cubic-bezier(0.2, 0.75, 0.2, 1);
+
+  --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  --app-header-height: 68px;
+  --app-header-height-mobile: 56px;
+  --mobile-navigation-height: 64px;
+}
