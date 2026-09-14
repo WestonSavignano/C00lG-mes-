@@ -80,10 +80,12 @@ export class TrysteroNostrTransport {
   private startPromise: Promise<void> | null = null
   private disposePromise: Promise<{ requiresReload: boolean }> | null = null
   private disposed = false
+  private readonly options: TrysteroNostrTransportOptions
   private readonly poisonRegistry: Set<string>
   private readonly roomKey: string
 
-  constructor(private readonly options: TrysteroNostrTransportOptions) {
+  constructor(options: TrysteroNostrTransportOptions) {
+    this.options = options
     this.poisonRegistry = options.poisonRegistry ?? sharedPoisonRegistry
     this.roomKey = `${APP_ID}:${options.partyId}`
   }
