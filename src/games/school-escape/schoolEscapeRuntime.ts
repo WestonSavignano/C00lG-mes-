@@ -1,3 +1,5 @@
+import { Engine } from '@babylonjs/core/Engines/engine'
+import { Scene } from '@babylonjs/core/scene'
 import type { SemanticInputReader } from '../shared/input/semanticInput'
 import type { LookInputReader, SchoolEscapeAction } from './schoolEscapeInput'
 
@@ -16,41 +18,65 @@ export type SchoolEscapeRuntimeOptions = {
   onFatalError(error: Error): void
 }
 
+function toError(error: unknown) {
+  return error instanceof Error ? error : new Error(String(error))
+}
+
 export async function createSchoolEscapeRuntime(
   options: SchoolEscapeRuntimeOptions,
 ): Promise<SchoolEscapeRuntimeController> {
-  const { canvas } = options
+  const engine = new Engine(options.canvas, true)
+  const scene = new Scene(engine)
   let disposed = false
+  let paused = false
+  let failed = false
 
-  const resize = () => {
-    if (disposed) {
+  const renderFrame = () => {
+    if (disposed || paused || failed) {
       return
     }
 
-    const width = Math.max(1, Math.round(canvas.clientWidth || canvas.width || 1))
-    const height = Math.max(1, Math.round(canvas.clientHeight || canvas.height || 1))
-
-    if (canvas.width !== width) {
-      canvas.width = width
-    }
-    if (canvas.height !== height) {
-      canvas.height = height
+    try {
+      scene.render()
+    } catch (error) {
+      failed = true
+      options.onFatalError(toError(error))
     }
   }
 
-  resize()
+  engine.runRenderLoop(renderFrame)
 
   return {
-    resize,
-    pause() {},
-    resume() {},
+    resize() {
+      if (!disposed) {
+        engine.resize()
+      }
+    },
+    pause() {
+      paused = true
+    },
+    resume() {
+      if (!disposed && !failed) {
+        paused = false
+      }
+    },
     async restart() {
       if (disposed) {
         return
       }
+
+      failed = false
+      paused = false
     },
     dispose() {
+      if (disposed) {
+        return
+      }
+
       disposed = true
+      engine.stopRenderLoop()
+      scene.dispose()
+      engine.dispose()
     },
   }
 }
