@@ -44,21 +44,20 @@ As of **September 14, 2026**:
 - the durable site palette/token boundary is on `main` via PR #36;
 - networking feasibility Issue #18 / PR #24 concluded **PROCEED WITH CONSTRAINTS** for active-host/passive-guest Trystero/Nostr rendezvous and direct WebRTC without an owned signaling backend on tested paths;
 - host-authority Issue #19 / PR #35 concluded **PROCEED WITH CONSTRAINTS** for host-local IndexedDB authority, deterministic replay/snapshot recovery, durable lock/removal state, and fail-closed storage;
-- production `/chat` still uses the existing Vercel Functions + Upstash Redis coordinator until #21 replaces it;
-- the current networking/hosting execution chain is **#20 architecture -> #21 production client-only Chat migration -> #22 static AWS foundation -> #23 `coolgamesplus.com` cutover/legacy retirement**;
+- Issue #20 / PR #41 established the canonical browser-hosted authoritative architecture;
+- Issue #21 migrates production `/chat` onto that architecture, removes `/api/chat/*`, `server/chat/`, Upstash/runtime coordinator dependencies, and makes the application networking-compatible with a genuinely static production host;
+- the remaining hosting sequence is **#22 static AWS foundation -> #23 `coolgamesplus.com` cutover/legacy hosting retirement**;
 - no Stage 1 distribution-ready game has been formally selected yet.
 
 Stage 0 should not be described using stale open-PR assumptions from September 11. Remaining foundation work should be judged from current `main`, current Issues/PRs, real product validation, and the explicit platform sequence below.
 
 ## Current networking and hosting sequence
 
-This sequence is evidence-backed planned work, not speculative infrastructure and not current production state.
+This sequence is evidence-backed planned work, not speculative infrastructure.
 
 ### #20 — Client-only networking architecture
 
-Turn the #18/#19 evidence into one durable target architecture and remove contradictory future documentation.
-
-Approved direction:
+#20 turned the #18/#19 feasibility evidence into the durable target architecture now used by production Chat:
 
 - browser-hosted authoritative listen server;
 - one active host plus passive guests in a bounded host-star party;
@@ -66,7 +65,7 @@ Approved direction:
 - direct WebRTC application traffic;
 - public Trystero/Nostr rendezvous;
 - host-local IndexedDB canonical authority and browser-local guest credentials/cursors;
-- no C00lG@mes+-owned dynamic application backend for the approved target;
+- no C00lG@mes+-owned dynamic application backend;
 - no TURN until evidence says the supported connectivity envelope requires it;
 - host availability/storage is party availability in v1; no host migration/election.
 
@@ -74,13 +73,23 @@ This model is approved for Chat/private parties and near-term small casual/co-op
 
 ### #21 — Production Chat migration
 
-Replace the current Vercel/Upstash coordinator with the approved #20 browser-hosted architecture. #21 is the production proof that the site can operate Chat/private parties without `/api/chat/*`, Redis, or another C00lG@mes+ dynamic application backend.
+#21 is the production implementation of the #20 architecture. Its merge candidate:
 
-This requires deterministic tests plus real-browser/network/lifecycle validation. Do not infer universal WebRTC reliability from the POCs.
+- replaces the Vercel/Upstash coordinator with host-browser party authority;
+- uses the explicit `@trystero-p2p/nostr` package for public rendezvous;
+- adds per-party cryptographic host proof and separated rendezvous/admission/member credentials;
+- persists canonical host authority and bounded Chat history in IndexedDB;
+- restores guest credentials/cursors/cache locally and converges through delta/snapshot recovery;
+- enforces one same-origin host writer with Web Locks;
+- preserves lock/unlock/removal, host-canonical sender assignment, moderation, bounded history, and per-member Chat rate controls;
+- contains the reviewed Trystero 0.25.4 leave/rejoin lifecycle failure inside the transport adapter;
+- removes `/api/chat/*`, server coordinator code, Redis/Upstash runtime assumptions, and coordinator polling/signaling paths.
+
+Automated validation is necessary but not sufficient. Real-browser/network/lifecycle evidence still determines whether the direct-WebRTC/TURN-free envelope is acceptable for players. Do not infer universal reliability from #18/#19 or deterministic #21 tests.
 
 ### #22 — Static AWS production foundation
 
-Only after #21 removes the production dynamic-backend dependency, provision and validate the static AWS target:
+After #21 removes the dynamic-backend dependency, provision and validate the static AWS target:
 
 - Route 53;
 - CloudFront;
@@ -92,7 +101,7 @@ Only after #21 removes the production dynamic-backend dependency, provision and 
 
 ### #23 — Canonical-domain cutover
 
-After #22 is fully validated, cut `coolgamesplus.com` over to the static AWS distribution, validate the complete player experience, prove rollback/redeploy behavior, and then retire obsolete Vercel/Upstash/deployment assumptions.
+After #22 is fully validated, cut `coolgamesplus.com` over to the static AWS distribution, validate the complete player experience, prove rollback/redeploy behavior, and then retire obsolete Vercel/deployment assumptions.
 
 AWS/static hosting is therefore the **planned production target**, while Vercel remains the **current production host** until #23.
 
@@ -116,10 +125,11 @@ Finish the mobile-first arcade foundation and establish the lightweight reposito
 
 ### Current risks
 
-- The approved client-only networking architecture is not production until #21 lands; current Chat still depends on Vercel/Upstash.
 - Public Nostr/STUN are third-party infrastructure with no C00lG@mes+ SLA, and passive rendezvous can introduce noticeable join/reconnect latency.
 - TURN is intentionally absent; restrictive networks may fail direct WebRTC until evidence justifies a relay decision.
 - Browser-host availability, background suspension, device sleep, and browser-local storage are explicit party-availability constraints.
+- Trystero 0.25.4 has a known closed-data-channel `room.leave()` lifecycle defect; #21 contains it by failing closed/requiring reload when a room cannot be safely reused, but real mobile sleep/wake testing remains important.
+- The client-only networking migration still requires honest real-browser/network validation across the supported browser/device envelope before its product reliability is considered proven.
 - Older/open branches can drift from current `main`; reconcile their effective diffs before considering merge.
 - Game input/quality remains uneven across the catalog even though the shared semantic-input foundation is now available.
 - Visual ambition can outpace lower-end performance unless every game treats frame stability as a release constraint.
@@ -241,6 +251,6 @@ Until evidence changes the priority, defer:
 - dedicated authoritative game servers while the approved browser-host model remains sufficient for current private casual/co-op requirements; reopen rather than force the model when explicit reversal triggers appear;
 - broad shared abstractions created only in anticipation of future games.
 
-The static AWS sequence in #22/#23 is **not** a speculative deferral; it is approved planned work behind successful production networking migration in #21.
+The static AWS sequence in #22/#23 is **not** a speculative deferral; it is approved planned work after successful production networking migration in #21.
 
 When evidence changes, update this roadmap first, then create the small set of Issues needed for the current stage.
