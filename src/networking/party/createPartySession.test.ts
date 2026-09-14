@@ -105,6 +105,24 @@ describe('createBrowserPartySessionFactory guest invite behavior', () => {
     })
   })
 
+  it('persists provisional guest credentials so a pre-admission retry does not mint another identity', async () => {
+    const store = new MemoryGuestStore(null)
+    const sessionFactory = factory(store)
+
+    await sessionFactory.joinGuestInvite(route())
+    const firstCredentialId = store.value?.credentialId
+    const firstCredentialSecret = store.value?.credentialSecret
+
+    expect(firstCredentialId).toBeTruthy()
+    expect(firstCredentialSecret).toBeTruthy()
+    expect(store.value?.memberId).toBeNull()
+
+    await sessionFactory.joinGuestInvite(route())
+
+    expect(store.value?.credentialId).toBe(firstCredentialId)
+    expect(store.value?.credentialSecret).toBe(firstCredentialSecret)
+  })
+
   it('fails closed when an invite conflicts with the durable host pin or rendezvous capability', async () => {
     const durable = {
       ...createInitialGuestPartyRecord({
