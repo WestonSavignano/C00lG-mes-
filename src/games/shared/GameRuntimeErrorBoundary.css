@@ -18,7 +18,7 @@
 
 .game-runtime-error__eyebrow {
   margin: 0;
-  color: var(--color-link);
+  color: var(--color-text-brand);
   font-size: 0.72rem;
   font-weight: 800;
   letter-spacing: 0.06em;

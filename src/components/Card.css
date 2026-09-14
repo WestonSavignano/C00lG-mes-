@@ -34,7 +34,7 @@
 
 .card__label {
   margin: 0;
-  color: var(--color-link);
+  color: var(--color-text-brand);
   font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 0;

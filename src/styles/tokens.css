@@ -28,6 +28,7 @@
   --color-text-primary: var(--palette-white);
   --color-text-secondary: #C9D4EE;
   --color-text-muted: #96A6C7;
+  --color-text-brand: var(--palette-sky);
   --color-text-on-media: var(--palette-white);
 
   --color-border-subtle: rgba(167, 243, 233, 0.16);
@@ -47,7 +48,9 @@
   --color-link: var(--palette-sky);
   --color-link-hover: var(--palette-cyan);
   --color-focus-ring: var(--palette-cyan);
-  --color-brand-emphasis: var(--palette-blue);
+  --color-brand-signal: var(--palette-cyan);
+  --color-navigation-active: var(--palette-blue);
+  --color-message-local-surface: var(--palette-blue);
   --color-brand-highlight: var(--palette-gold);
   --color-brand-surface: rgba(0, 176, 255, 0.1);
   --color-brand-border: rgba(0, 229, 255, 0.28);

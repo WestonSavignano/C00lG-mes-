@@ -30,7 +30,7 @@
 }
 
 .party-callout .discovery-kicker {
-  color: var(--color-link);
+  color: var(--color-text-brand);
   font-size: 0.7rem;
   font-weight: 820;
   letter-spacing: 0.1em;

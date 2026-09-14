@@ -29,7 +29,7 @@
 .game-orientation-notice__icon {
   width: 26px;
   height: 26px;
-  color: var(--color-link-hover);
+  color: var(--color-brand-signal);
 }
 
 .game-orientation-notice__copy {

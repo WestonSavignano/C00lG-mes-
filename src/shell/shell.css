@@ -91,7 +91,7 @@
 }
 
 .primary-navigation__link.active::after {
-  background: var(--color-brand-emphasis);
+  background: var(--color-navigation-active);
 }
 
 .mobile-bottom-navigation {
@@ -172,7 +172,7 @@
   }
 
   .mobile-bottom-navigation__link.active::before {
-    background: var(--color-brand-emphasis);
+    background: var(--color-navigation-active);
   }
 
   .mobile-bottom-navigation__icon {

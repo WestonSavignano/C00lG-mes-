@@ -50,7 +50,7 @@
   border: 1px solid var(--color-brand-border);
   border-radius: 999px;
   padding: 3px 6px;
-  color: var(--color-link);
+  color: var(--color-text-brand);
   background: var(--color-brand-surface);
   font-size: 0.58rem;
   line-height: 1;

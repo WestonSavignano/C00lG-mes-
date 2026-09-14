@@ -21,7 +21,7 @@
   width: 10px;
   height: 10px;
   border-radius: 999px;
-  background: var(--color-link-hover);
+  background: var(--color-brand-signal);
   box-shadow: 0 0 18px var(--color-brand-glow);
   animation: game-loading-pulse 900ms ease-in-out infinite alternate;
 }
