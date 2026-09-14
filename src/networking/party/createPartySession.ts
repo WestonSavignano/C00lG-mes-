@@ -100,6 +100,10 @@ function defaultOrigin() {
   return typeof window === 'undefined' ? 'https://coolgamesplus.com' : window.location.origin
 }
 
+function reloadRequiredError(cause: unknown) {
+  return new Error('Party networking could not shut down safely. Reload this page before trying again.', { cause })
+}
+
 export function createBrowserPartySessionFactory(dependencies: Dependencies = {}): PartySessionFactoryClient {
   const hostStore = dependencies.hostStore ?? new IndexedDbHostPartyStore()
   const guestStore = dependencies.guestStore ?? new IndexedDbGuestPartyStore()
@@ -113,6 +117,7 @@ export function createBrowserPartySessionFactory(dependencies: Dependencies = {}
 
   async function createHostSession(partyId: string, mode: 'new' | 'restore'): Promise<PartySessionStart> {
     const lock = await acquireLock(partyId)
+    let session: HostPartySession | null = null
     try {
       if (mode === 'new') await requestPersistentStorage()
       const authority = mode === 'new'
@@ -124,19 +129,19 @@ export function createBrowserPartySessionFactory(dependencies: Dependencies = {}
         : await HostPartyAuthority.restore(hostStore, partyId, { moderate: moderateChatText })
 
       const deferred = new DeferredTransport()
-      const session = new HostPartySession({ authority, transport: deferred, lock, origin })
+      session = new HostPartySession({ authority, transport: deferred, lock, origin })
       const handshake = createHostPartyHandshake({
         authority,
-        onAuthenticated: (authenticated) => session.handleAuthenticated(authenticated),
+        onAuthenticated: (authenticated) => session?.handleAuthenticated(authenticated),
       })
       const transport = transportFactory({
         role: 'host',
         partyId,
         rendezvousCapability: authority.state.rendezvousCapability,
         onPeerHandshake: handshake,
-        onMessage: (data, peerId) => session.handleMessage(data, peerId),
-        onPeerJoin: (peerId) => session.handlePeerJoin(peerId),
-        onPeerLeave: (peerId) => session.handlePeerLeave(peerId),
+        onMessage: (data, peerId) => session?.handleMessage(data, peerId),
+        onPeerJoin: (peerId) => session?.handlePeerJoin(peerId),
+        onPeerLeave: (peerId) => session?.handlePeerLeave(peerId),
       })
       deferred.attach(transport)
       await deferred.start()
@@ -146,8 +151,13 @@ export function createBrowserPartySessionFactory(dependencies: Dependencies = {}
         scrubInviteAfterConnect: false,
       }
     } catch (error) {
-      lock.release()
-      await lock.released
+      if (session) {
+        const cleanup = await session.dispose()
+        if (cleanup.requiresReload) throw reloadRequiredError(error)
+      } else {
+        lock.release()
+        await lock.released
+      }
       throw error
     }
   }
@@ -176,7 +186,13 @@ export function createBrowserPartySessionFactory(dependencies: Dependencies = {}
       onPeerLeave: (peerId) => session.handlePeerLeave(peerId),
     })
     deferred.attach(transport)
-    await deferred.start()
+    try {
+      await deferred.start()
+    } catch (error) {
+      const cleanup = await session.dispose()
+      if (cleanup.requiresReload) throw reloadRequiredError(error)
+      throw error
+    }
     return {
       session,
       canonicalHash: buildSanitizedGuestHash(input.record.partyId),
@@ -196,20 +212,24 @@ export function createBrowserPartySessionFactory(dependencies: Dependencies = {}
         if (existing.rendezvousCapability !== route.rendezvousCapability) {
           throw new Error('This invite has a different rendezvous capability than the stored Chat party.')
         }
+        const admitted = Boolean(existing.memberId && existing.incarnationId)
         return createGuestSession({
           record: existing,
+          admissionCapability: admitted ? undefined : route.admissionCapability,
           scrubInviteAfterConnect: true,
         })
       }
 
+      const record = createInitialGuestPartyRecord({
+        partyId: route.partyId,
+        rendezvousCapability: route.rendezvousCapability,
+        hostFingerprint: route.hostFingerprint,
+        credentialId: generateCredentialId(),
+        credentialSecret: generateCapability(),
+      })
+      await guestStore.save(record)
       return createGuestSession({
-        record: createInitialGuestPartyRecord({
-          partyId: route.partyId,
-          rendezvousCapability: route.rendezvousCapability,
-          hostFingerprint: route.hostFingerprint,
-          credentialId: generateCredentialId(),
-          credentialSecret: generateCapability(),
-        }),
+        record,
         admissionCapability: route.admissionCapability,
         scrubInviteAfterConnect: true,
       })
