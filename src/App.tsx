@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import './App.css'
 import { gameRouteEntries } from './games/catalog/gameRoutes'
@@ -8,6 +9,8 @@ import HomePage from './pages/HomePage'
 import NotFoundPage from './pages/NotFoundPage'
 import AppShell from './shell/AppShell'
 
+const TrysteroPocPage = lazy(() => import('./pages/TrysteroPocPage'))
+
 function App() {
   return (
     <AppShell>
@@ -17,6 +20,14 @@ function App() {
         <Route path="/chat" element={<ChatPage />} />
         <Route path="/soundboard" element={<Navigate replace to="/chat" />} />
         <Route path="/soundboard/sound" element={<Navigate replace to="/chat" />} />
+        <Route
+          path="/networking-poc/trystero"
+          element={(
+            <Suspense fallback={<div>Loading networking POC…</div>}>
+              <TrysteroPocPage />
+            </Suspense>
+          )}
+        />
         <Route path="/games" element={<GamesPage />} />
         {gameRouteEntries.map((entry) => (
           <Route key={entry.game.id} path={entry.path} element={entry.element} />
