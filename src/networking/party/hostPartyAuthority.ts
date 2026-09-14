@@ -93,6 +93,7 @@ function isBoundedCanonicalMessage(message: PartyChatMessage) {
 export class HostPartyAuthority {
   private record: HostPartyRecord
   private mutationQueue: Promise<void> = Promise.resolve()
+  private closed = false
   private readonly rateLimiter: ChatRateLimiter
   private readonly moderate: (text: string) => string
   private readonly transportByMember = new Map<string, TransportBinding>()
@@ -131,7 +132,21 @@ export class HostPartyAuthority {
     return this.record
   }
 
+  async close() {
+    if (this.closed) {
+      await this.mutationQueue
+      return
+    }
+    this.closed = true
+    await this.mutationQueue
+    this.transportByMember.clear()
+    this.memberByPeer.clear()
+  }
+
   private enqueue<T>(operation: () => Promise<T>): Promise<T> {
+    if (this.closed) {
+      return Promise.reject(new Error('Host party authority is closed'))
+    }
     const run = this.mutationQueue.then(operation, operation)
     this.mutationQueue = run.then(() => undefined, () => undefined)
     return run
@@ -216,6 +231,9 @@ export class HostPartyAuthority {
   }
 
   bindTransport(memberId: string, peerId: string, transportAttemptId: string) {
+    if (this.closed) {
+      throw new Error('Host party authority is closed')
+    }
     const member = this.record.members.find((candidate) => candidate.memberId === memberId && !candidate.removed)
     if (!member) {
       throw new Error('Cannot bind transport for unknown or removed member')
