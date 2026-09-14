@@ -1,4 +1,4 @@
-name: Issue 19 deterministic patch
+name: Issue 19 temporary validation
 
 on:
   push:
@@ -6,116 +6,45 @@ on:
       - 'feature/issue-19-host-authority-poc'
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  patch:
+  issue19-tests:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
-          ref: feature/issue-19-host-authority-poc
-      - name: Apply verified source fixes
-        run: |
-          python - <<'PY'
-          from pathlib import Path
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: >-
+          npx vitest run
+          src/networking/poc/hostAuthorityModel.test.ts
+          src/networking/poc/hostAuthoritySession.test.ts
+          src/networking/poc/guestAuthorityStorage.test.ts
+          src/networking/poc/hostAuthorityHostMessage.test.ts
+          src/networking/poc/hostAuthorityProtocol.test.ts
+          src/pages/HostAuthorityPocPage.test.tsx
 
-          def replace(path: str, old: str, new: str, expected: int = 1):
-              file = Path(path)
-              text = file.read_text()
-              count = text.count(old)
-              if count != expected:
-                  raise SystemExit(f'{path}: expected {expected} matches for {old[:60]!r}, found {count}')
-              file.write_text(text.replace(old, new))
-              print(f'patched {path}: {old[:60]!r}')
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
 
-          replace(
-              'src/networking/poc/hostAuthorityModel.ts',
-              """function isHostMember(value: unknown): value is HostAuthorityMember {
-            return isCanonicalMember(value)
-              && isPocIdentity(value.credentialId)
-              && isCredentialVerifier(value.credentialVerifier)
-              && isNonNegativeInteger(value.lastClientSequence)
-          }
-          """,
-              """function isHostMember(value: unknown): value is HostAuthorityMember {
-            return isRecord(value)
-              && isPocIdentity(value.memberId)
-              && typeof value.label === 'string'
-              && value.label.length > 0
-              && value.label.length <= 64
-              && typeof value.removed === 'boolean'
-              && isPocIdentity(value.credentialId)
-              && isCredentialVerifier(value.credentialVerifier)
-              && isNonNegativeInteger(value.lastClientSequence)
-          }
-          """,
-          )
-
-          page = 'src/pages/HostAuthorityPocPage.tsx'
-          replace(
-              page,
-              "import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'",
-              "import { useCallback, useEffect, useMemo, useRef, useState } from 'react'\nimport type { FormEvent } from 'react'",
-          )
-          replace(
-              page,
-              "  const [chatDraft, setChatDraft] = useState('')\n",
-              "  const [chatDraft, setChatDraft] = useState('')\n  const [guestCredentialView, setGuestCredentialView] = useState<{ credentialId: string; nextClientSequence: number } | null>(null)\n  const [canReplayGuestIntent, setCanReplayGuestIntent] = useState(false)\n",
-          )
-          replace(
-              page,
-              '    guestCredentialsRef.current = nextCredentials\n',
-              """    guestCredentialsRef.current = nextCredentials
-              setGuestCredentialView({
-                credentialId: nextCredentials.credentialId,
-                nextClientSequence: nextCredentials.nextClientSequence,
-              })
-          """,
-              expected=3,
-          )
-          replace(
-              page,
-              '        guestCredentialsRef.current = credentials\n',
-              """        guestCredentialsRef.current = credentials
-                  setGuestCredentialView({
-                    credentialId: credentials.credentialId,
-                    nextClientSequence: credentials.nextClientSequence,
-                  })
-          """,
-          )
-          replace(
-              page,
-              '      lastGuestIntentRef.current = null\n',
-              '      lastGuestIntentRef.current = null\n      setGuestCredentialView(null)\n      setCanReplayGuestIntent(false)\n',
-          )
-          replace(
-              page,
-              '      lastGuestIntentRef.current = intent\n',
-              '      lastGuestIntentRef.current = intent\n      setCanReplayGuestIntent(true)\n',
-          )
-          replace(
-              page,
-              '    let hostStore: IndexedDbHostAuthorityStore | null = null\n',
-              '    let hostStore: IndexedDbHostAuthorityStore | null = null\n    let hostMessageQueue: Promise<void> = Promise.resolve()\n',
-          )
-          replace(
-              page,
-              '          void handleHostAuthorityMessage(data, context.peerId).catch((error) => {\n',
-              """          hostMessageQueue = hostMessageQueue
-                    .then(() => handleHostAuthorityMessage(data, context.peerId))
-                    .catch((error) => {
-          """,
-          )
-          replace(page, 'guestCredentialsRef.current?.nextClientSequence', 'guestCredentialView?.nextClientSequence')
-          replace(page, 'guestCredentialsRef.current?.credentialId', 'guestCredentialView?.credentialId')
-          replace(page, 'disabled={!lastGuestIntentRef.current}', 'disabled={!canReplayGuestIntent}')
-          PY
-      - name: Commit fixes
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/networking/poc/hostAuthorityModel.ts src/pages/HostAuthorityPocPage.tsx
-          git diff --cached --check
-          git commit -m "fix: satisfy issue 19 validation [skip ci]"
-          git push origin HEAD:feature/issue-19-host-authority-poc
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
