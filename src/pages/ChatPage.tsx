@@ -34,7 +34,10 @@ type ChatPageProps = {
   sessionFactory?: PartySessionFactoryClient
 }
 
-type DiscoveryDelay = 'none' | 'slow' | 'retry'
+type DiscoveryDelay = {
+  key: string
+  level: 'slow' | 'retry'
+} | null
 
 function isHostControls(session: PartySessionClient | null): session is HostSessionControls {
   return Boolean(session
@@ -74,6 +77,7 @@ export default function ChatPage({ sessionFactory }: ChatPageProps) {
     () => sessionFactory ?? createBrowserPartySessionFactory(),
     [sessionFactory],
   )
+  const route = useMemo(() => parsePartyHash(location.hash), [location.hash])
   const sessionRef = useRef<PartySessionClient | null>(null)
   const unsubscribeRef = useRef<(() => void) | null>(null)
   const startMetaRef = useRef<Pick<PartySessionStart, 'canonicalHash' | 'scrubInviteAfterConnect'> | null>(null)
@@ -84,7 +88,7 @@ export default function ChatPage({ sessionFactory }: ChatPageProps) {
   const [busy, setBusy] = useState(false)
   const [draft, setDraft] = useState('')
   const [copied, setCopied] = useState(false)
-  const [discoveryDelay, setDiscoveryDelay] = useState<DiscoveryDelay>('none')
+  const [discoveryDelay, setDiscoveryDelay] = useState<DiscoveryDelay>(null)
 
   const replaceSession = useCallback(async (start: PartySessionStart) => {
     unsubscribeRef.current?.()
@@ -107,7 +111,6 @@ export default function ChatPage({ sessionFactory }: ChatPageProps) {
   }, [location.pathname, location.search, navigate])
 
   useEffect(() => {
-    const route = parsePartyHash(location.hash)
     if (intentionalLeaveRef.current) {
       if (route.kind === 'none') {
         intentionalLeaveRef.current = false
@@ -115,11 +118,7 @@ export default function ChatPage({ sessionFactory }: ChatPageProps) {
       return
     }
     if (routeMatchesSession(route, snapshot)) return
-    if (route.kind === 'none') return
-    if (route.kind === 'invalid') {
-      setPageError('This Chat link is incomplete or no longer valid.')
-      return
-    }
+    if (route.kind === 'none' || route.kind === 'invalid') return
 
     const generation = ++generationRef.current
     setBusy(true)
@@ -144,7 +143,7 @@ export default function ChatPage({ sessionFactory }: ChatPageProps) {
         if (generation === generationRef.current) setBusy(false)
       }
     })()
-  }, [factory, location.hash, replaceSession, snapshot])
+  }, [factory, replaceSession, route, snapshot])
 
   useEffect(() => {
     const meta = startMetaRef.current
@@ -153,22 +152,27 @@ export default function ChatPage({ sessionFactory }: ChatPageProps) {
     navigateToHash(meta.canonicalHash)
   }, [navigateToHash, snapshot?.status])
 
-  useEffect(() => {
-    const waitingForHost = snapshot?.role === 'guest'
-      && (snapshot.status === 'finding-host' || snapshot.status === 'reconnecting')
-    if (!waitingForHost) {
-      setDiscoveryDelay('none')
-      return
-    }
+  const waitingForHost = snapshot?.role === 'guest'
+    && (snapshot.status === 'finding-host' || snapshot.status === 'reconnecting')
+  const discoveryKey = waitingForHost ? `${snapshot.partyId}:${snapshot.status}` : null
+  const visibleDiscoveryDelay = discoveryDelay?.key === discoveryKey ? discoveryDelay.level : 'none'
 
-    setDiscoveryDelay('none')
-    const slowTimer = window.setTimeout(() => setDiscoveryDelay('slow'), 10_000)
-    const retryTimer = window.setTimeout(() => setDiscoveryDelay('retry'), 75_000)
+  useEffect(() => {
+    if (!discoveryKey) return
+
+    const slowTimer = window.setTimeout(
+      () => setDiscoveryDelay({ key: discoveryKey, level: 'slow' }),
+      10_000,
+    )
+    const retryTimer = window.setTimeout(
+      () => setDiscoveryDelay({ key: discoveryKey, level: 'retry' }),
+      75_000,
+    )
     return () => {
       window.clearTimeout(slowTimer)
       window.clearTimeout(retryTimer)
     }
-  }, [snapshot?.partyId, snapshot?.role, snapshot?.status])
+  }, [discoveryKey])
 
   useEffect(() => () => {
     generationRef.current += 1
@@ -240,7 +244,7 @@ export default function ChatPage({ sessionFactory }: ChatPageProps) {
     } catch {
       setPageError('Copy failed. Select the invite link and copy it manually.')
     }
-  }, [snapshot?.inviteUrl])
+  }, [snapshot])
 
   const shareInvite = useCallback(async () => {
     if (!snapshot?.inviteUrl) return
@@ -255,7 +259,7 @@ export default function ChatPage({ sessionFactory }: ChatPageProps) {
       if (error instanceof DOMException && error.name === 'AbortError') return
       setPageError('Sharing failed. You can still copy the invite link manually.')
     }
-  }, [snapshot?.inviteUrl])
+  }, [snapshot])
 
   const toggleLock = useCallback(async () => {
     const session = sessionRef.current
@@ -314,6 +318,9 @@ export default function ChatPage({ sessionFactory }: ChatPageProps) {
   }, [navigateToHash])
 
   const canSend = snapshot?.role === 'host' || snapshot?.status === 'connected'
+  const routeError = route.kind === 'invalid'
+    ? 'This Chat link is incomplete or no longer valid.'
+    : null
 
   return (
     <Page className="chat-page">
@@ -341,10 +348,10 @@ export default function ChatPage({ sessionFactory }: ChatPageProps) {
                 <span className="chat-eyebrow">Party status</span>
                 <p className={`chat-status chat-status--${snapshot.status}`}>{statusText(snapshot)}</p>
                 <p className="chat-room-id">Party {snapshot.partyId}</p>
-                {discoveryDelay === 'slow' ? (
+                {visibleDiscoveryDelay === 'slow' ? (
                   <p className="chat-note">Finding the host can take a little longer on some networks.</p>
                 ) : null}
-                {discoveryDelay === 'retry' ? (
+                {visibleDiscoveryDelay === 'retry' ? (
                   <div className="chat-retry-panel">
                     <p className="chat-note">Finding the host is taking longer than expected.</p>
                     <button className="chat-button" type="button" disabled={busy} onClick={() => void retryGuestConnection()}>
@@ -440,8 +447,8 @@ export default function ChatPage({ sessionFactory }: ChatPageProps) {
           </>
         )}
 
-        {(pageError || snapshot?.error) && (
-          <p className="chat-error" role="alert">{pageError ?? snapshot?.error}</p>
+        {(pageError || routeError || snapshot?.error) && (
+          <p className="chat-error" role="alert">{pageError ?? routeError ?? snapshot?.error}</p>
         )}
 
         {location.hash ? (
