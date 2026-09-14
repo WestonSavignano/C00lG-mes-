@@ -88,12 +88,14 @@ function SchoolEscapeLookSurface({ look }: SchoolEscapeLookSurfaceProps) {
     }
   }, [clearInterruptedLook])
 
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    window.addEventListener('blur', clearInterruptedLook)
+
+    return () => {
+      window.removeEventListener('blur', clearInterruptedLook)
       clearInterruptedLook()
-    },
-    [clearInterruptedLook],
-  )
+    }
+  }, [clearInterruptedLook])
 
   return (
     <div
