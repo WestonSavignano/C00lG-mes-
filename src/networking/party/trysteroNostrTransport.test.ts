@@ -35,7 +35,7 @@ function createModule(room: TrysteroRoomLike) {
 }
 
 describe('TrysteroNostrTransport', () => {
-  it('uses explicit active-host/passive-guest Nostr rooms with the rendezvous capability as the password and no TURN config', async () => {
+  it('uses the reviewed active-host/passive-guest Nostr configuration with no TURN', async () => {
     const hostRoom = createFakeRoom()
     const hostModule = createModule(hostRoom.room)
     const host = new TrysteroNostrTransport({
@@ -52,11 +52,18 @@ describe('TrysteroNostrTransport', () => {
         appId: 'coolgamesplus-party-v2',
         password: 'rendezvous-a',
         passive: false,
+        trickleIce: true,
+        relayConfig: {
+          redundancy: 5,
+          manualReconnection: false,
+          warnOnRelayFailure: true,
+        },
       }),
       'party-a',
       expect.any(Object),
     )
     expect(hostModule.joinRoom.mock.calls[0]?.[0]).not.toHaveProperty('turnConfig')
+    expect(hostModule.joinRoom.mock.calls[0]?.[0].relayConfig).not.toHaveProperty('urls')
 
     const guestRoom = createFakeRoom()
     const guestModule = createModule(guestRoom.room)
