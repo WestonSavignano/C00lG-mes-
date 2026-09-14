@@ -21,7 +21,7 @@ describe('App routes', () => {
 
     const header = screen.getByRole('banner')
     expect(
-      within(header).getByRole('link', { name: /C00lG@mes\+ home/i }),
+      within(header).getByRole('link', { name: /Cool Games Plus home/i }),
     ).toHaveAttribute('href', '/')
 
     const desktopNav = within(header).getByRole('navigation', {
@@ -45,7 +45,7 @@ describe('App routes', () => {
     renderRoute('/')
 
     expect(
-      screen.getByRole('heading', { level: 1, name: /Pick a game/i }),
+      screen.getByRole('heading', { level: 1, name: /Game Grind Repeat/i }),
     ).toBeInTheDocument()
 
     const featured = screen.getByRole('region', { name: 'Neon Drift' })
