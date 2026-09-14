@@ -12,13 +12,10 @@ describe('SchoolEscapeGame', () => {
     expect(screen.getByRole('button', { name: 'Jump' })).toBeInTheDocument()
   })
 
-  it('keeps the School Escape canvas inside the shared viewport', () => {
+  it('renders the School Escape scene canvas for the page-owned viewport', () => {
     render(<SchoolEscapeGame />)
 
-    expect(screen.getByTestId('game-viewport')).toHaveAttribute(
-      'data-game',
-      'school-escape',
-    )
+    expect(screen.queryByTestId('game-viewport')).not.toBeInTheDocument()
     expect(screen.getByLabelText('School Escape 3D scene')).toBeInTheDocument()
   })
 })
