@@ -229,6 +229,27 @@ export default function ChatPage({ sessionFactory }: ChatPageProps) {
     }
   }, [draft])
 
+  const leaveChat = useCallback(async () => {
+    generationRef.current += 1
+    unsubscribeRef.current?.()
+    unsubscribeRef.current = null
+    const session = sessionRef.current
+    sessionRef.current = null
+    startMetaRef.current = null
+    setBusy(true)
+
+    try {
+      if (session) await session.dispose()
+    } finally {
+      setSnapshot(null)
+      setPageError(null)
+      setDraft('')
+      setCopied(false)
+      setBusy(false)
+      navigateToHash('')
+    }
+  }, [navigateToHash])
+
   const canSend = snapshot?.role === 'host' || snapshot?.status === 'connected'
 
   return (
@@ -348,6 +369,12 @@ export default function ChatPage({ sessionFactory }: ChatPageProps) {
         {(pageError || snapshot?.error) && (
           <p className="chat-error" role="alert">{pageError ?? snapshot?.error}</p>
         )}
+
+        {location.hash ? (
+          <button className="chat-button chat-button--quiet" type="button" disabled={busy} onClick={() => void leaveChat()}>
+            Leave Chat
+          </button>
+        ) : null}
 
         <p className="chat-note">
           Chat is hosted by the player who started the party. Public connection services help browsers find each other; C00lG@mes+ does not run a dynamic Chat coordinator or store the party in the cloud.
