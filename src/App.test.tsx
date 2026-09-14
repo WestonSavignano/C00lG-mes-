@@ -48,13 +48,14 @@ describe('App routes', () => {
       screen.getByRole('heading', { level: 1, name: /Game Grind Repeat/i }),
     ).toBeInTheDocument()
 
-    const featured = screen.getByRole('region', { name: 'Neon Drift' })
-    expect(within(featured).getByRole('link', { name: 'Play Neon Drift' }))
-      .toHaveAttribute('href', '/games/neon-drift')
+    const featured = screen.getByRole('region', { name: 'Monster Color Rush' })
+    expect(
+      within(featured).getByRole('link', { name: 'Play Monster Color Rush' }),
+    ).toHaveAttribute('href', '/games/monster-color-rush')
 
     expect(screen.getByRole('link', { name: 'Start a party' }))
       .toHaveAttribute('href', '/chat')
-    expect(screen.getAllByTestId('game-tile')).toHaveLength(6)
+    expect(screen.getAllByTestId('game-tile')).toHaveLength(7)
   })
 
   it('surfaces recently played games when history exists', () => {
@@ -93,11 +94,13 @@ describe('App routes', () => {
     expect(screen.queryByTestId('game-page-shell')).not.toBeInTheDocument()
 
     const tiles = screen.getAllByTestId('game-tile')
-    expect(tiles).toHaveLength(6)
+    expect(tiles).toHaveLength(7)
     expect(screen.getByRole('link', { name: 'Play Plane Blaster' }))
       .toHaveAttribute('href', '/games/plane-blaster')
     expect(screen.getByRole('link', { name: 'Play Neon Drift' }))
       .toHaveAttribute('href', '/games/neon-drift')
+    expect(screen.getByRole('link', { name: 'Play Monster Color Rush' }))
+      .toHaveAttribute('href', '/games/monster-color-rush')
     expect(screen.getByRole('link', { name: 'Play Warrior2' }))
       .toHaveAttribute('href', '/games/warrior2')
   })

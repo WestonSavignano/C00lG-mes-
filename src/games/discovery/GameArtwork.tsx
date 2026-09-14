@@ -1,5 +1,6 @@
 import type { GameDefinition } from '../catalog/gameTypes'
 import './GameArtwork.css'
+import './ColorRushArtwork.css'
 
 type GameArtworkProps = {
   game: GameDefinition
