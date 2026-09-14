@@ -146,6 +146,30 @@ describe('party wire protocol', () => {
     }
   })
 
+  it('allows a bounded 200-message UTF-8 snapshot without relaxing individual Chat limits', () => {
+    const snapshot: PartyWireMessage = {
+      version: PARTY_PROTOCOL_GENERATION,
+      type: 'sync-snapshot',
+      partyId: 'party-a',
+      incarnationId: 'inc-a',
+      canonicalSequence: 200,
+      locked: false,
+      members: [],
+      messages: Array.from({ length: 200 }, (_, index) => ({
+        id: `message-${index}`,
+        sentAt: index,
+        sender: { memberId: 'host', label: 'Host' },
+        text: '界'.repeat(1_000),
+      })),
+    }
+
+    const serialized = serializePartyMessage(snapshot)
+
+    expect(new TextEncoder().encode(serialized).byteLength).toBeGreaterThan(512 * 1024)
+    expect(new TextEncoder().encode(serialized).byteLength).toBeLessThanOrEqual(MAX_PARTY_WIRE_MESSAGE_BYTES)
+    expect(parsePartyMessage(serialized)).toEqual(snapshot)
+  })
+
   it('fails closed for unsupported versions, unknown types, malformed shapes, and oversized payloads', () => {
     expect(parsePartyMessage(JSON.stringify({ version: 1, type: 'hello' }))).toBeNull()
     expect(parsePartyMessage(JSON.stringify({ version: 2, type: 'future-message' }))).toBeNull()
