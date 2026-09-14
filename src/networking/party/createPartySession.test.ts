@@ -1,10 +1,12 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   createInitialGuestPartyRecord,
   type GuestPartyRecord,
   type GuestPartyStore,
 } from './guestPartyStore'
+import type { HostPartyRecord, HostPartyStore } from './hostPartyStore'
 import { createBrowserPartySessionFactory } from './createPartySession'
+import type { HostPartyLockLease } from './hostPartyLock'
 import type { PartyTransportClient } from './PartySession'
 import type { TrysteroNostrTransportOptions } from './trysteroNostrTransport'
 
@@ -17,12 +19,27 @@ class MemoryGuestStore implements GuestPartyStore {
   async delete() { this.value = null }
 }
 
+class MemoryHostStore implements HostPartyStore {
+  value: HostPartyRecord | null = null
+  async load(partyId: string) { return this.value?.partyId === partyId ? this.value : null }
+  async save(record: HostPartyRecord) { this.value = record }
+}
+
 class NoopTransport implements PartyTransportClient {
   async start() {}
   async send() {}
   peerIds() { return [] }
   disconnectPeer() {}
   async dispose() { return { requiresReload: false } }
+}
+
+class FailingTransport implements PartyTransportClient {
+  readonly dispose = vi.fn(async () => ({ requiresReload: this.requiresReload }))
+  constructor(private readonly requiresReload = false) {}
+  async start(): Promise<void> { throw new Error('rendezvous startup failed') }
+  async send() {}
+  peerIds() { return [] }
+  disconnectPeer() {}
 }
 
 function route(overrides: Partial<{
@@ -46,6 +63,14 @@ function factory(guestStore: GuestPartyStore) {
     transportFactory: (_options: TrysteroNostrTransportOptions) => new NoopTransport(),
     requestPersistentStorage: async () => undefined,
   })
+}
+
+function lockLease(release = vi.fn()): HostPartyLockLease {
+  return {
+    name: 'coolgamesplus:party-host:test',
+    release,
+    released: Promise.resolve(),
+  }
 }
 
 describe('createBrowserPartySessionFactory guest invite behavior', () => {
@@ -100,5 +125,49 @@ describe('createBrowserPartySessionFactory guest invite behavior', () => {
       .rejects.toThrow(/different host/i)
     await expect(sessionFactory.joinGuestInvite(route({ rendezvousCapability: 'other-rendezvous' })))
       .rejects.toThrow(/rendezvous/i)
+  })
+})
+
+describe('createBrowserPartySessionFactory startup cleanup', () => {
+  it('disposes a guest transport generation when rendezvous startup fails', async () => {
+    const transport = new FailingTransport()
+    const sessionFactory = createBrowserPartySessionFactory({
+      guestStore: new MemoryGuestStore(null),
+      transportFactory: () => transport,
+      requestPersistentStorage: async () => undefined,
+    })
+
+    await expect(sessionFactory.joinGuestInvite(route())).rejects.toThrow(/rendezvous startup failed/i)
+    expect(transport.dispose).toHaveBeenCalledTimes(1)
+  })
+
+  it('closes host authority and releases the writer lock after a clean failed-start teardown', async () => {
+    const transport = new FailingTransport(false)
+    const release = vi.fn()
+    const sessionFactory = createBrowserPartySessionFactory({
+      hostStore: new MemoryHostStore(),
+      acquireLock: async () => lockLease(release),
+      transportFactory: () => transport,
+      requestPersistentStorage: async () => undefined,
+    })
+
+    await expect(sessionFactory.startHost()).rejects.toThrow(/rendezvous startup failed/i)
+    expect(transport.dispose).toHaveBeenCalledTimes(1)
+    expect(release).toHaveBeenCalledTimes(1)
+  })
+
+  it('retains the host writer lock when failed startup cannot tear down safely', async () => {
+    const transport = new FailingTransport(true)
+    const release = vi.fn()
+    const sessionFactory = createBrowserPartySessionFactory({
+      hostStore: new MemoryHostStore(),
+      acquireLock: async () => lockLease(release),
+      transportFactory: () => transport,
+      requestPersistentStorage: async () => undefined,
+    })
+
+    await expect(sessionFactory.startHost()).rejects.toThrow(/reload/i)
+    expect(transport.dispose).toHaveBeenCalledTimes(1)
+    expect(release).not.toHaveBeenCalled()
   })
 })
