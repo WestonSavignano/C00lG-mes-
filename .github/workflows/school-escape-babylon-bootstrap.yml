@@ -1,0 +1,38 @@
+name: School Escape Babylon bootstrap
+
+on:
+  push:
+    branches:
+      - feature/school-escape-golden-slice
+    paths:
+      - .github/workflows/school-escape-babylon-bootstrap.yml
+
+permissions:
+  contents: write
+
+jobs:
+  install:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v6
+        with:
+          ref: feature/school-escape-golden-slice
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install pinned Babylon packages
+        run: npm install --save-exact @babylonjs/core@9.26.0 @babylonjs/loaders@9.26.0
+      - name: Commit dependency lockfiles
+        run: |
+          if git diff --quiet -- package.json package-lock.json; then
+            echo "Babylon dependencies already installed."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json
+          git commit -m "build: add Babylon runtime dependencies"
+          git push origin HEAD:feature/school-escape-golden-slice
