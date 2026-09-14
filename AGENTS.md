@@ -34,6 +34,8 @@ Preserve the dependency direction: application shell/discovery may describe and 
 
 Site styling follows `brand/reference palette -> semantic site tokens -> shell/discovery/shared site UI`. Site components should consume semantic tokens from `src/styles/tokens.css`, not palette tokens or hue-named aliases. Individual game artwork and runtime palettes remain game-owned; do not recolor them to match the site shell unless the game's own design calls for it.
 
+Brand naming is deliberate: use `C00lG@mes+` for visible/marketing identity, `Cool Games Plus` for accessibility/search/plain contexts, `coolgamesplus` for technical slugs, and `coolgamesplus.com` as the canonical domain identity. `public/brand-mark-source.png` is the approved canonical source mark; `public/brand-mark.png`, `public/site-favicon.png`, and `public/apple-touch-icon.png` are production derivatives generated from that source. Do not redraw, trace, recolor, pad, or otherwise reinterpret the source artwork.
+
 Important current design references:
 
 - `docs/superpowers/specs/2026-09-14-client-only-host-authoritative-networking-design.md` — approved target networking architecture; not production until #21 lands.
