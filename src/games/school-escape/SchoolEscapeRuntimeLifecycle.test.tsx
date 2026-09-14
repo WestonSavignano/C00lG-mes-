@@ -1,5 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import SchoolEscapeGame from './SchoolEscapeGame'
 import { createSchoolEscapeRuntime } from './schoolEscapeRuntime'
 
@@ -15,10 +15,22 @@ const controller = {
   dispose: vi.fn(),
 }
 
+function setVisibilityState(value: DocumentVisibilityState) {
+  Object.defineProperty(document, 'visibilityState', {
+    configurable: true,
+    value,
+  })
+}
+
 describe('School Escape runtime lifecycle', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(createSchoolEscapeRuntime).mockResolvedValue(controller)
+    setVisibilityState('visible')
+  })
+
+  afterEach(() => {
+    Reflect.deleteProperty(document, 'visibilityState')
   })
 
   it('creates one runtime with canvas/input/look and disposes it on unmount', async () => {
@@ -55,5 +67,44 @@ describe('School Escape runtime lifecycle', () => {
     expect(
       await screen.findByRole('alert'),
     ).toHaveTextContent(/School Escape could not start/i)
+  })
+
+  it('pauses, resumes, and resizes around browser lifecycle interruptions', async () => {
+    const { unmount } = render(<SchoolEscapeGame runtimeEnabled />)
+
+    await waitFor(() => {
+      expect(createSchoolEscapeRuntime).toHaveBeenCalledTimes(1)
+    })
+
+    window.dispatchEvent(new Event('resize'))
+    expect(controller.resize).toHaveBeenCalledTimes(1)
+
+    setVisibilityState('hidden')
+    document.dispatchEvent(new Event('visibilitychange'))
+    expect(controller.pause).toHaveBeenCalledTimes(1)
+
+    window.dispatchEvent(new Event('focus'))
+    expect(controller.resume).not.toHaveBeenCalled()
+
+    setVisibilityState('visible')
+    document.dispatchEvent(new Event('visibilitychange'))
+    expect(controller.resume).toHaveBeenCalledTimes(1)
+
+    window.dispatchEvent(new Event('blur'))
+    expect(controller.pause).toHaveBeenCalledTimes(2)
+
+    window.dispatchEvent(new Event('focus'))
+    expect(controller.resume).toHaveBeenCalledTimes(2)
+
+    window.dispatchEvent(new Event('orientationchange'))
+    document.dispatchEvent(new Event('fullscreenchange'))
+    expect(controller.resize).toHaveBeenCalledTimes(5)
+
+    unmount()
+    window.dispatchEvent(new Event('resize'))
+    document.dispatchEvent(new Event('visibilitychange'))
+
+    expect(controller.resize).toHaveBeenCalledTimes(5)
+    expect(controller.dispose).toHaveBeenCalledTimes(1)
   })
 })
