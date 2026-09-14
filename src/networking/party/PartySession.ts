@@ -77,16 +77,24 @@ export class HostPartySession implements PartySessionClient {
   private readonly connectedPeers = new Set<string>()
   private readonly bindingByMember = new Map<string, { peerId: string; transportAttemptId: string }>()
   private readonly postJoin = new Map<string, HostHandshakeAuthenticated>()
-  private error: string | null = null
-  private disposed = false
-  private disposePromise: Promise<{ requiresReload: boolean }> | null = null
-
-  constructor(private readonly input: {
+  private readonly input: {
     authority: HostPartyAuthority
     transport: PartyTransportClient
     lock: HostPartyLockLease
     origin: string
-  }) {}
+  }
+  private error: string | null = null
+  private disposed = false
+  private disposePromise: Promise<{ requiresReload: boolean }> | null = null
+
+  constructor(input: {
+    authority: HostPartyAuthority
+    transport: PartyTransportClient
+    lock: HostPartyLockLease
+    origin: string
+  }) {
+    this.input = input
+  }
 
   getSnapshot(): PartySessionSnapshot {
     const state = this.input.authority.state
@@ -325,6 +333,11 @@ type PendingGuestMessage = {
 
 export class GuestPartySession implements PartySessionClient {
   private readonly subscribers = new Set<Subscriber>()
+  private readonly input: {
+    replica: GuestPartyReplica
+    store: GuestPartyStore
+    transport: PartyTransportClient
+  }
   private status: PartyConnectionStatus = 'finding-host'
   private error: string | null = null
   private hostPeerId: string | null = null
@@ -333,11 +346,13 @@ export class GuestPartySession implements PartySessionClient {
   private disposed = false
   private disposePromise: Promise<{ requiresReload: boolean }> | null = null
 
-  constructor(private readonly input: {
+  constructor(input: {
     replica: GuestPartyReplica
     store: GuestPartyStore
     transport: PartyTransportClient
-  }) {}
+  }) {
+    this.input = input
+  }
 
   getSnapshot(): PartySessionSnapshot {
     const state = this.input.replica.state
