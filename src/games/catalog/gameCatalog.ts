@@ -1,5 +1,6 @@
 import type { GameDefinition } from './gameTypes'
 
+// Games that predate the typed catalog were introduced together when the catalog landed.
 const INITIAL_CATALOG_ADDED_AT = '2026-09-11T01:08:57Z'
 
 export const gameCatalog: readonly GameDefinition[] = [
