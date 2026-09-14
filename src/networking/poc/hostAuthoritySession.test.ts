@@ -24,6 +24,7 @@ class MemoryStore implements HostAuthorityStore {
     if (this.failSaves) {
       throw new Error('storage unavailable')
     }
+    await Promise.resolve()
     this.value = structuredClone(state)
   }
 }
@@ -65,6 +66,22 @@ describe('HostAuthoritySession', () => {
 
     expect(session.state.canonicalSequence).toBe(0)
     expect(session.state.members).toHaveLength(0)
+  })
+
+  it('serializes concurrent durable mutations so canonical sequences cannot collide', async () => {
+    const store = new MemoryStore()
+    const session = await HostAuthoritySession.create(store, state())
+
+    const [first, second] = await Promise.all([
+      session.commitHostChat('first'),
+      session.commitHostChat('second'),
+    ])
+
+    expect(first).toMatchObject({ accepted: true, event: { sequence: 1 } })
+    expect(second).toMatchObject({ accepted: true, event: { sequence: 2 } })
+    expect(session.state.canonicalSequence).toBe(2)
+    expect(session.state.events.map((event) => event.sequence)).toEqual([1, 2])
+    expect(store.value?.canonicalSequence).toBe(2)
   })
 
   it('fails closed when durable state is missing or corrupt', async () => {
