@@ -8,6 +8,7 @@ export type GameArtworkTheme =
   | 'sky'
   | 'candy'
   | 'neon'
+  | 'color-rush'
   | 'arena'
   | 'forest'
   | 'shadow'
