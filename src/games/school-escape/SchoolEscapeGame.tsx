@@ -1,8 +1,11 @@
+import { useState } from 'react'
 import GameViewport from '../shared/GameViewport'
 import ActionButton from '../shared/input/ActionButton'
 import DirectionalControl from '../shared/input/DirectionalControl'
 import useSemanticInput from '../shared/input/useSemanticInput'
+import SchoolEscapeLookSurface from './SchoolEscapeLookSurface'
 import {
+  createLookAccumulator,
   schoolEscapeKeyboardBindings,
   type SchoolEscapeAction,
 } from './schoolEscapeInput'
@@ -10,9 +13,11 @@ import './schoolEscape.css'
 
 function SchoolEscapeGame() {
   const input = useSemanticInput<SchoolEscapeAction>(schoolEscapeKeyboardBindings)
+  const [look] = useState(createLookAccumulator)
 
   const inputOverlay = (
     <div className="school-escape__controls">
+      <SchoolEscapeLookSurface look={look} />
       <DirectionalControl
         className="school-escape__move-control"
         label="Move"
