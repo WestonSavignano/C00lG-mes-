@@ -109,8 +109,25 @@ describe('HostPartySession', () => {
       credentialSecret: 'secret-b',
     })
     if (!first.accepted || !second.accepted) throw new Error('expected admission')
-    authority.bindTransport(first.member.memberId, 'peer-a', 'attempt-a')
-    authority.bindTransport(second.member.memberId, 'peer-b', 'attempt-b')
+
+    const firstBinding = authority.bindTransport(first.member.memberId, 'peer-a', 'attempt-a')
+    session.handleAuthenticated({
+      peerId: 'peer-a',
+      transportAttemptId: 'attempt-a',
+      member: first.member,
+      isNewMember: true,
+      event: first.event,
+      replaced: firstBinding.replaced,
+    })
+    const secondBinding = authority.bindTransport(second.member.memberId, 'peer-b', 'attempt-b')
+    session.handleAuthenticated({
+      peerId: 'peer-b',
+      transportAttemptId: 'attempt-b',
+      member: second.member,
+      isNewMember: true,
+      event: second.event,
+      replaced: secondBinding.replaced,
+    })
     transport.peers = ['peer-a', 'peer-b']
 
     await session.removeMember(first.member.memberId)
