@@ -39,13 +39,13 @@ As of **September 14, 2026**:
 - the immersive shared game-page shell is on `main` via PR #9;
 - the shared semantic input/touch foundation is on `main` via PR #15 and is already consumed by multiple games;
 - the lightweight GitHub Issue/branch/PR operating model is on `main` via PR #12;
-- GitHub Pages deployment has been removed via PR #25; Vercel remains the current production host;
+- GitHub Pages deployment has been removed via PR #25; Vercel remains the current live host until the AWS cutover and is intended to remain afterward as staging rather than canonical production;
 - Monster Color Rush is on `main` via PR #30, while older/open game branches such as Bodi Island/Fart Attack still require normal current-main reconciliation before any future merge;
 - the durable site palette/token boundary is on `main` via PR #36;
 - networking feasibility Issue #18 / PR #24 concluded **PROCEED WITH CONSTRAINTS** for active-host/passive-guest Trystero/Nostr rendezvous and direct WebRTC without an owned signaling backend on tested paths;
 - host-authority Issue #19 / PR #35 concluded **PROCEED WITH CONSTRAINTS** for host-local IndexedDB authority, deterministic replay/snapshot recovery, durable lock/removal state, and fail-closed storage;
 - production `/chat` still uses the existing Vercel Functions + Upstash Redis coordinator until #21 replaces it;
-- the current networking/hosting execution chain is **#20 architecture -> #21 production client-only Chat migration -> #22 static AWS foundation -> #23 `coolgamesplus.com` cutover/legacy retirement**;
+- the current networking/hosting execution chain is **#20 architecture -> #21 production client-only Chat migration -> #22 static AWS foundation -> #23 `coolgamesplus.com` cutover/Vercel staging transition**;
 - no Stage 1 distribution-ready game has been formally selected yet.
 
 Stage 0 should not be described using stale open-PR assumptions from September 11. Remaining foundation work should be judged from current `main`, current Issues/PRs, real product validation, and the explicit platform sequence below.
@@ -92,9 +92,9 @@ Only after #21 removes the production dynamic-backend dependency, provision and 
 
 ### #23 — Canonical-domain cutover
 
-After #22 is fully validated, cut `coolgamesplus.com` over to the static AWS distribution, validate the complete player experience, prove rollback/redeploy behavior, and then retire obsolete Vercel/Upstash/deployment assumptions.
+After #22 is fully validated, cut `coolgamesplus.com` over to the static AWS distribution, validate the complete player experience, prove rollback/redeploy behavior, and transition the existing Vercel project from the current live host to staging while retiring obsolete Vercel Functions/Upstash/backend and production-ownership assumptions.
 
-AWS/static hosting is therefore the **planned production target**, while Vercel remains the **current production host** until #23.
+AWS/static hosting is therefore the **planned production target**. Vercel remains the **current live host** until #23; after cutover, AWS/`coolgamesplus.com` is canonical production and the existing Vercel project remains staging, with automatic Git deploys restricted to `main` by #45.
 
 ## Stage 0 — Studio Foundation
 
