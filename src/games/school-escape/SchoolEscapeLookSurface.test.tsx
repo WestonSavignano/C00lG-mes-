@@ -95,4 +95,24 @@ describe('SchoolEscapeLookSurface', () => {
     unmount()
     expect(look.consume()).toEqual({ x: 0, y: 0 })
   })
+
+  it('clears pending look when the browser window loses focus', () => {
+    const look = createLookAccumulator()
+    render(<SchoolEscapeLookSurface look={look} />)
+    const surface = screen.getByLabelText('Look around')
+
+    fireEvent.pointerDown(surface, {
+      pointerId: 9,
+      clientX: 100,
+      clientY: 100,
+    })
+    fireEvent.pointerMove(surface, {
+      pointerId: 9,
+      clientX: 150,
+      clientY: 110,
+    })
+    window.dispatchEvent(new Event('blur'))
+
+    expect(look.consume()).toEqual({ x: 0, y: 0 })
+  })
 })
