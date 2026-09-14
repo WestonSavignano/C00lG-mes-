@@ -24,6 +24,7 @@ export type GameDefinition = {
   title: string
   shortDescription: string
   category: string
+  /** ISO-8601 timestamp for when this game first entered the catalog. */
   addedAt: string
   new?: boolean
   multiplayer?: boolean
