@@ -6,6 +6,7 @@ import {
 import {
   createInitialHostPartyRecord,
   isValidHostPartyRecord,
+  validateHostPartyCryptography,
 } from './hostPartyStore'
 import { deriveAdmissionVerifier } from './partyCrypto'
 
@@ -28,14 +29,25 @@ describe('host party durable state', () => {
     expect(record.members).toEqual([])
     expect(record.history).toEqual([])
     expect(isValidHostPartyRecord(record)).toBe(true)
+    expect(await validateHostPartyCryptography(record)).toBe(true)
   })
 
-  it('fails validation for corrupt, incompatible, or incomplete canonical authority', async () => {
+  it('fails structural validation for corrupt, incompatible, or incomplete canonical authority', async () => {
     const record = await createInitialHostPartyRecord({ partyId: 'party-a' })
 
     expect(isValidHostPartyRecord({ ...record, canonicalSequence: -1 })).toBe(false)
     expect(isValidHostPartyRecord({ ...record, protocolGeneration: 99 })).toBe(false)
     expect(isValidHostPartyRecord({ ...record, hostPrivateKey: 'copied-url-is-not-authority' })).toBe(false)
     expect(isValidHostPartyRecord({ ...record, locked: true, admissionCapability: record.admissionCapability })).toBe(false)
+  })
+
+  it('cryptographically rejects a mismatched host pin, public key, private key, or admission verifier', async () => {
+    const record = await createInitialHostPartyRecord({ partyId: 'party-a' })
+    const other = await createInitialHostPartyRecord({ partyId: 'party-b' })
+
+    expect(await validateHostPartyCryptography({ ...record, hostFingerprint: other.hostFingerprint })).toBe(false)
+    expect(await validateHostPartyCryptography({ ...record, hostPublicKey: other.hostPublicKey })).toBe(false)
+    expect(await validateHostPartyCryptography({ ...record, hostPrivateKey: other.hostPrivateKey })).toBe(false)
+    expect(await validateHostPartyCryptography({ ...record, admissionVerifier: other.admissionVerifier })).toBe(false)
   })
 })

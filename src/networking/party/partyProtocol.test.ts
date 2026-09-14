@@ -70,6 +70,7 @@ describe('party wire protocol', () => {
         memberId: 'member-1',
         label: 'Guest 1',
         canonicalSequence: 4,
+        nextRequestSequence: 7,
       },
       {
         version: PARTY_PROTOCOL_GENERATION,
@@ -149,6 +150,17 @@ describe('party wire protocol', () => {
     expect(parsePartyMessage(JSON.stringify({ version: 1, type: 'hello' }))).toBeNull()
     expect(parsePartyMessage(JSON.stringify({ version: 2, type: 'future-message' }))).toBeNull()
     expect(parsePartyMessage(JSON.stringify({ version: 2, type: 'hello', partyId: 7 }))).toBeNull()
+    expect(parsePartyMessage(JSON.stringify({
+      version: 2,
+      type: 'authenticated',
+      partyId: 'party-a',
+      incarnationId: 'inc-a',
+      transportAttemptId: 'attempt-a',
+      memberId: 'member-a',
+      label: 'Guest 1',
+      canonicalSequence: 1,
+      nextRequestSequence: 0,
+    }))).toBeNull()
     expect(parsePartyMessage('x'.repeat(MAX_PARTY_WIRE_MESSAGE_BYTES + 1))).toBeNull()
   })
 })
