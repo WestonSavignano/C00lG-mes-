@@ -52,6 +52,7 @@ export type PartyWireMessage =
       memberId: string
       label: string
       canonicalSequence: number
+      nextRequestSequence: number
     }
   | {
       version: 2
@@ -227,6 +228,8 @@ function validatePartyMessage(value: unknown): value is PartyWireMessage {
         && isString(value.memberId)
         && isString(value.label, 64)
         && isSequence(value.canonicalSequence)
+        && isSequence(value.nextRequestSequence)
+        && value.nextRequestSequence > 0
     case 'chat-intent':
       return isString(value.transportAttemptId)
         && isSequence(value.requestSequence)
