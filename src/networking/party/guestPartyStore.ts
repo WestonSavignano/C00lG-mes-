@@ -123,6 +123,36 @@ export function isValidGuestPartyRecord(value: unknown): value is GuestPartyReco
   return true
 }
 
+export function sanitizeGuestPartyRecord(value: unknown): GuestPartyRecord | null {
+  if (!isRecord(value)
+    || value.storageSchemaVersion !== GUEST_PARTY_STORAGE_SCHEMA_VERSION
+    || value.protocolGeneration !== PARTY_PROTOCOL_GENERATION
+    || !isString(value.partyId, 256)
+    || !isString(value.rendezvousCapability, 256)
+    || !isString(value.hostFingerprint, 256)
+    || !isString(value.credentialId, 256)
+    || !isString(value.credentialSecret, 256)) {
+    return null
+  }
+
+  if (isValidGuestPartyRecord(value)) {
+    return value
+  }
+
+  const reset = createInitialGuestPartyRecord({
+    partyId: value.partyId,
+    rendezvousCapability: value.rendezvousCapability,
+    hostFingerprint: value.hostFingerprint,
+    credentialId: value.credentialId,
+    credentialSecret: value.credentialSecret,
+  })
+  return {
+    ...reset,
+    memberId: value.memberId === null || isString(value.memberId, 256) ? value.memberId : null,
+    label: value.label === null || isString(value.label, 64) ? value.label : null,
+  }
+}
+
 export class IndexedDbGuestPartyStore implements GuestPartyStore {
   constructor(private readonly factory: IDBFactory | undefined = globalThis.indexedDB) {}
 
@@ -133,7 +163,7 @@ export class IndexedDbGuestPartyStore implements GuestPartyStore {
       if (record === null) {
         return null
       }
-      return isValidGuestPartyRecord(record) ? record : null
+      return sanitizeGuestPartyRecord(record)
     } finally {
       db.close()
     }
