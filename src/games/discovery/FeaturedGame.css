@@ -2,9 +2,9 @@
   position: relative;
   overflow: hidden;
   min-height: clamp(390px, 62vw, 590px);
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-xl);
-  background: var(--color-surface);
+  background: var(--color-surface-panel);
   box-shadow: var(--shadow-lg);
   isolation: isolate;
 }
@@ -18,8 +18,8 @@
 
 .featured-game .game-artwork::after {
   background:
-    linear-gradient(90deg, rgba(3, 7, 18, 0.9) 0%, rgba(3, 7, 18, 0.55) 45%, rgba(3, 7, 18, 0.12) 76%),
-    linear-gradient(180deg, rgba(3, 7, 18, 0.02) 42%, rgba(3, 7, 18, 0.72) 100%);
+    linear-gradient(90deg, var(--color-overlay-strong) 0%, var(--color-overlay-medium) 45%, var(--color-overlay-subtle) 76%),
+    linear-gradient(180deg, transparent 42%, var(--color-overlay-medium) 100%);
 }
 
 .featured-game__content {
@@ -35,7 +35,7 @@
 }
 
 .featured-game__eyebrow {
-  color: var(--color-accent);
+  color: var(--color-brand-highlight);
   font-size: 0.7rem;
   font-weight: 820;
   letter-spacing: 0.1em;
@@ -54,7 +54,7 @@
 .featured-game__description {
   max-width: 34rem;
   margin-top: 16px;
-  color: #d9e4ef;
+  color: var(--color-text-secondary);
   font-size: clamp(0.95rem, 2.5vw, 1.1rem);
 }
 
@@ -74,21 +74,26 @@
   border: 1px solid transparent;
   border-radius: 999px;
   padding: 0 19px;
-  color: #03120f;
-  background: var(--color-accent);
-  box-shadow: 0 10px 28px rgba(45, 212, 191, 0.2);
+  color: var(--color-action-on-primary);
+  background: var(--color-action-primary);
+  box-shadow: 0 10px 28px var(--color-brand-glow);
   font-size: 0.86rem;
   font-weight: 850;
   text-decoration: none;
 }
 
 .arcade-button:hover {
-  color: #020b09;
-  background: #99f6e4;
+  color: var(--color-action-on-primary);
+  background: var(--color-action-primary-hover);
+}
+
+.arcade-button:active {
+  color: var(--color-action-on-primary);
+  background: var(--color-action-primary-pressed);
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .arcade-button:hover {
+  .arcade-button:hover:not(:active) {
     transform: translateY(-1px);
   }
 }
@@ -101,8 +106,8 @@
 
   .featured-game .game-artwork::after {
     background:
-      linear-gradient(180deg, rgba(3, 7, 18, 0.04) 20%, rgba(3, 7, 18, 0.42) 48%, rgba(3, 7, 18, 0.94) 82%),
-      linear-gradient(90deg, rgba(3, 7, 18, 0.2), transparent);
+      linear-gradient(180deg, transparent 20%, var(--color-overlay-soft) 48%, var(--color-overlay-solid) 82%),
+      linear-gradient(90deg, var(--color-overlay-subtle), transparent);
   }
 
   .featured-game__content {

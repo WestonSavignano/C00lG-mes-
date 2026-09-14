@@ -24,7 +24,7 @@
   gap: 4px;
   border-radius: var(--radius-sm);
   padding: 8px 10px 8px 6px;
-  color: var(--color-text);
+  color: var(--color-text-secondary);
   font-size: 0.82rem;
   font-weight: 760;
   text-decoration: none;
@@ -32,7 +32,7 @@
 
 .game-page-shell__back:hover,
 .game-page-shell__back:focus-visible {
-  color: var(--color-text-strong);
+  color: var(--color-text-primary);
   background: var(--color-surface-raised);
 }
 
@@ -50,7 +50,7 @@
 }
 
 .game-page-shell__identity > span {
-  color: var(--color-muted);
+  color: var(--color-text-muted);
   font-size: 0.65rem;
   font-weight: 760;
   letter-spacing: 0.055em;
@@ -61,7 +61,7 @@
   overflow: hidden;
   max-width: min(56vw, 520px);
   margin: 0;
-  color: var(--color-text-strong);
+  color: var(--color-text-primary);
   font-size: clamp(1.05rem, 2vw, 1.35rem);
   font-weight: 820;
   letter-spacing: -0.025em;
@@ -76,9 +76,9 @@
   min-height: 0;
   overflow: hidden;
   align-self: start;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-md);
-  background: #050914;
+  background: var(--color-surface-inset);
   box-shadow: var(--shadow-sm);
 }
 
@@ -109,7 +109,7 @@
       max(10px, env(safe-area-inset-right))
       0
       max(10px, env(safe-area-inset-left));
-    background: linear-gradient(180deg, rgba(3, 7, 18, 0.92), rgba(3, 7, 18, 0.62) 70%, transparent);
+    background: linear-gradient(180deg, var(--color-overlay-strong), var(--color-overlay-medium) 70%, transparent);
     pointer-events: none;
   }
 
@@ -120,17 +120,17 @@
 
   .game-page-shell__back {
     min-height: 44px;
-    color: #f8fafc;
-    background: rgba(3, 7, 18, 0.52);
+    color: var(--color-text-on-media);
+    background: var(--color-overlay-medium);
   }
 
   .game-page-shell__identity > span {
-    color: rgba(226, 232, 240, 0.72);
+    color: var(--color-text-secondary);
   }
 
   .game-page-shell__identity h1 {
     max-width: 48vw;
-    color: #f8fafc;
+    color: var(--color-text-on-media);
     font-size: 0.95rem;
   }
 

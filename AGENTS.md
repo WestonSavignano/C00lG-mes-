@@ -15,6 +15,7 @@ Do not rely on stale chat history when GitHub can resolve the question. Do not u
 
 ## Repository boundaries
 
+- `src/styles/tokens.css` — source of truth for the site reference palette, semantic site tokens, and genuinely global spacing/type/elevation/motion/shell dimensions.
 - `src/shell/` — application shell and global navigation. It owns site-level chrome, route-mode presentation, and shared navigation semantics.
 - `src/pages/` — route/page composition. Keep pages thin; move stable product concepts to the appropriate shell, discovery, game, or shared boundary.
 - `src/games/catalog/` — authoritative game registry, discovery metadata, and lazy route registration. Do not put simulation constants or engine internals here.
@@ -30,6 +31,8 @@ Do not rely on stale chat history when GitHub can resolve the question. Do not u
 - `docs/superpowers/plans/` — implementation plans/history for larger designed changes; do not create a plan for every tiny task.
 
 Preserve the dependency direction: application shell/discovery may describe and launch games, but should not know game internals. Game runtimes should not know how global navigation works. Networking is reusable infrastructure; Chat and future multiplayer game protocols build on it rather than duplicating transport/room behavior.
+
+Site styling follows `brand/reference palette -> semantic site tokens -> shell/discovery/shared site UI`. Site components should consume semantic tokens from `src/styles/tokens.css`, not palette tokens or hue-named aliases. Individual game artwork and runtime palettes remain game-owned; do not recolor them to match the site shell unless the game's own design calls for it.
 
 Important current design references:
 
