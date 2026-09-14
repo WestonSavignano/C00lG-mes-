@@ -22,7 +22,7 @@ describe('School Escape runtime lifecycle', () => {
   })
 
   it('creates one runtime with canvas/input/look and disposes it on unmount', async () => {
-    const { unmount } = render(<SchoolEscapeGame />)
+    const { unmount } = render(<SchoolEscapeGame runtimeEnabled />)
     const canvas = screen.getByLabelText('School Escape 3D scene')
 
     await waitFor(() => {
@@ -43,5 +43,17 @@ describe('School Escape runtime lifecycle', () => {
     await waitFor(() => {
       expect(controller.dispose).toHaveBeenCalledTimes(1)
     })
+  })
+
+  it('shows a player-facing failure state when the runtime cannot start', async () => {
+    vi.mocked(createSchoolEscapeRuntime).mockRejectedValueOnce(
+      new Error('WebGL not supported'),
+    )
+
+    render(<SchoolEscapeGame runtimeEnabled />)
+
+    expect(
+      await screen.findByRole('alert'),
+    ).toHaveTextContent(/School Escape could not start/i)
   })
 })
