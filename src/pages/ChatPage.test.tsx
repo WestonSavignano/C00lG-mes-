@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest'
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
@@ -171,6 +171,58 @@ describe('ChatPage client-only party UX', () => {
     act(() => guest.emit({ status: 'removed' }))
     expect(await screen.findByText(/removed from this chat/i)).toBeInTheDocument()
     expect(screen.queryByText(/\b(?:webrtc|nostr|ice)\b/i)).not.toBeInTheDocument()
+  })
+
+  it('progressively explains slow discovery and retries with the durable guest identity', async () => {
+    vi.useFakeTimers()
+    try {
+      const first = new FakeSession(guestSnapshot())
+      const replacement = new FakeSession({ ...guestSnapshot(), status: 'reconnecting' })
+      const restoreGuest = vi.fn()
+        .mockResolvedValueOnce(start(first))
+        .mockResolvedValueOnce(start(replacement))
+      const sessionFactory = factory({ restoreGuest })
+      renderChat('/chat#v=2&party=party-a&role=guest', sessionFactory)
+
+      await act(async () => { await Promise.resolve() })
+      expect(restoreGuest).toHaveBeenCalledTimes(1)
+      expect(screen.queryByText(/can take a little longer/i)).not.toBeInTheDocument()
+
+      act(() => vi.advanceTimersByTime(10_000))
+      expect(screen.getByText(/can take a little longer/i)).toBeInTheDocument()
+
+      act(() => vi.advanceTimersByTime(65_000))
+      expect(screen.getByText(/taking longer than expected/i)).toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: /retry/i }))
+      await act(async () => { await Promise.resolve() })
+
+      expect(first.dispose).toHaveBeenCalledTimes(1)
+      expect(restoreGuest).toHaveBeenCalledTimes(2)
+      expect(restoreGuest).toHaveBeenLastCalledWith('party-a')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('requires a page reload instead of same-page retry when transport teardown is unsafe', async () => {
+    vi.useFakeTimers()
+    try {
+      const first = new FakeSession(guestSnapshot())
+      first.dispose.mockResolvedValueOnce({ requiresReload: true })
+      const restoreGuest = vi.fn(async () => start(first))
+      const sessionFactory = factory({ restoreGuest })
+      renderChat('/chat#v=2&party=party-a&role=guest', sessionFactory)
+
+      await act(async () => { await Promise.resolve() })
+      act(() => vi.advanceTimersByTime(75_000))
+      fireEvent.click(screen.getByRole('button', { name: /retry/i }))
+      await act(async () => { await Promise.resolve() })
+
+      expect(restoreGuest).toHaveBeenCalledTimes(1)
+      expect(screen.getByText(/reload this page to reconnect safely/i)).toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('sends Chat text through canonical party authority rather than a coordinator endpoint', async () => {
