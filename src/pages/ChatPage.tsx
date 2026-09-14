@@ -34,6 +34,8 @@ type ChatPageProps = {
   sessionFactory?: PartySessionFactoryClient
 }
 
+type DiscoveryDelay = 'none' | 'slow' | 'retry'
+
 function isHostControls(session: PartySessionClient | null): session is HostSessionControls {
   return Boolean(session
     && 'setLocked' in session
@@ -82,6 +84,7 @@ export default function ChatPage({ sessionFactory }: ChatPageProps) {
   const [busy, setBusy] = useState(false)
   const [draft, setDraft] = useState('')
   const [copied, setCopied] = useState(false)
+  const [discoveryDelay, setDiscoveryDelay] = useState<DiscoveryDelay>('none')
 
   const replaceSession = useCallback(async (start: PartySessionStart) => {
     unsubscribeRef.current?.()
@@ -150,6 +153,23 @@ export default function ChatPage({ sessionFactory }: ChatPageProps) {
     navigateToHash(meta.canonicalHash)
   }, [navigateToHash, snapshot?.status])
 
+  useEffect(() => {
+    const waitingForHost = snapshot?.role === 'guest'
+      && (snapshot.status === 'finding-host' || snapshot.status === 'reconnecting')
+    if (!waitingForHost) {
+      setDiscoveryDelay('none')
+      return
+    }
+
+    setDiscoveryDelay('none')
+    const slowTimer = window.setTimeout(() => setDiscoveryDelay('slow'), 10_000)
+    const retryTimer = window.setTimeout(() => setDiscoveryDelay('retry'), 75_000)
+    return () => {
+      window.clearTimeout(slowTimer)
+      window.clearTimeout(retryTimer)
+    }
+  }, [snapshot?.partyId, snapshot?.role, snapshot?.status])
+
   useEffect(() => () => {
     generationRef.current += 1
     unsubscribeRef.current?.()
@@ -176,6 +196,41 @@ export default function ChatPage({ sessionFactory }: ChatPageProps) {
       if (generation === generationRef.current) setBusy(false)
     }
   }, [factory, navigateToHash, replaceSession])
+
+  const retryGuestConnection = useCallback(async () => {
+    const current = sessionRef.current
+    const currentSnapshot = snapshot
+    if (!current || currentSnapshot?.role !== 'guest') return
+
+    const generation = ++generationRef.current
+    setBusy(true)
+    setPageError(null)
+    unsubscribeRef.current?.()
+    unsubscribeRef.current = null
+    sessionRef.current = null
+    startMetaRef.current = null
+
+    try {
+      const cleanup = await current.dispose()
+      if (cleanup.requiresReload) {
+        setSnapshot({ ...currentSnapshot, status: 'reload-required', error: null })
+        return
+      }
+
+      const start = await factory.restoreGuest(currentSnapshot.partyId)
+      if (generation !== generationRef.current) {
+        await start.session.dispose()
+        return
+      }
+      await replaceSession(start)
+    } catch (error) {
+      if (generation === generationRef.current) {
+        setPageError(error instanceof Error ? error.message : 'Chat could not reconnect.')
+      }
+    } finally {
+      if (generation === generationRef.current) setBusy(false)
+    }
+  }, [factory, replaceSession, snapshot])
 
   const copyInvite = useCallback(async () => {
     if (!snapshot?.inviteUrl) return
@@ -286,6 +341,17 @@ export default function ChatPage({ sessionFactory }: ChatPageProps) {
                 <span className="chat-eyebrow">Party status</span>
                 <p className={`chat-status chat-status--${snapshot.status}`}>{statusText(snapshot)}</p>
                 <p className="chat-room-id">Party {snapshot.partyId}</p>
+                {discoveryDelay === 'slow' ? (
+                  <p className="chat-note">Finding the host can take a little longer on some networks.</p>
+                ) : null}
+                {discoveryDelay === 'retry' ? (
+                  <div className="chat-retry-panel">
+                    <p className="chat-note">Finding the host is taking longer than expected.</p>
+                    <button className="chat-button" type="button" disabled={busy} onClick={() => void retryGuestConnection()}>
+                      Retry
+                    </button>
+                  </div>
+                ) : null}
               </div>
 
               {snapshot.role === 'host' && (
