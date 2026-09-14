@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
@@ -17,8 +17,8 @@ function readPngDimensions(relativePath: string) {
 }
 
 describe('production brand assets', () => {
-  it('ships semantic PNG derivatives at the intended pixel sizes', () => {
-    const source = readPngDimensions('../public/brand-mark-source.png')
+  it('keeps the canonical source repo-only and ships semantic PNG derivatives at the intended sizes', () => {
+    const source = readPngDimensions('../assets/brand/brand-mark-source.png')
     const header = readPngDimensions('../public/brand-mark.png')
     const favicon = readPngDimensions('../public/site-favicon.png')
     const appleTouchIcon = readPngDimensions('../public/apple-touch-icon.png')
@@ -31,6 +31,7 @@ describe('production brand assets', () => {
     expect(header.bytes).toBeLessThan(source.bytes)
     expect(favicon.bytes).toBeLessThan(source.bytes)
     expect(appleTouchIcon.bytes).toBeLessThan(source.bytes)
+    expect(existsSync(resolve(process.cwd(), 'public/brand-mark-source.png'))).toBe(false)
   })
 
   it('keeps document metadata plain while wiring the production favicon and touch icon', () => {
