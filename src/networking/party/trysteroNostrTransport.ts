@@ -78,6 +78,7 @@ export class TrysteroNostrTransport {
   private room: TrysteroRoomLike | null = null
   private action: ReturnType<TrysteroRoomLike['makeAction']> | null = null
   private startPromise: Promise<void> | null = null
+  private disposePromise: Promise<{ requiresReload: boolean }> | null = null
   private disposed = false
   private readonly poisonRegistry: Set<string>
   private readonly roomKey: string
@@ -87,15 +88,19 @@ export class TrysteroNostrTransport {
     this.roomKey = `${APP_ID}:${options.partyId}`
   }
 
+  private assertActive() {
+    if (this.disposed) {
+      throw new Error('Party transport is disposed and inactive')
+    }
+  }
+
   async start() {
+    this.assertActive()
     if (this.room) {
       return
     }
     if (this.startPromise) {
       return this.startPromise
-    }
-    if (this.disposed) {
-      throw new Error('This party transport generation has already been disposed')
     }
     if (this.poisonRegistry.has(this.roomKey)) {
       throw new Error('The previous peer transport could not shut down safely; reload this page to reconnect')
@@ -111,9 +116,36 @@ export class TrysteroNostrTransport {
 
   private async startGeneration() {
     const module = await (this.options.loadModule ?? loadProductionModule)()
-    if (this.disposed) {
-      throw new Error('Party transport was disposed before startup completed')
-    }
+    this.assertActive()
+
+    const applicationHandshake = this.options.onPeerHandshake
+      ? async (
+          peerId: string,
+          send: TrysteroHandshakeSend,
+          receive: TrysteroHandshakeReceive,
+          isInitiator: boolean,
+        ) => {
+          this.assertActive()
+          const guardedSend: TrysteroHandshakeSend = async (data) => {
+            this.assertActive()
+            await send(data)
+            this.assertActive()
+          }
+          const guardedReceive: TrysteroHandshakeReceive = async () => {
+            this.assertActive()
+            const received = await receive()
+            this.assertActive()
+            return received
+          }
+          await this.options.onPeerHandshake!(
+            peerId,
+            guardedSend,
+            guardedReceive,
+            isInitiator,
+          )
+          this.assertActive()
+        }
+      : undefined
 
     const room = module.joinRoom(
       {
@@ -130,22 +162,30 @@ export class TrysteroNostrTransport {
       this.options.partyId,
       {
         handshakeTimeoutMs: 15_000,
-        onJoinError: this.options.onJoinError,
-        onPeerHandshake: this.options.onPeerHandshake,
+        onJoinError: (details) => {
+          if (!this.disposed) this.options.onJoinError?.(details)
+        },
+        onPeerHandshake: applicationHandshake,
       },
     )
+    this.room = room
     const action = room.makeAction(ACTION_NAMESPACE)
     action.onMessage = async (data, context) => {
+      if (this.disposed) return
       await this.options.onMessage?.(data, context.peerId)
     }
-    room.onPeerJoin = (peerId) => this.options.onPeerJoin?.(peerId)
-    room.onPeerLeave = (peerId) => this.options.onPeerLeave?.(peerId)
+    room.onPeerJoin = (peerId) => {
+      if (!this.disposed) this.options.onPeerJoin?.(peerId)
+    }
+    room.onPeerLeave = (peerId) => {
+      if (!this.disposed) this.options.onPeerLeave?.(peerId)
+    }
 
-    this.room = room
     this.action = action
   }
 
   async send(data: string, target?: string | string[] | null) {
+    this.assertActive()
     if (!this.action) {
       throw new Error('Party transport is not connected')
     }
@@ -153,26 +193,35 @@ export class TrysteroNostrTransport {
       throw new Error('Guest party traffic must target the authenticated host peer')
     }
     await this.action.send(data, { target })
+    this.assertActive()
   }
 
   peerIds() {
-    return this.room ? Object.keys(this.room.getPeers()) : []
+    return this.disposed || !this.room ? [] : Object.keys(this.room.getPeers())
   }
 
   disconnectPeer(peerId: string) {
+    if (this.disposed) return
     this.room?.getPeers()[peerId]?.close()
   }
 
-  async dispose() {
+  dispose() {
+    if (!this.disposePromise) {
+      this.disposed = true
+      this.disposePromise = this.disposeGeneration()
+    }
+    return this.disposePromise
+  }
+
+  private async disposeGeneration() {
     if (this.startPromise) {
       try {
         await this.startPromise
       } catch {
-        // A failed start has no trusted room generation to leave.
+        // Failed startup still may have created a room generation. Inspect it below.
       }
     }
 
-    this.disposed = true
     const room = this.room
     const action = this.action
     this.room = null
