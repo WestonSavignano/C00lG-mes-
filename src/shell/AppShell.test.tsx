@@ -44,6 +44,15 @@ describe('AppShell', () => {
     )
   })
 
+  it('marks the School Escape preview route as gameplay without publishing it', () => {
+    const { container } = renderShell('/game-preview/school-escape')
+
+    expect(container.querySelector('.app-shell')).toHaveAttribute(
+      'data-game-route',
+      'true',
+    )
+  })
+
   it('does not mark the games catalog route as gameplay', () => {
     const { container } = renderShell('/games')
 
