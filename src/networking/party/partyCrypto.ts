@@ -18,6 +18,12 @@ function fromBase64Url(value: string) {
   return Uint8Array.from(binary, (character) => character.charCodeAt(0))
 }
 
+function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  const buffer = new ArrayBuffer(bytes.byteLength)
+  new Uint8Array(buffer).set(bytes)
+  return buffer
+}
+
 async function sha256(bytes: BufferSource) {
   return new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))
 }
@@ -54,7 +60,7 @@ export async function exportHostPublicKey(publicKey: CryptoKey) {
 export async function importHostPublicKey(exported: string) {
   return crypto.subtle.importKey(
     'spki',
-    fromBase64Url(exported),
+    toArrayBuffer(fromBase64Url(exported)),
     ECDSA_ALGORITHM,
     true,
     ['verify'],
@@ -86,7 +92,7 @@ export function createHostProofChallenge(input: HostProofChallengeInput) {
 }
 
 export async function signHostProof(privateKey: CryptoKey, challenge: Uint8Array) {
-  const signature = await crypto.subtle.sign(ECDSA_SIGN_ALGORITHM, privateKey, challenge)
+  const signature = await crypto.subtle.sign(ECDSA_SIGN_ALGORITHM, privateKey, toArrayBuffer(challenge))
   return toBase64Url(new Uint8Array(signature))
 }
 
@@ -95,8 +101,8 @@ export async function verifyHostProof(publicKey: CryptoKey, challenge: Uint8Arra
     return await crypto.subtle.verify(
       ECDSA_SIGN_ALGORITHM,
       publicKey,
-      fromBase64Url(signature),
-      challenge,
+      toArrayBuffer(fromBase64Url(signature)),
+      toArrayBuffer(challenge),
     )
   } catch {
     return false
