@@ -1,152 +1,104 @@
+import '@testing-library/jest-dom/vitest'
 import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
-import { describe, expect, it } from 'vitest'
-import type { RoomCoordinatorClient } from '../networking/room/RoomClient'
-import type { RoomPeerEvent, RoomPeerManagerClient } from '../networking/room/RoomPeerManager'
+import { describe, expect, it, vi } from 'vitest'
 import type {
-  ConnectionSignal,
-  HostAuth,
-  RoomAuth,
-  RoomState,
-} from '../networking/room/roomProtocol'
+  PartySessionClient,
+  PartySessionSnapshot,
+} from '../networking/party/PartySession'
+import type {
+  PartySessionFactoryClient,
+  PartySessionStart,
+} from '../networking/party/createPartySession'
 import ChatPage from './ChatPage'
 
-const ROOM_ID = 'room123456789012'
-const HOST_SECRET = 'hostsecret1234567890123456'
-const INVITE_SECRET = 'invitesecret12345678901234'
-const MEMBER_ID = 'member1234567890'
-const MEMBER_SECRET = 'membersecret1234567890123'
+class FakeSession implements PartySessionClient {
+  private listeners = new Set<(snapshot: PartySessionSnapshot) => void>()
+  readonly sendMessage = vi.fn(async () => undefined)
+  readonly setLocked = vi.fn(async () => undefined)
+  readonly removeMember = vi.fn(async () => undefined)
+  readonly dispose = vi.fn(async () => ({ requiresReload: false }))
 
-function emptyState(): RoomState {
+  constructor(public snapshot: PartySessionSnapshot) {}
+
+  getSnapshot() { return this.snapshot }
+  subscribe(handler: (snapshot: PartySessionSnapshot) => void) {
+    this.listeners.add(handler)
+    return () => this.listeners.delete(handler)
+  }
+
+  emit(patch: Partial<PartySessionSnapshot>) {
+    this.snapshot = { ...this.snapshot, ...patch }
+    for (const listener of this.listeners) listener(this.snapshot)
+  }
+}
+
+function hostSnapshot(): PartySessionSnapshot {
   return {
-    version: 1,
-    roomId: ROOM_ID,
+    role: 'host',
+    partyId: 'party-a',
+    status: 'waiting',
     locked: false,
-    revision: 1,
+    members: [{ memberId: 'member-a', label: 'Guest 1', removed: false }],
+    messages: [],
+    localMemberId: 'host',
+    localLabel: 'Host',
+    inviteUrl: 'https://coolgamesplus.com/chat#v=2&party=party-a&r=rv&a=admit&host=sha256%3Apin',
+    error: null,
+  }
+}
+
+function guestSnapshot(): PartySessionSnapshot {
+  return {
+    role: 'guest',
+    partyId: 'party-a',
+    status: 'finding-host',
+    locked: false,
     members: [],
+    messages: [],
+    localMemberId: 'member-a',
+    localLabel: 'Guest 1',
+    inviteUrl: null,
+    error: null,
   }
 }
 
-class FakeRoomClient implements RoomCoordinatorClient {
-  state = emptyState()
-  joinCalls = 0
-  removeCalls: string[] = []
-  closeCalls = 0
-
-  async createRoom() {
-    return {
-      version: 1 as const,
-      roomId: ROOM_ID,
-      hostSecret: HOST_SECRET,
-      inviteSecret: INVITE_SECRET,
-    }
-  }
-
-  async joinOrResume(roomId: string, inviteSecret: string) {
-    this.joinCalls += 1
-    expect(roomId).toBe(ROOM_ID)
-    expect(inviteSecret).toBe(INVITE_SECRET)
-    return {
-      version: 1 as const,
-      roomId,
-      memberId: MEMBER_ID,
-      memberSecret: MEMBER_SECRET,
-      label: 'Guest 1',
-      resumed: this.joinCalls > 1,
-    }
-  }
-
-  async getState() {
-    return this.state
-  }
-
-  async setLocked(auth: HostAuth, locked: boolean) {
-    void auth
-    this.state = { ...this.state, locked, revision: this.state.revision + 1 }
-    return this.state
-  }
-
-  async removeMember(auth: HostAuth, memberId: string) {
-    void auth
-    this.removeCalls.push(memberId)
-    this.state = {
-      ...this.state,
-      revision: this.state.revision + 1,
-      members: this.state.members.map((member) => (
-        member.memberId === memberId ? { ...member, removed: true } : member
-      )),
-    }
-    return this.state
-  }
-
-  async announceGeneration() {}
-  async publishSignal() {}
-
-  async getSignal(
-    auth: RoomAuth,
-    memberId: string,
-    generation: string,
-    kind: 'offer' | 'answer',
-  ): Promise<ConnectionSignal | null> {
-    void auth
-    void memberId
-    void generation
-    void kind
-    return null
-  }
-
-  close() {
-    this.closeCalls += 1
+function start(session: FakeSession, options: Partial<PartySessionStart> = {}): PartySessionStart {
+  return {
+    session,
+    canonicalHash: session.snapshot.role === 'host'
+      ? '#v=2&party=party-a&role=host'
+      : '#v=2&party=party-a&role=guest',
+    scrubInviteAfterConnect: false,
+    ...options,
   }
 }
 
-class FakePeers implements RoomPeerManagerClient {
-  private readonly handlers = new Set<(event: RoomPeerEvent) => void>()
-  hostAuth: HostAuth | null = null
-  guestStarted = false
-  lockStates: boolean[] = []
-  removedPeers: string[] = []
-  broadcasts: string[] = []
-
-  startHost(auth: HostAuth) { this.hostAuth = auth }
-  startGuest() { this.guestStarted = true }
-  setRoomLocked(locked: boolean) { this.lockStates.push(locked) }
-  sendToHost() {}
-  sendToMember() {}
-  broadcast(data: string) { this.broadcasts.push(data) }
-  removePeer(memberId: string) { this.removedPeers.push(memberId) }
-  close() {}
-
-  onEvent(handler: (event: RoomPeerEvent) => void) {
-    this.handlers.add(handler)
-    return () => this.handlers.delete(handler)
-  }
-
-  emit(event: RoomPeerEvent) {
-    for (const handler of this.handlers) {
-      handler(event)
-    }
+function factory(overrides: Partial<PartySessionFactoryClient> = {}): PartySessionFactoryClient {
+  return {
+    startHost: vi.fn(async () => start(new FakeSession(hostSnapshot()))),
+    restoreHost: vi.fn(async () => start(new FakeSession(hostSnapshot()))),
+    joinGuestInvite: vi.fn(async () => start(new FakeSession(guestSnapshot()), { scrubInviteAfterConnect: true })),
+    restoreGuest: vi.fn(async () => start(new FakeSession(guestSnapshot()))),
+    ...overrides,
   }
 }
 
 function LocationProbe() {
   const location = useLocation()
-  return <output data-testid="location">{`${location.pathname}${location.hash}`}</output>
+  return <output data-testid="location">{location.pathname}{location.hash}</output>
 }
 
-function renderChat(route: string, client: FakeRoomClient, peers: FakePeers) {
+function renderChat(initialEntry: string, sessionFactory: PartySessionFactoryClient) {
   return render(
-    <MemoryRouter initialEntries={[route]}>
+    <MemoryRouter initialEntries={[initialEntry]}>
       <Routes>
         <Route
           path="/chat"
           element={(
             <>
-              <ChatPage
-                roomClientFactory={() => client}
-                peerManagerFactory={() => peers}
-              />
+              <ChatPage sessionFactory={sessionFactory} />
               <LocationProbe />
             </>
           )}
@@ -156,76 +108,81 @@ function renderChat(route: string, client: FakeRoomClient, peers: FakePeers) {
   )
 }
 
-describe('ChatPage durable rooms', () => {
-  it('starts a room and navigates the current tab to the durable private host URL', async () => {
+describe('ChatPage client-only party UX', () => {
+  it('starts a browser-hosted Chat and replaces the route with the durable host hash', async () => {
     const user = userEvent.setup()
-    const client = new FakeRoomClient()
-    const peers = new FakePeers()
-    renderChat('/chat', client, peers)
+    const session = new FakeSession(hostSnapshot())
+    const sessionFactory = factory({ startHost: vi.fn(async () => start(session)) })
+    renderChat('/chat', sessionFactory)
 
-    await user.click(screen.getByRole('button', { name: 'Start Chat' }))
+    await user.click(screen.getByRole('button', { name: /start chat/i }))
 
-    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent(`#room=${ROOM_ID}`))
-    expect(screen.getByTestId('location')).toHaveTextContent(`host=${HOST_SECRET}`)
-    expect(screen.getByTestId('location')).toHaveTextContent(`invite=${INVITE_SECRET}`)
-    expect(await screen.findByRole('heading', { name: 'Your room' })).toBeInTheDocument()
+    await waitFor(() => expect(sessionFactory.startHost).toHaveBeenCalledTimes(1))
+    expect(screen.getByRole('heading', { name: /your chat/i })).toBeInTheDocument()
+    expect(screen.getByDisplayValue(/coolgamesplus\.com\/chat#v=2/)).toBeInTheDocument()
+    expect(screen.getByTestId('location')).toHaveTextContent('/chat#v=2&party=party-a&role=host')
   })
 
-  it('shows a guest-only share link from the private host page', async () => {
-    const client = new FakeRoomClient()
-    const peers = new FakePeers()
-    renderChat(`/chat#room=${ROOM_ID}&host=${HOST_SECRET}&invite=${INVITE_SECRET}`, client, peers)
+  it('keeps invite capabilities in the fragment until admission succeeds, then scrubs to a durable guest route', async () => {
+    const guest = new FakeSession(guestSnapshot())
+    const sessionFactory = factory({
+      joinGuestInvite: vi.fn(async () => start(guest, { scrubInviteAfterConnect: true })),
+    })
+    const invite = '/chat#v=2&party=party-a&r=rv&a=admit&host=sha256%3Apin'
+    renderChat(invite, sessionFactory)
 
-    const invite = await screen.findByRole('textbox', { name: 'Guest invite' })
-    const value = (invite as HTMLInputElement).value
-    expect(value).toContain(`room=${ROOM_ID}`)
-    expect(value).toContain(`invite=${INVITE_SECRET}`)
-    expect(value).not.toContain('host=')
+    await waitFor(() => expect(sessionFactory.joinGuestInvite).toHaveBeenCalledTimes(1))
+    expect(screen.getByText(/finding host/i)).toBeInTheDocument()
+    expect(screen.getByTestId('location')).toHaveTextContent('a=admit')
+
+    act(() => guest.emit({ status: 'connected' }))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('location')).toHaveTextContent('/chat#v=2&party=party-a&role=guest')
+      expect(screen.getByTestId('location')).not.toHaveTextContent('a=admit')
+      expect(screen.getByTestId('location')).not.toHaveTextContent('r=rv')
+    })
   })
 
-  it('automatically joins a guest invite without an answer-code ceremony', async () => {
-    const client = new FakeRoomClient()
-    const peers = new FakePeers()
-    renderChat(`/chat#room=${ROOM_ID}&invite=${INVITE_SECRET}`, client, peers)
-
-    await waitFor(() => expect(client.joinCalls).toBe(1))
-    expect(peers.guestStarted).toBe(true)
-    expect(screen.queryByRole('button', { name: /join chat/i })).not.toBeInTheDocument()
-    expect(screen.queryByRole('textbox', { name: /answer code/i })).not.toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Reconnecting…' })).toBeInTheDocument()
-  })
-
-  it('lets the host lock the room and remove a member', async () => {
+  it('preserves host lock/unlock and member removal controls through the session facade', async () => {
     const user = userEvent.setup()
-    const client = new FakeRoomClient()
-    const peers = new FakePeers()
-    renderChat(`/chat#room=${ROOM_ID}&host=${HOST_SECRET}&invite=${INVITE_SECRET}`, client, peers)
+    const host = new FakeSession(hostSnapshot())
+    const sessionFactory = factory({ restoreHost: vi.fn(async () => start(host)) })
+    renderChat('/chat#v=2&party=party-a&role=host', sessionFactory)
 
-    await waitFor(() => expect(peers.hostAuth?.roomId).toBe(ROOM_ID))
-    const state: RoomState = {
-      ...emptyState(),
-      members: [{
-        memberId: MEMBER_ID,
-        label: 'Guest 1',
-        present: true,
-        removed: false,
-        connectionGeneration: 'generation123456',
-      }],
-    }
-    client.state = state
-    act(() => peers.emit({ type: 'room-state', state }))
+    await screen.findByRole('heading', { name: /your chat/i })
+    await user.click(screen.getByRole('button', { name: /lock chat/i }))
+    expect(host.setLocked).toHaveBeenCalledWith(true)
 
-    expect(screen.getByText('Guest 1')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Lock room' }))
-    expect(await screen.findByRole('button', { name: 'Unlock room' })).toBeInTheDocument()
-    expect(peers.lockStates).toEqual([true])
+    act(() => host.emit({ locked: true, inviteUrl: null }))
+    await user.click(screen.getByRole('button', { name: /unlock chat/i }))
+    expect(host.setLocked).toHaveBeenCalledWith(false)
 
-    await user.click(screen.getByRole('button', { name: 'Unlock room' }))
-    expect(await screen.findByRole('button', { name: 'Lock room' })).toBeInTheDocument()
-    expect(peers.lockStates).toEqual([true, false])
+    await user.click(screen.getByRole('button', { name: /remove guest 1/i }))
+    expect(host.removeMember).toHaveBeenCalledWith('member-a')
+  })
 
-    await user.click(screen.getByRole('button', { name: 'Remove' }))
-    expect(client.removeCalls).toEqual([MEMBER_ID])
-    expect(peers.removedPeers).toEqual([MEMBER_ID])
+  it('shows player-facing reconnect and removal states without networking jargon', async () => {
+    const guest = new FakeSession({ ...guestSnapshot(), status: 'reconnecting' })
+    const sessionFactory = factory({ restoreGuest: vi.fn(async () => start(guest)) })
+    renderChat('/chat#v=2&party=party-a&role=guest', sessionFactory)
+
+    expect(await screen.findByText(/reconnecting/i)).toBeInTheDocument()
+    act(() => guest.emit({ status: 'removed' }))
+    expect(await screen.findByText(/removed from this chat/i)).toBeInTheDocument()
+    expect(screen.queryByText(/webrtc|nostr|ice/i)).not.toBeInTheDocument()
+  })
+
+  it('sends Chat text through canonical party authority rather than a coordinator endpoint', async () => {
+    const user = userEvent.setup()
+    const host = new FakeSession({ ...hostSnapshot(), status: 'connected' })
+    const sessionFactory = factory({ restoreHost: vi.fn(async () => start(host)) })
+    renderChat('/chat#v=2&party=party-a&role=host', sessionFactory)
+
+    const composer = await screen.findByLabelText(/message/i)
+    await user.type(composer, 'hello from host')
+    await user.click(screen.getByRole('button', { name: /send/i }))
+
+    expect(host.sendMessage).toHaveBeenCalledWith('hello from host')
   })
 })
