@@ -76,6 +76,7 @@ export default function ChatPage({ sessionFactory }: ChatPageProps) {
   const unsubscribeRef = useRef<(() => void) | null>(null)
   const startMetaRef = useRef<Pick<PartySessionStart, 'canonicalHash' | 'scrubInviteAfterConnect'> | null>(null)
   const generationRef = useRef(0)
+  const intentionalLeaveRef = useRef(false)
   const [snapshot, setSnapshot] = useState<PartySessionSnapshot | null>(null)
   const [pageError, setPageError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -104,6 +105,12 @@ export default function ChatPage({ sessionFactory }: ChatPageProps) {
 
   useEffect(() => {
     const route = parsePartyHash(location.hash)
+    if (intentionalLeaveRef.current) {
+      if (route.kind === 'none') {
+        intentionalLeaveRef.current = false
+      }
+      return
+    }
     if (routeMatchesSession(route, snapshot)) return
     if (route.kind === 'none') return
     if (route.kind === 'invalid') {
@@ -230,6 +237,7 @@ export default function ChatPage({ sessionFactory }: ChatPageProps) {
   }, [draft])
 
   const leaveChat = useCallback(async () => {
+    intentionalLeaveRef.current = true
     generationRef.current += 1
     unsubscribeRef.current?.()
     unsubscribeRef.current = null
