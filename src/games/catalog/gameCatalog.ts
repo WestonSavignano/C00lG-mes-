@@ -1,5 +1,7 @@
 import type { GameDefinition } from './gameTypes'
 
+const INITIAL_CATALOG_ADDED_AT = '2026-09-11T01:08:57Z'
+
 export const gameCatalog: readonly GameDefinition[] = [
   {
     id: 'plane-blaster',
@@ -7,6 +9,7 @@ export const gameCatalog: readonly GameDefinition[] = [
     title: 'Plane Blaster',
     shortDescription: 'Fast arcade dogfights above the clouds.',
     category: 'Arcade flight',
+    addedAt: INITIAL_CATALOG_ADDED_AT,
     orientation: 'landscape',
     inputs: ['keyboard'],
     artwork: { theme: 'sky', label: 'High-altitude dogfight' },
@@ -18,6 +21,7 @@ export const gameCatalog: readonly GameDefinition[] = [
     title: 'Donut Run',
     shortDescription: 'A quick platforming sprint with a sugary twist.',
     category: 'Platformer',
+    addedAt: INITIAL_CATALOG_ADDED_AT,
     orientation: 'landscape',
     inputs: ['touch', 'keyboard'],
     artwork: { theme: 'candy', label: 'Candy-colored platform run' },
@@ -29,7 +33,7 @@ export const gameCatalog: readonly GameDefinition[] = [
     title: 'Neon Drift',
     shortDescription: 'Outrun the swarm, collect energy, and deploy defenses.',
     category: 'Arcade survival',
-    featured: true,
+    addedAt: INITIAL_CATALOG_ADDED_AT,
     new: true,
     orientation: 'landscape',
     inputs: ['touch', 'keyboard'],
@@ -42,6 +46,7 @@ export const gameCatalog: readonly GameDefinition[] = [
     title: 'Monster Color Rush',
     shortDescription: 'Match the monster, dodge wrong colors, and beat the clock.',
     category: 'Arcade chase',
+    addedAt: '2026-09-13T21:10:24Z',
     new: true,
     orientation: 'landscape',
     inputs: ['touch', 'keyboard'],
@@ -54,6 +59,7 @@ export const gameCatalog: readonly GameDefinition[] = [
     title: 'Worm Battles',
     shortDescription: 'Outmaneuver opponents in a lively tactical arena.',
     category: 'Arena strategy',
+    addedAt: INITIAL_CATALOG_ADDED_AT,
     orientation: 'landscape',
     inputs: ['keyboard'],
     artwork: { theme: 'arena', label: 'Worm battle arena' },
@@ -65,6 +71,7 @@ export const gameCatalog: readonly GameDefinition[] = [
     title: 'Warrior',
     shortDescription: 'A hand-drawn stick-figure action adventure.',
     category: 'Action adventure',
+    addedAt: INITIAL_CATALOG_ADDED_AT,
     orientation: 'landscape',
     inputs: ['keyboard'],
     artwork: { theme: 'forest', label: 'Hand-drawn forest adventure' },
@@ -76,6 +83,7 @@ export const gameCatalog: readonly GameDefinition[] = [
     title: 'Warrior2',
     shortDescription: 'Battle Dark Matter and protect the village.',
     category: 'Action adventure',
+    addedAt: INITIAL_CATALOG_ADDED_AT,
     orientation: 'landscape',
     inputs: ['keyboard'],
     artwork: { theme: 'shadow', label: 'Shadowy village battle' },
@@ -83,8 +91,9 @@ export const gameCatalog: readonly GameDefinition[] = [
   },
 ]
 
-export const featuredGame =
-  gameCatalog.find((game) => game.featured) ?? gameCatalog[0]!
+export const featuredGame = gameCatalog.reduce((newest, game) =>
+  Date.parse(game.addedAt) > Date.parse(newest.addedAt) ? game : newest,
+)
 
 export function getGameByRoute(pathname: string): GameDefinition | undefined {
   return gameCatalog.find((game) => game.route === pathname)
