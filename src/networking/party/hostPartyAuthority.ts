@@ -94,16 +94,18 @@ export class HostPartyAuthority {
   private record: HostPartyRecord
   private mutationQueue: Promise<void> = Promise.resolve()
   private closed = false
+  private readonly store: HostPartyStore
   private readonly rateLimiter: ChatRateLimiter
   private readonly moderate: (text: string) => string
   private readonly transportByMember = new Map<string, TransportBinding>()
   private readonly memberByPeer = new Map<string, { memberId: string; transportAttemptId: string }>()
 
   private constructor(
-    private readonly store: HostPartyStore,
+    store: HostPartyStore,
     record: HostPartyRecord,
     options: AuthorityOptions = {},
   ) {
+    this.store = store
     this.record = record
     this.rateLimiter = options.rateLimiter ?? new ChatRateLimiter()
     this.moderate = options.moderate ?? ((text) => text)
