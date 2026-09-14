@@ -2,7 +2,7 @@ import { Link, NavLink } from 'react-router-dom'
 import { primaryNavigationItems } from './navigation'
 
 function DesktopHeader() {
-  const brandIcon = `${import.meta.env.BASE_URL}favicon2.png`
+  const brandIcon = `${import.meta.env.BASE_URL}favicon.png`
 
   return (
     <header className="app-header">
