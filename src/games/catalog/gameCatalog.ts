@@ -45,7 +45,7 @@ export const gameCatalog: readonly GameDefinition[] = [
     new: true,
     orientation: 'landscape',
     inputs: ['touch', 'keyboard'],
-    artwork: { theme: 'neon', label: 'Color-matching monster chase' },
+    artwork: { theme: 'color-rush', label: 'Color-matching monster chase' },
     loadPage: () => import('../monster-color-rush/MonsterColorRushPage'),
   },
   {
