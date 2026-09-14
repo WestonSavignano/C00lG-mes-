@@ -21,11 +21,12 @@ describe('discovery composition', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByRole('heading', { name: 'Neon Drift' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Play Neon Drift' })).toHaveAttribute(
-      'href',
-      '/games/neon-drift',
-    )
+    expect(
+      screen.getByRole('heading', { name: featuredGame.title }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('link', { name: `Play ${featuredGame.title}` }),
+    ).toHaveAttribute('href', featuredGame.route)
   })
 
   it('composes catalog data into grids and rails without selecting games internally', () => {

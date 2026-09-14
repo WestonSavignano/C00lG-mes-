@@ -1,0 +1,98 @@
+.game-artwork--color-rush {
+  --art-bg:
+    radial-gradient(circle at 50% 42%, #1d5c9e 0%, #103866 48%, #07172d 100%);
+  --art-glow: rgba(255, 220, 54, 0.48);
+  --art-subject: #ff8a27;
+  --art-accent: #42df6b;
+}
+
+.game-artwork--color-rush::before {
+  inset: -26% -18% auto;
+  height: 92%;
+  background:
+    radial-gradient(circle at 24% 52%, rgba(255, 64, 84, 0.4), transparent 28%),
+    radial-gradient(circle at 50% 22%, rgba(255, 220, 54, 0.3), transparent 26%),
+    radial-gradient(circle at 78% 46%, rgba(180, 92, 255, 0.38), transparent 30%);
+  filter: blur(10px);
+  opacity: 1;
+}
+
+.game-artwork--color-rush .game-artwork__atmosphere {
+  background:
+    radial-gradient(circle at 13% 23%, #ff4054 0 4.2%, transparent 4.7%),
+    radial-gradient(circle at 29% 73%, #ff8a27 0 4.6%, transparent 5.1%),
+    radial-gradient(circle at 48% 16%, #ffdc36 0 4%, transparent 4.5%),
+    radial-gradient(circle at 73% 76%, #42df6b 0 4.4%, transparent 4.9%),
+    radial-gradient(circle at 88% 29%, #3b9dff 0 4.8%, transparent 5.3%),
+    radial-gradient(circle at 68% 39%, #b45cff 0 3.9%, transparent 4.4%);
+  opacity: 0.94;
+}
+
+.game-artwork--color-rush .game-artwork__horizon {
+  right: -14%;
+  bottom: -30%;
+  left: -14%;
+  height: 58%;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 50% 50% 0 0;
+  background:
+    repeating-linear-gradient(
+      92deg,
+      rgba(255, 64, 84, 0.16) 0 18px,
+      rgba(255, 220, 54, 0.12) 18px 36px,
+      rgba(66, 223, 107, 0.13) 36px 54px,
+      rgba(59, 157, 255, 0.14) 54px 72px,
+      rgba(180, 92, 255, 0.14) 72px 90px
+    );
+  box-shadow: inset 0 18px 35px rgba(6, 20, 42, 0.45);
+  transform: rotate(-3deg);
+}
+
+.game-artwork--color-rush .game-artwork__subject {
+  top: 48%;
+  width: 29%;
+  height: auto;
+  aspect-ratio: 1;
+  border: 3px solid rgba(255, 255, 255, 0.9);
+  border-radius: 48% 52% 43% 49%;
+  background: linear-gradient(145deg, #ffdc36 0%, #ff8a27 38%, #ff4054 68%, #b45cff 100%);
+  box-shadow:
+    0 13px 30px rgba(3, 10, 25, 0.42),
+    0 0 26px rgba(255, 138, 39, 0.34);
+  transform: translate(-50%, -50%) rotate(-5deg);
+}
+
+.game-artwork--color-rush .game-artwork__subject::before,
+.game-artwork--color-rush .game-artwork__subject::after {
+  position: absolute;
+  top: 29%;
+  width: 24%;
+  aspect-ratio: 0.9;
+  border: 2px solid rgba(10, 24, 50, 0.2);
+  border-radius: 50%;
+  background: radial-gradient(circle at 52% 55%, #101a32 0 23%, #ffffff 25% 100%);
+  box-shadow: 0 2px 7px rgba(8, 20, 44, 0.24);
+  content: '';
+}
+
+.game-artwork--color-rush .game-artwork__subject::before {
+  left: 18%;
+}
+
+.game-artwork--color-rush .game-artwork__subject::after {
+  right: 18%;
+}
+
+.game-artwork--color-rush .game-artwork__accent {
+  right: 4%;
+  bottom: 16%;
+  width: 54%;
+  height: 25%;
+  border-radius: 0;
+  background:
+    linear-gradient(90deg, transparent 0 4%, #ff4054 5% 46%, transparent 47%) 0 0 / 100% 4px no-repeat,
+    linear-gradient(90deg, transparent 0 12%, #ffdc36 13% 58%, transparent 59%) 0 50% / 88% 4px no-repeat,
+    linear-gradient(90deg, transparent 0 20%, #42df6b 21% 68%, transparent 69%) 0 100% / 76% 4px no-repeat;
+  box-shadow: none;
+  transform: rotate(-9deg);
+}

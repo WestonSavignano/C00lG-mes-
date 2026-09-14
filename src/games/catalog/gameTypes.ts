@@ -8,6 +8,7 @@ export type GameArtworkTheme =
   | 'sky'
   | 'candy'
   | 'neon'
+  | 'color-rush'
   | 'arena'
   | 'forest'
   | 'shadow'
@@ -23,7 +24,8 @@ export type GameDefinition = {
   title: string
   shortDescription: string
   category: string
-  featured?: boolean
+  /** ISO-8601 timestamp for when this game first entered the catalog. */
+  addedAt: string
   new?: boolean
   multiplayer?: boolean
   orientation: GameOrientation
