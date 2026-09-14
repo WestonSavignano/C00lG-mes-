@@ -121,9 +121,9 @@ export default function ChatPage({ sessionFactory }: ChatPageProps) {
     if (route.kind === 'none' || route.kind === 'invalid') return
 
     const generation = ++generationRef.current
-    setBusy(true)
-    setPageError(null)
     void (async () => {
+      setBusy(true)
+      setPageError(null)
       try {
         let start: PartySessionStart
         if (route.kind === 'host') start = await factory.restoreHost(route.partyId)
