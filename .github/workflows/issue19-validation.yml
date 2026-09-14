@@ -25,8 +25,9 @@ jobs:
               text = file.read_text()
               count = text.count(old)
               if count != expected:
-                  raise SystemExit(f'{path}: expected {expected} matches, found {count}')
+                  raise SystemExit(f'{path}: expected {expected} matches for {old[:60]!r}, found {count}')
               file.write_text(text.replace(old, new))
+              print(f'patched {path}: {old[:60]!r}')
 
           replace(
               'src/networking/poc/hostAuthorityModel.ts',
@@ -51,145 +52,64 @@ jobs:
           """,
           )
 
+          page = 'src/pages/HostAuthorityPocPage.tsx'
           replace(
-              'src/pages/HostAuthorityPocPage.tsx',
+              page,
               "import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'",
               "import { useCallback, useEffect, useMemo, useRef, useState } from 'react'\nimport type { FormEvent } from 'react'",
           )
           replace(
-              'src/pages/HostAuthorityPocPage.tsx',
+              page,
               "  const [chatDraft, setChatDraft] = useState('')\n",
               "  const [chatDraft, setChatDraft] = useState('')\n  const [guestCredentialView, setGuestCredentialView] = useState<{ credentialId: string; nextClientSequence: number } | null>(null)\n  const [canReplayGuestIntent, setCanReplayGuestIntent] = useState(false)\n",
           )
           replace(
-              'src/pages/HostAuthorityPocPage.tsx',
-              """    saveGuestAuthority(localStorage, nextCredentials)
-              guestCredentialsRef.current = nextCredentials
-              guestReplicaRef.current = nextReplica
-          """,
-              """    saveGuestAuthority(localStorage, nextCredentials)
-              guestCredentialsRef.current = nextCredentials
+              page,
+              '    guestCredentialsRef.current = nextCredentials\n',
+              """    guestCredentialsRef.current = nextCredentials
               setGuestCredentialView({
                 credentialId: nextCredentials.credentialId,
                 nextClientSequence: nextCredentials.nextClientSequence,
               })
-              guestReplicaRef.current = nextReplica
           """,
+              expected=3,
           )
           replace(
-              'src/pages/HostAuthorityPocPage.tsx',
-              """    let action: TrysteroAction<unknown> | null = null
-              let hostStore: IndexedDbHostAuthorityStore | null = null
-          """,
-              """    let action: TrysteroAction<unknown> | null = null
-              let hostStore: IndexedDbHostAuthorityStore | null = null
-              let hostMessageQueue: Promise<void> = Promise.resolve()
-          """,
-          )
-          replace(
-              'src/pages/HostAuthorityPocPage.tsx',
-              """      setChatDraft('')
-              setAuthorityState(null)
-              setGuestReplica(null)
-              guestReplicaRef.current = null
-              guestCredentialsRef.current = null
-              hostSessionRef.current = null
-              hostPeerRef.current = null
-              lastGuestIntentRef.current = null
-          """,
-              """      setChatDraft('')
-              setAuthorityState(null)
-              setGuestReplica(null)
-              setGuestCredentialView(null)
-              setCanReplayGuestIntent(false)
-              guestReplicaRef.current = null
-              guestCredentialsRef.current = null
-              hostSessionRef.current = null
-              hostPeerRef.current = null
-              lastGuestIntentRef.current = null
-          """,
-          )
-          replace(
-              'src/pages/HostAuthorityPocPage.tsx',
-              """        guestCredentialsRef.current = credentials
-                  const cached = credentials.cachedReplica
-          """,
+              page,
+              '        guestCredentialsRef.current = credentials\n',
               """        guestCredentialsRef.current = credentials
                   setGuestCredentialView({
                     credentialId: credentials.credentialId,
                     nextClientSequence: credentials.nextClientSequence,
                   })
-                  const cached = credentials.cachedReplica
           """,
           )
           replace(
-              'src/pages/HostAuthorityPocPage.tsx',
-              """        if (route.role === 'host') {
-                    void handleHostAuthorityMessage(data, context.peerId).catch((error) => {
-                      const message = error instanceof Error ? error.message : 'Host authority handler failed'
-                      addLog(`host authority error: ${message}`)
-                      setRuntimeError(message)
-                    })
-                  } else {
-          """,
-              """        if (route.role === 'host') {
-                    hostMessageQueue = hostMessageQueue
-                      .then(() => handleHostAuthorityMessage(data, context.peerId))
-                      .catch((error) => {
-                        const message = error instanceof Error ? error.message : 'Host authority handler failed'
-                        addLog(`host authority error: ${message}`)
-                        setRuntimeError(message)
-                      })
-                  } else {
-          """,
+              page,
+              '      lastGuestIntentRef.current = null\n',
+              '      lastGuestIntentRef.current = null\n      setGuestCredentialView(null)\n      setCanReplayGuestIntent(false)\n',
           )
           replace(
-              'src/pages/HostAuthorityPocPage.tsx',
-              """      saveGuestAuthority(localStorage, nextCredentials)
-              guestCredentialsRef.current = nextCredentials
-              lastGuestIntentRef.current = intent
-              setChatDraft('')
-          """,
-              """      saveGuestAuthority(localStorage, nextCredentials)
-              guestCredentialsRef.current = nextCredentials
-              setGuestCredentialView({
-                credentialId: nextCredentials.credentialId,
-                nextClientSequence: nextCredentials.nextClientSequence,
-              })
-              lastGuestIntentRef.current = intent
-              setCanReplayGuestIntent(true)
-              setChatDraft('')
-          """,
+              page,
+              '      lastGuestIntentRef.current = intent\n',
+              '      lastGuestIntentRef.current = intent\n      setCanReplayGuestIntent(true)\n',
           )
           replace(
-              'src/pages/HostAuthorityPocPage.tsx',
-              """    saveGuestAuthority(localStorage, nextCredentials)
-              guestCredentialsRef.current = nextCredentials
-              guestReplicaRef.current = stale
-          """,
-              """    saveGuestAuthority(localStorage, nextCredentials)
-              guestCredentialsRef.current = nextCredentials
-              setGuestCredentialView({
-                credentialId: nextCredentials.credentialId,
-                nextClientSequence: nextCredentials.nextClientSequence,
-              })
-              guestReplicaRef.current = stale
-          """,
+              page,
+              '    let hostStore: IndexedDbHostAuthorityStore | null = null\n',
+              '    let hostStore: IndexedDbHostAuthorityStore | null = null\n    let hostMessageQueue: Promise<void> = Promise.resolve()\n',
           )
           replace(
-              'src/pages/HostAuthorityPocPage.tsx',
-              """      nextClientSequence: guestCredentialsRef.current?.nextClientSequence ?? null,
-                    credentialId: guestCredentialsRef.current?.credentialId ?? null,
-          """,
-              """      nextClientSequence: guestCredentialView?.nextClientSequence ?? null,
-                    credentialId: guestCredentialView?.credentialId ?? null,
+              page,
+              '          void handleHostAuthorityMessage(data, context.peerId).catch((error) => {\n',
+              """          hostMessageQueue = hostMessageQueue
+                    .then(() => handleHostAuthorityMessage(data, context.peerId))
+                    .catch((error) => {
           """,
           )
-          replace(
-              'src/pages/HostAuthorityPocPage.tsx',
-              'disabled={!lastGuestIntentRef.current}',
-              'disabled={!canReplayGuestIntent}',
-          )
+          replace(page, 'guestCredentialsRef.current?.nextClientSequence', 'guestCredentialView?.nextClientSequence')
+          replace(page, 'guestCredentialsRef.current?.credentialId', 'guestCredentialView?.credentialId')
+          replace(page, 'disabled={!lastGuestIntentRef.current}', 'disabled={!canReplayGuestIntent}')
           PY
       - name: Commit fixes
         run: |
