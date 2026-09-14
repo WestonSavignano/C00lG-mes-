@@ -17,12 +17,31 @@ export type SchoolEscapeRuntimeOptions = {
 }
 
 export async function createSchoolEscapeRuntime(
-  _options: SchoolEscapeRuntimeOptions,
+  options: SchoolEscapeRuntimeOptions,
 ): Promise<SchoolEscapeRuntimeController> {
+  const { canvas } = options
   let disposed = false
 
+  const resize = () => {
+    if (disposed) {
+      return
+    }
+
+    const width = Math.max(1, Math.round(canvas.clientWidth || canvas.width || 1))
+    const height = Math.max(1, Math.round(canvas.clientHeight || canvas.height || 1))
+
+    if (canvas.width !== width) {
+      canvas.width = width
+    }
+    if (canvas.height !== height) {
+      canvas.height = height
+    }
+  }
+
+  resize()
+
   return {
-    resize() {},
+    resize,
     pause() {},
     resume() {},
     async restart() {
