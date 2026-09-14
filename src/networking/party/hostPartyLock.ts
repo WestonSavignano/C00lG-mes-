@@ -40,7 +40,7 @@ export async function acquireHostPartyLock(
     resolveReleased = resolve
   })
 
-  void manager.request(name, { mode: 'exclusive', ifAvailable: true }, async (lock) => {
+  manager.request(name, { mode: 'exclusive', ifAvailable: true }, async (lock) => {
     if (!lock) {
       rejectAcquired(new Error('Another host tab is already active for this party'))
       return
@@ -58,15 +58,14 @@ export async function acquireHostPartyLock(
       released,
     }
     resolveAcquired(lease)
-    try {
-      await releaseSignal
-    } finally {
+    await releaseSignal
+  }).then(
+    () => resolveReleased(),
+    (error: unknown) => {
+      rejectAcquired(error instanceof Error ? error : new Error('Unable to acquire host Web Lock'))
       resolveReleased()
-    }
-  }).catch((error: unknown) => {
-    rejectAcquired(error instanceof Error ? error : new Error('Unable to acquire host Web Lock'))
-    resolveReleased()
-  })
+    },
+  )
 
   return acquired
 }
