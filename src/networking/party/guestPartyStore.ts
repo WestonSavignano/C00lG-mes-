@@ -176,7 +176,11 @@ export function sanitizeGuestPartyRecord(value: unknown): GuestPartyRecord | nul
 }
 
 export class IndexedDbGuestPartyStore implements GuestPartyStore {
-  constructor(private readonly factory: IDBFactory | undefined = globalThis.indexedDB) {}
+  private readonly factory: IDBFactory | undefined
+
+  constructor(factory: IDBFactory | undefined = globalThis.indexedDB) {
+    this.factory = factory
+  }
 
   async load(partyId: string) {
     const db = await openPartyStorageDb(this.factory)
