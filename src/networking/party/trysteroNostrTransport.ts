@@ -23,7 +23,12 @@ export type TrysteroNostrModuleLike = {
       appId: string
       password: string
       passive: boolean
-      relayConfig?: { warnOnRelayFailure?: boolean }
+      trickleIce: boolean
+      relayConfig?: {
+        redundancy?: number
+        manualReconnection?: boolean
+        warnOnRelayFailure?: boolean
+      }
     },
     roomId: string,
     callbacks?: {
@@ -115,7 +120,12 @@ export class TrysteroNostrTransport {
         appId: APP_ID,
         password: this.options.rendezvousCapability,
         passive: this.options.role === 'guest',
-        relayConfig: { warnOnRelayFailure: true },
+        trickleIce: true,
+        relayConfig: {
+          redundancy: 5,
+          manualReconnection: false,
+          warnOnRelayFailure: true,
+        },
       },
       this.options.partyId,
       {
