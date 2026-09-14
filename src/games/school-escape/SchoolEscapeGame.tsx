@@ -11,39 +11,58 @@ import {
 import { createSchoolEscapeRuntime } from './schoolEscapeRuntime'
 import './schoolEscape.css'
 
-function SchoolEscapeGame() {
+type SchoolEscapeGameProps = {
+  runtimeEnabled?: boolean
+}
+
+function toError(error: unknown) {
+  return error instanceof Error ? error : new Error(String(error))
+}
+
+function SchoolEscapeGame({
+  runtimeEnabled = import.meta.env.MODE !== 'test',
+}: SchoolEscapeGameProps) {
   const input = useSemanticInput<SchoolEscapeAction>(schoolEscapeKeyboardBindings)
   const [look] = useState(createLookAccumulator)
+  const [runtimeError, setRuntimeError] = useState<Error | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
 
   useEffect(() => {
     const canvas = canvasRef.current
-    if (!canvas) {
+    if (!canvas || !runtimeEnabled) {
       return
     }
 
     let disposed = false
     let runtime: Awaited<ReturnType<typeof createSchoolEscapeRuntime>> | null = null
 
+    const reportFatalError = (error: unknown) => {
+      if (!disposed) {
+        setRuntimeError(toError(error))
+      }
+    }
+
     void createSchoolEscapeRuntime({
       canvas,
       input: input.reader,
       look,
-      onFatalError: () => undefined,
-    }).then((controller) => {
-      if (disposed) {
-        controller.dispose()
-        return
-      }
-
-      runtime = controller
+      onFatalError: reportFatalError,
     })
+      .then((controller) => {
+        if (disposed) {
+          controller.dispose()
+          return
+        }
+
+        runtime = controller
+      })
+      .catch(reportFatalError)
 
     return () => {
       disposed = true
       runtime?.dispose()
     }
-  }, [input.reader, look])
+  }, [input.reader, look, runtimeEnabled])
 
   return (
     <>
@@ -52,6 +71,15 @@ function SchoolEscapeGame() {
         className="school-escape__canvas"
         ref={canvasRef}
       />
+      {runtimeError ? (
+        <div className="school-escape__runtime-error" role="alert">
+          <strong>School Escape could not start.</strong>
+          <span>
+            The 3D renderer was unavailable. Try reloading the preview or using a
+            browser with WebGL enabled.
+          </span>
+        </div>
+      ) : null}
       <div className="school-escape__controls">
         <SchoolEscapeLookSurface look={look} />
         <DirectionalControl
