@@ -48,9 +48,10 @@ describe('App routes', () => {
       screen.getByRole('heading', { level: 1, name: /Pick a game/i }),
     ).toBeInTheDocument()
 
-    const featured = screen.getByRole('region', { name: 'Neon Drift' })
-    expect(within(featured).getByRole('link', { name: 'Play Neon Drift' }))
-      .toHaveAttribute('href', '/games/neon-drift')
+    const featured = screen.getByRole('region', { name: 'Monster Color Rush' })
+    expect(
+      within(featured).getByRole('link', { name: 'Play Monster Color Rush' }),
+    ).toHaveAttribute('href', '/games/monster-color-rush')
 
     expect(screen.getByRole('link', { name: 'Start a party' }))
       .toHaveAttribute('href', '/chat')
