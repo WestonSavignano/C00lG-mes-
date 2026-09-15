@@ -15,6 +15,16 @@ export type PocTrysteroObservedMessageKind =
   | 'candidate'
   | 'unknown'
 
+export type PocNostrAckReasonCategory =
+  | 'rate-limited'
+  | 'duplicate'
+  | 'blocked'
+  | 'auth-required'
+  | 'restricted'
+  | 'invalid'
+  | 'pow'
+  | 'other'
+
 export type PocNostrWakeDiagnostic = {
   at: string
   stage:
@@ -32,9 +42,12 @@ export type PocNostrWakeDiagnostic = {
     | 'host-wake-listener-ready'
     | 'host-wake-received'
     | 'host-announcement-sent'
+    | 'host-announcement-ack'
   relayUrl?: string
   openRelayCount?: number
   messageKind?: PocTrysteroObservedMessageKind
+  accepted?: boolean
+  ackReasonCategory?: PocNostrAckReasonCategory
 }
 
 const wakeDiagnostics: PocNostrWakeDiagnostic[] = []
@@ -47,7 +60,11 @@ export function recordPocNostrWakeDiagnostic(
   stage: PocNostrWakeDiagnostic['stage'],
   details: Pick<
     PocNostrWakeDiagnostic,
-    'relayUrl' | 'openRelayCount' | 'messageKind'
+    | 'relayUrl'
+    | 'openRelayCount'
+    | 'messageKind'
+    | 'accepted'
+    | 'ackReasonCategory'
   > = {},
 ) {
   wakeDiagnostics.push({
@@ -58,6 +75,10 @@ export function recordPocNostrWakeDiagnostic(
       ? {}
       : { openRelayCount: details.openRelayCount }),
     ...(details.messageKind ? { messageKind: details.messageKind } : {}),
+    ...(details.accepted === undefined ? {} : { accepted: details.accepted }),
+    ...(details.ackReasonCategory
+      ? { ackReasonCategory: details.ackReasonCategory }
+      : {}),
   })
   if (wakeDiagnostics.length > MAX_WAKE_DIAGNOSTICS) {
     wakeDiagnostics.splice(0, wakeDiagnostics.length - MAX_WAKE_DIAGNOSTICS)
@@ -176,6 +197,55 @@ function isSubscriptionMessage(data: unknown, type: string, subscriptionId: stri
   }
 }
 
+function parsePublishedEventId(event: string) {
+  try {
+    const parsed = JSON.parse(event)
+    if (!Array.isArray(parsed) || parsed[0] !== 'EVENT') return null
+    const payload = parsed[1]
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return null
+    const id = (payload as { id?: unknown }).id
+    return typeof id === 'string' && id ? id : null
+  } catch {
+    return null
+  }
+}
+
+function categorizeAckReason(reason: unknown): PocNostrAckReasonCategory {
+  if (typeof reason !== 'string') return 'other'
+  const prefixes: PocNostrAckReasonCategory[] = [
+    'rate-limited',
+    'duplicate',
+    'blocked',
+    'auth-required',
+    'restricted',
+    'invalid',
+    'pow',
+  ]
+  return prefixes.find((prefix) => reason.startsWith(`${prefix}:`)) ?? 'other'
+}
+
+function parseEventAck(data: unknown) {
+  if (typeof data !== 'string') return null
+  try {
+    const parsed = JSON.parse(data)
+    if (
+      !Array.isArray(parsed)
+      || parsed[0] !== 'OK'
+      || typeof parsed[1] !== 'string'
+      || typeof parsed[2] !== 'boolean'
+    ) {
+      return null
+    }
+    return {
+      eventId: parsed[1],
+      accepted: parsed[2],
+      reasonCategory: parsed[2] ? undefined : categorizeAckReason(parsed[3]),
+    }
+  } catch {
+    return null
+  }
+}
+
 export async function startPocNostrHostWakeListener({
   appId,
   roomId,
@@ -209,6 +279,7 @@ export async function startPocNostrHostWakeListener({
   const subscription = subscribe(subscriptionId, wakeTopic)
   const seenEventIds = new Set<string>()
   const readyRelays = new Set<string>()
+  const pendingAnnouncementAcks = new Map<string, string>()
   let lastWakeAt = Number.NEGATIVE_INFINITY
   let stopped = false
   const cleanups: Array<() => void> = []
@@ -226,10 +297,12 @@ export async function startPocNostrHostWakeListener({
       JSON.stringify({ peerId }),
     )
     if (stopped) return
+    const announcementId = parsePublishedEventId(announcement)
     let openRelayCount = 0
-    for (const socket of Object.values(sockets)) {
+    for (const [relayUrl, socket] of Object.entries(sockets)) {
       if (socket.readyState === OPEN) {
         socket.send(announcement)
+        if (announcementId) pendingAnnouncementAcks.set(relayUrl, announcementId)
         openRelayCount += 1
       }
     }
@@ -239,6 +312,17 @@ export async function startPocNostrHostWakeListener({
 
   const onRelayMessage = (relayUrl: string, data: unknown) => {
     if (stopped) return
+
+    const ack = parseEventAck(data)
+    if (ack && pendingAnnouncementAcks.get(relayUrl) === ack.eventId) {
+      pendingAnnouncementAcks.delete(relayUrl)
+      recordPocNostrWakeDiagnostic('host-announcement-ack', {
+        relayUrl,
+        accepted: ack.accepted,
+        ...(ack.reasonCategory ? { ackReasonCategory: ack.reasonCategory } : {}),
+      })
+      return
+    }
 
     if (isSubscriptionMessage(data, 'EOSE', subscriptionId)) {
       if (!readyRelays.has(relayUrl)) {
@@ -299,6 +383,7 @@ export async function startPocNostrHostWakeListener({
     stop() {
       if (stopped) return
       stopped = true
+      pendingAnnouncementAcks.clear()
       for (const cleanup of cleanups) cleanup()
       const close = JSON.stringify(['CLOSE', subscriptionId])
       for (const socket of Object.values(sockets)) {
