@@ -56,12 +56,14 @@ describe('event-driven Nostr late-guest wake', () => {
     const open = createSocket(WebSocket.OPEN)
     const connecting = createSocket(WebSocket.CONNECTING)
     const createEvent = vi.fn(async () => 'signed-wake-event')
+    const onWakeSent = vi.fn()
 
     const result = await sendPocNostrGuestWake({
       appId: TRYSTERO_POC_APP_ID,
       roomId: 'party-a',
       rendezvousSecret: 'secret-a',
       createEvent,
+      onWakeSent,
       sockets: {
         open: open.socket,
         connecting: connecting.socket,
@@ -72,17 +74,21 @@ describe('event-driven Nostr late-guest wake', () => {
     expect(open.send).toHaveBeenCalledTimes(1)
     expect(open.send).toHaveBeenCalledWith('signed-wake-event')
     expect(connecting.send).not.toHaveBeenCalled()
+    expect(onWakeSent).toHaveBeenCalledTimes(1)
     expect(result).toEqual({ sentImmediately: 1, waitingForOpen: 1 })
 
     connecting.open()
     expect(connecting.send).toHaveBeenCalledTimes(1)
     expect(connecting.send).toHaveBeenCalledWith('signed-wake-event')
+    expect(onWakeSent).toHaveBeenCalledTimes(2)
   })
 
   it('lets an active host turn a private wake event into one normal Trystero host announcement with duplicate and spam bounds', async () => {
     const relay = createSocket(WebSocket.OPEN)
     const createEvent = vi.fn(async (_topic: string, content: string) => `signed:${content}`)
     const subscribe = vi.fn(() => 'wake-subscription')
+    const onWakeReceived = vi.fn()
+    const onAnnouncementSent = vi.fn()
     let now = 10_000
 
     const listener = await startPocNostrHostWakeListener({
@@ -92,6 +98,8 @@ describe('event-driven Nostr late-guest wake', () => {
       peerId: 'host-transport-peer',
       createEvent,
       subscribe,
+      onWakeReceived,
+      onAnnouncementSent,
       createSubscriptionId: () => 'wake-sub-id',
       now: () => now,
       sockets: { relay: relay.socket },
@@ -118,16 +126,21 @@ describe('event-driven Nostr late-guest wake', () => {
       rootTopic,
       JSON.stringify({ peerId: 'host-transport-peer' }),
     ))
+    expect(onWakeReceived).toHaveBeenCalledTimes(1)
+    expect(onAnnouncementSent).toHaveBeenCalledWith(1)
 
     const callsAfterFirstWake = createEvent.mock.calls.length
     relay.message(wakeMessage('wake-1'))
     relay.message(wakeMessage('wake-2'))
     await Promise.resolve()
     expect(createEvent).toHaveBeenCalledTimes(callsAfterFirstWake)
+    expect(onWakeReceived).toHaveBeenCalledTimes(1)
 
     now += POC_NOSTR_WAKE_COOLDOWN_MS + 1
     relay.message(wakeMessage('wake-3'))
     await vi.waitFor(() => expect(createEvent).toHaveBeenCalledTimes(callsAfterFirstWake + 1))
+    expect(onWakeReceived).toHaveBeenCalledTimes(2)
+    expect(onAnnouncementSent).toHaveBeenCalledTimes(2)
 
     listener.stop()
     expect(relay.send).toHaveBeenCalledWith(JSON.stringify(['CLOSE', 'wake-sub-id']))
