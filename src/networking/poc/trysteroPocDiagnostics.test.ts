@@ -62,5 +62,6 @@ describe('Trystero POC diagnostics privacy', () => {
     expect(serialized).toContain('srflx')
     expect(serialized).toContain('nostr-wake')
     expect(serialized).toContain('[redacted]')
+    expect(diagnostics).toHaveProperty('wakeEvents')
   })
 })
