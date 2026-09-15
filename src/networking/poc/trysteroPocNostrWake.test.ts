@@ -52,35 +52,50 @@ describe('event-driven Nostr late-guest wake', () => {
     expect(first).not.toContain('secret-a')
   })
 
-  it('lets a passive guest emit one bounded wake event per relay without a recurring timer', async () => {
-    const open = createSocket(WebSocket.OPEN)
-    const connecting = createSocket(WebSocket.CONNECTING)
-    const createEvent = vi.fn(async () => 'signed-wake-event')
-    const onWakeSent = vi.fn()
+  it('waits for the Trystero room subscription to settle after relay open before sending the bounded guest wake', async () => {
+    vi.useFakeTimers()
+    try {
+      const open = createSocket(WebSocket.OPEN)
+      const connecting = createSocket(WebSocket.CONNECTING)
+      const createEvent = vi.fn(async () => 'signed-wake-event')
+      const onWakeSent = vi.fn()
 
-    const result = await sendPocNostrGuestWake({
-      appId: TRYSTERO_POC_APP_ID,
-      roomId: 'party-a',
-      rendezvousSecret: 'secret-a',
-      createEvent,
-      onWakeSent,
-      sockets: {
-        open: open.socket,
-        connecting: connecting.socket,
-      },
-    })
+      const result = await sendPocNostrGuestWake({
+        appId: TRYSTERO_POC_APP_ID,
+        roomId: 'party-a',
+        rendezvousSecret: 'secret-a',
+        createEvent,
+        onWakeSent,
+        sockets: {
+          open: open.socket,
+          connecting: connecting.socket,
+        },
+      })
 
-    expect(createEvent).toHaveBeenCalledTimes(1)
-    expect(open.send).toHaveBeenCalledTimes(1)
-    expect(open.send).toHaveBeenCalledWith('signed-wake-event')
-    expect(connecting.send).not.toHaveBeenCalled()
-    expect(onWakeSent).toHaveBeenCalledTimes(1)
-    expect(result).toEqual({ sentImmediately: 1, waitingForOpen: 1 })
+      expect(createEvent).toHaveBeenCalledTimes(1)
+      expect(open.send).not.toHaveBeenCalled()
+      expect(connecting.send).not.toHaveBeenCalled()
+      expect(onWakeSent).not.toHaveBeenCalled()
 
-    connecting.open()
-    expect(connecting.send).toHaveBeenCalledTimes(1)
-    expect(connecting.send).toHaveBeenCalledWith('signed-wake-event')
-    expect(onWakeSent).toHaveBeenCalledTimes(2)
+      await vi.advanceTimersByTimeAsync(499)
+      expect(open.send).not.toHaveBeenCalled()
+
+      await vi.advanceTimersByTimeAsync(1)
+      expect(open.send).toHaveBeenCalledTimes(1)
+      expect(open.send).toHaveBeenCalledWith('signed-wake-event')
+      expect(onWakeSent).toHaveBeenCalledTimes(1)
+
+      connecting.open()
+      expect(connecting.send).not.toHaveBeenCalled()
+
+      await vi.advanceTimersByTimeAsync(500)
+      expect(connecting.send).toHaveBeenCalledTimes(1)
+      expect(connecting.send).toHaveBeenCalledWith('signed-wake-event')
+      expect(onWakeSent).toHaveBeenCalledTimes(2)
+      expect(result).toEqual({ openRelays: 1, waitingForOpen: 1, settleMs: 500 })
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('lets an active host turn a private wake event into one normal Trystero host announcement with duplicate and spam bounds', async () => {
