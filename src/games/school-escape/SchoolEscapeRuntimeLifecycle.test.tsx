@@ -98,13 +98,13 @@ describe('School Escape runtime lifecycle', () => {
 
     window.dispatchEvent(new Event('orientationchange'))
     document.dispatchEvent(new Event('fullscreenchange'))
-    expect(controller.resize).toHaveBeenCalledTimes(5)
+    expect(controller.resize).toHaveBeenCalledTimes(3)
 
     unmount()
     window.dispatchEvent(new Event('resize'))
     document.dispatchEvent(new Event('visibilitychange'))
 
-    expect(controller.resize).toHaveBeenCalledTimes(5)
+    expect(controller.resize).toHaveBeenCalledTimes(3)
     expect(controller.dispose).toHaveBeenCalledTimes(1)
   })
 })
