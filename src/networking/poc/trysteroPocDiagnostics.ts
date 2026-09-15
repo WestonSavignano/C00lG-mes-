@@ -1,3 +1,5 @@
+import { getPocNostrWakeDiagnostics } from './trysteroPocNostrWake'
+
 type DiagnosticParty = {
   role: string
   partyId: string
@@ -84,6 +86,7 @@ export function buildSafePocDiagnostics(input: DiagnosticInput) {
       pingMs: peer.pingMs,
       path: peer.path,
     })),
+    wakeEvents: getPocNostrWakeDiagnostics(),
     logs: input.logs.map((entry) => ({
       at: entry.at,
       message: redactKnownIdentifiers(entry.message, input),
