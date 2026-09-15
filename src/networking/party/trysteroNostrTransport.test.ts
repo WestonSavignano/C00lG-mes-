@@ -50,7 +50,7 @@ function createModule(
 }
 
 describe('TrysteroNostrTransport', () => {
-  it('uses the reviewed active-host/passive-guest Nostr configuration with bundled ICE, a pinned relay pool, and no TURN', async () => {
+  it('uses the POC-parity active-host/passive-guest Nostr configuration with trickle ICE, a pinned relay pool, and no TURN', async () => {
     const hostRoom = createFakeRoom()
     const hostModule = createModule(hostRoom.room)
     const host = new TrysteroNostrTransport({
@@ -67,7 +67,7 @@ describe('TrysteroNostrTransport', () => {
         appId: 'coolgamesplus-party-v2',
         password: 'rendezvous-a',
         passive: false,
-        trickleIce: false,
+        trickleIce: true,
         relayConfig: {
           urls: [
             'wss://relay02.lnfi.network',
@@ -137,7 +137,7 @@ describe('TrysteroNostrTransport', () => {
       expect(output).toContain('join-error')
       expect(output).toContain('peer-joined')
       expect(output).toContain('sdp-connectivity-failed')
-      expect(output).toContain('"trickleIce":false')
+      expect(output).toContain('"trickleIce":true')
       expect(output).toContain('"turnConfigured":false')
       expect(output).toContain('"relayCount":4')
       expect(output).toContain('"connecting":1')
