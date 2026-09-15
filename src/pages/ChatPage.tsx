@@ -412,7 +412,7 @@ export default function ChatPage({ sessionFactory }: ChatPageProps) {
             <section className="chat-card chat-roster" aria-label="People in Chat">
               <div className="chat-section-heading">
                 <h2>People</h2>
-                <span>{peopleCount}/8</span>
+                <span>{peopleCount === 1 ? '1 person' : `${peopleCount} people`}</span>
               </div>
               <div className="chat-member-row">
                 <span>Host</span>
