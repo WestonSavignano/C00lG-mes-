@@ -3,16 +3,38 @@ import BackLink from '../components/BackLink'
 import H1 from '../components/H1'
 import P from '../components/P'
 import Page from '../components/Page'
+import { buildSafePocDiagnostics } from '../networking/poc/trysteroPocDiagnostics'
 import {
   buildPartyUrl,
-  buildTrysteroConfig,
   evaluateGuestAdmission,
   loadOrCreateIdentity,
   parsePartyHash,
   parsePocHandshake,
+  TRYSTERO_POC_APP_ID,
   validateRemoteHandshake,
   type PocHandshake,
 } from '../networking/poc/trysteroPocModel'
+import {
+  createPocNostrEoseModule,
+  type PocNostrAdapterObservation,
+  type PocNostrCoreModule,
+  type PocNostrModule,
+} from '../networking/poc/trysteroPocNostrEoseAdapter'
+import {
+  createPocHostInviteReadinessTracker,
+  recordPocNostrWakeDiagnostic,
+  resetPocNostrWakeDiagnostics,
+  startPocNostrGuestWake,
+  startPocNostrHostWakeListener,
+} from '../networking/poc/trysteroPocNostrWake'
+import {
+  buildPocStrategyConfig,
+  getPocModuleUrl,
+  parsePocStrategy,
+  TRYSTERO_POC_VERSION,
+  withPocStrategy,
+  type PocStrategy,
+} from '../networking/poc/trysteroPocStrategy'
 import {
   summarizeRtcStats,
   type RtcPathSummary,
@@ -20,11 +42,11 @@ import {
 } from '../networking/poc/trysteroPocStats'
 import './TrysteroPocPage.css'
 
-const TRYSTERO_VERSION = '0.25.4'
-const TRYSTERO_MODULE_URL = `https://esm.run/trystero@${TRYSTERO_VERSION}`
 const POC_PATH = '/networking-poc/trystero'
 const HOST_IDENTITY_KEY = 'c00lgames.poc.trystero.host'
 const REFRESH_INTERVAL_MS = 1_500
+const POC_NOSTR_CORE_MODULE_URL = `https://esm.run/@trystero-p2p/core@${TRYSTERO_POC_VERSION}`
+const POC_NOSTR_MODULE_URL = `https://esm.run/@trystero-p2p/nostr@${TRYSTERO_POC_VERSION}`
 
 const EMPTY_RTC_PATH: RtcPathSummary = {
   localCandidateType: null,
@@ -57,7 +79,7 @@ type TrysteroRoom = {
 
 type TrysteroModule = {
   joinRoom(
-    config: ReturnType<typeof buildTrysteroConfig>,
+    config: ReturnType<typeof buildPocStrategyConfig>,
     roomId: string,
     callbacks?: {
       onJoinError?: (details: JoinErrorDetails) => void
@@ -72,6 +94,11 @@ type TrysteroModule = {
   ): TrysteroRoom
   selfId: string
   getRelaySockets(): Record<string, WebSocket>
+  createEvent(topic: string, content: string): Promise<string>
+  subscribe(subscriptionId: string, topic: string): string
+  onRootSubscriptionReady?: (
+    listener: (event: { relayUrl: string; socket: WebSocket }) => void,
+  ) => () => void
 }
 
 type PeerView = {
@@ -115,15 +142,53 @@ function websocketState(state: number) {
   }
 }
 
-function short(value: string | null) {
-  if (!value) {
-    return '—'
-  }
-  return value.length > 16 ? `${value.slice(0, 8)}…${value.slice(-6)}` : value
+function strategyLabel(strategy: PocStrategy) {
+  if (strategy === 'torrent') return 'BitTorrent'
+  if (strategy === 'nostr-wake') return 'Nostr + guest wake'
+  return 'Nostr'
 }
 
-async function loadTrystero(): Promise<TrysteroModule> {
-  return import(/* @vite-ignore */ TRYSTERO_MODULE_URL) as Promise<TrysteroModule>
+function moduleSource(strategy: PocStrategy) {
+  if (strategy === 'nostr-wake') {
+    return `local EOSE adapter + ${POC_NOSTR_CORE_MODULE_URL} + ${POC_NOSTR_MODULE_URL}`
+  }
+  return getPocModuleUrl(strategy)
+}
+
+function observationLogMessage(observation: PocNostrAdapterObservation) {
+  switch (observation.stage) {
+    case 'relay-open':
+      return `Nostr relay open: ${observation.relayUrl}`
+    case 'relay-reconnected':
+      return `Nostr relay reconnected: ${observation.relayUrl}`
+    case 'root-subscription-sent':
+      return `Trystero root subscription sent: ${observation.relayUrl}`
+    case 'root-subscription-ready':
+      return `Trystero root subscription ready (EOSE): ${observation.relayUrl}`
+    case 'root-subscription-closed':
+      return `Trystero root subscription closed: ${observation.relayUrl}`
+  }
+}
+
+async function loadTrystero(
+  strategy: PocStrategy,
+  observe?: (observation: PocNostrAdapterObservation) => void,
+): Promise<TrysteroModule> {
+  if (strategy !== 'nostr-wake') {
+    const moduleUrl = getPocModuleUrl(strategy)
+    return import(/* @vite-ignore */ moduleUrl) as Promise<TrysteroModule>
+  }
+
+  const [core, nostr] = await Promise.all([
+    import(/* @vite-ignore */ POC_NOSTR_CORE_MODULE_URL),
+    import(/* @vite-ignore */ POC_NOSTR_MODULE_URL),
+  ])
+
+  return createPocNostrEoseModule({
+    core: core as unknown as PocNostrCoreModule,
+    nostr: nostr as unknown as PocNostrModule,
+    observe,
+  }) as unknown as TrysteroModule
 }
 
 async function summarizePeer(peer: RTCPeerConnection) {
@@ -142,6 +207,7 @@ function createLogEntry(message: string): EventLogEntry {
 
 export function TrysteroPocPage() {
   const [hash, setHash] = useState(() => window.location.hash)
+  const [strategy, setStrategy] = useState<PocStrategy>(() => parsePocStrategy(window.location.search))
   const route = useMemo(() => parsePartyHash(hash), [hash])
   const [runtimeState, setRuntimeState] = useState<RuntimeState>('idle')
   const [runtimeError, setRuntimeError] = useState<string | null>(null)
@@ -170,20 +236,29 @@ export function TrysteroPocPage() {
     return () => window.removeEventListener('hashchange', onHashChange)
   }, [])
 
+  const selectStrategy = useCallback((nextStrategy: PocStrategy) => {
+    if (route.kind !== 'none') return
+    const url = new URL(window.location.href)
+    withPocStrategy(url, nextStrategy)
+    window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`)
+    setStrategy(nextStrategy)
+  }, [route.kind])
+
   const guestInvite = useMemo(() => {
     if (route.kind !== 'party' || route.role !== 'host') {
       return null
     }
 
-    return buildPartyUrl({
+    const url = buildPartyUrl({
       origin: window.location.origin,
       pathname: POC_PATH,
       role: 'guest',
       partyId: route.partyId,
       secret: route.secret,
       hostId: route.hostId,
-    }).toString()
-  }, [route])
+    })
+    return withPocStrategy(url, strategy).toString()
+  }, [route, strategy])
 
   const createParty = useCallback(() => {
     setRuntimeError(null)
@@ -199,12 +274,13 @@ export function TrysteroPocPage() {
         secret,
         hostId,
       })
-      window.history.replaceState(null, '', `${url.pathname}${url.hash}`)
+      withPocStrategy(url, strategy)
+      window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`)
       setHash(url.hash)
     } catch (error) {
       setRuntimeError(error instanceof Error ? error.message : 'Could not create a test party.')
     }
-  }, [])
+  }, [strategy])
 
   const copyText = useCallback(async (text: string, success: string) => {
     try {
@@ -223,6 +299,12 @@ export function TrysteroPocPage() {
     let disposed = false
     let refreshTimer: ReturnType<typeof setInterval> | null = null
     let room: TrysteroRoom | null = null
+    let wakeListener: { stop(): void } | null = null
+    const hostInviteReadiness = strategy === 'nostr-wake' && route.role === 'host'
+      ? createPocHostInviteReadinessTracker(() => {
+          if (!disposed) addLog('HOST READY — paste/open the guest invite now')
+        })
+      : null
     const peerAppIdentity = peerAppIdentityRef.current
     const guestPeerByIdentity = guestPeerByIdentityRef.current
     const peerConnectedAt = peerConnectedAtRef.current
@@ -299,16 +381,27 @@ export function TrysteroPocPage() {
       }
 
       setAppIdentity(localIdentity)
-      addLog(`${route.role} application identity restored: ${short(localIdentity)}`)
-      addLog(`loading Trystero ${TRYSTERO_VERSION} Nostr strategy`)
+      addLog(`${route.role} application identity restored`)
+      addLog(`loading Trystero ${TRYSTERO_POC_VERSION} ${strategyLabel(strategy)} strategy`)
 
-      const trystero = await loadTrystero()
+      if (strategy === 'nostr-wake') {
+        resetPocNostrWakeDiagnostics()
+      }
+
+      const trystero = await loadTrystero(strategy, (observation) => {
+        if (disposed) return
+        recordPocNostrWakeDiagnostic(observation.stage, { relayUrl: observation.relayUrl })
+        if (observation.stage === 'root-subscription-ready') {
+          hostInviteReadiness?.markRootReady(observation.relayUrl)
+        }
+        addLog(observationLogMessage(observation))
+      })
       if (disposed) {
         return
       }
       trysteroRef.current = trystero
       setTransportIdentity(trystero.selfId)
-      addLog(`Trystero transport identity: ${short(trystero.selfId)}`)
+      addLog('Trystero transport identity initialized')
 
       const localHandshake: PocHandshake = {
         version: 1,
@@ -318,15 +411,15 @@ export function TrysteroPocPage() {
       }
 
       room = trystero.joinRoom(
-        buildTrysteroConfig(route.role, route.secret),
+        buildPocStrategyConfig(strategy, route.role, route.secret),
         route.partyId,
         {
           handshakeTimeoutMs: 10_000,
-          onJoinError: (details) => {
+          onJoinError: () => {
             if (disposed) {
               return
             }
-            const message = `join error for ${short(details.peerId)}: ${details.error}`
+            const message = 'Transport join attempt failed.'
             addLog(message)
             setRuntimeError(message)
           },
@@ -366,7 +459,7 @@ export function TrysteroPocPage() {
                 peerPing.delete(previousPeer)
               }
               guestPeerByIdentity.set(remoteHandshake.appIdentity, peerId)
-              addLog(`${admission.reconnecting ? 'returning' : 'new'} guest admitted: ${short(remoteHandshake.appIdentity)}`)
+              addLog(`${admission.reconnecting ? 'returning' : 'new'} guest admitted`)
             }
 
             peerAppIdentity.set(peerId, remoteHandshake.appIdentity)
@@ -376,7 +469,38 @@ export function TrysteroPocPage() {
       roomRef.current = room
       setActualPassive(room.isPassive())
       setRuntimeState('discovering')
-      addLog(`${route.role === 'host' ? 'active host' : 'passive guest'} joined public Nostr rendezvous`)
+      addLog(`${route.role === 'host' ? 'active host' : 'passive guest'} joined public ${strategyLabel(strategy)} rendezvous`)
+
+      if (strategy === 'nostr-wake') {
+        const sockets = trystero.getRelaySockets()
+        if (route.role === 'host') {
+          wakeListener = await startPocNostrHostWakeListener({
+            appId: TRYSTERO_POC_APP_ID,
+            roomId: route.partyId,
+            rendezvousSecret: route.secret,
+            peerId: trystero.selfId,
+            createEvent: trystero.createEvent,
+            subscribe: trystero.subscribe,
+            sockets,
+            onWakeListenerReady: (relayUrl) => hostInviteReadiness?.markWakeReady(relayUrl),
+          })
+          if (!disposed) addLog('event-driven guest wake listener armed')
+        } else {
+          if (!trystero.onRootSubscriptionReady) {
+            throw new Error('EOSE-driven root subscription readiness is unavailable.')
+          }
+          wakeListener = await startPocNostrGuestWake({
+            appId: TRYSTERO_POC_APP_ID,
+            roomId: route.partyId,
+            rendezvousSecret: route.secret,
+            createEvent: trystero.createEvent,
+            onRootSubscriptionReady: trystero.onRootSubscriptionReady,
+          })
+          if (!disposed) {
+            addLog('event-driven guest wake armed; waiting for Trystero root-subscription EOSE')
+          }
+        }
+      }
 
       room.onPeerJoin = (peerId) => {
         if (disposed) {
@@ -384,15 +508,15 @@ export function TrysteroPocPage() {
         }
         const elapsed = Math.round(performance.now() - startedAtRef.current)
         peerConnectedAt.set(peerId, elapsed)
-        addLog(`WebRTC peer connected after ${elapsed} ms: ${short(peerId)}`)
+        addLog(`WebRTC peer connected after ${elapsed} ms`)
         void room?.ping(peerId).then((pingMs) => {
           if (!disposed) {
             peerPing.set(peerId, Math.round(pingMs))
-            addLog(`peer ping ${short(peerId)}: ${Math.round(pingMs)} ms`)
+            addLog(`peer ping: ${Math.round(pingMs)} ms`)
             void refreshDiagnostics()
           }
         }).catch(() => {
-          addLog(`peer ping failed: ${short(peerId)}`)
+          addLog('peer ping failed')
         })
         void refreshDiagnostics()
       }
@@ -408,7 +532,7 @@ export function TrysteroPocPage() {
         peerAppIdentity.delete(peerId)
         peerConnectedAt.delete(peerId)
         peerPing.delete(peerId)
-        addLog(`WebRTC peer disconnected: ${short(peerId)}`)
+        addLog('WebRTC peer disconnected')
         void refreshDiagnostics()
       }
 
@@ -430,11 +554,12 @@ export function TrysteroPocPage() {
       const message = error instanceof Error ? error.message : 'Trystero POC failed to start.'
       setRuntimeError(message)
       setRuntimeState('error')
-      addLog(`startup error: ${message}`)
+      addLog('startup error')
     })
 
     return () => {
       disposed = true
+      wakeListener?.stop()
       if (refreshTimer) {
         clearInterval(refreshTimer)
       }
@@ -448,7 +573,7 @@ export function TrysteroPocPage() {
         void leavingRoom.leave().catch(() => undefined)
       }
     }
-  }, [addLog, route])
+  }, [addLog, route, strategy])
 
   const expectedPeerCount = route.kind === 'party'
     ? route.role === 'host'
@@ -462,12 +587,13 @@ export function TrysteroPocPage() {
       ? peers.length <= 7
       : peers.length <= 1
 
-  const diagnostics = useMemo(() => ({
+  const diagnostics = useMemo(() => buildSafePocDiagnostics({
     capturedAt: new Date().toISOString(),
     poc: {
-      trysteroVersion: TRYSTERO_VERSION,
-      strategy: 'nostr',
-      moduleSource: TRYSTERO_MODULE_URL,
+      trysteroVersion: TRYSTERO_POC_VERSION,
+      strategy,
+      moduleSource: moduleSource(strategy),
+      trickleIce: strategy !== 'torrent',
       turnConfigured: false,
     },
     browser: {
@@ -491,18 +617,45 @@ export function TrysteroPocPage() {
     relays,
     peers,
     logs,
-  }), [actualPassive, appIdentity, expectedPeerCount, logs, peers, relays, route, runtimeState, topologyOk, transportIdentity])
+  }), [actualPassive, appIdentity, expectedPeerCount, logs, peers, relays, route, runtimeState, strategy, topologyOk, transportIdentity])
 
   if (route.kind === 'none') {
     return (
       <Page className="trystero-poc">
         <BackLink to="/">Home</BackLink>
         <div className="trystero-poc__hero">
-          <p className="trystero-poc__eyebrow">Issue #18 · feasibility spike</p>
+          <p className="trystero-poc__eyebrow">Issue #54 · rendezvous latency spike</p>
           <H1>Trystero networking POC</H1>
           <P>
-            This diagnostic harness tests client-only host-star WebRTC through public Trystero/Nostr rendezvous. It does not replace production Chat.
+            This diagnostic harness compares client-only host-star WebRTC rendezvous strategies. It does not replace production Chat.
           </P>
+          <div role="group" aria-label="Rendezvous strategy" className="trystero-poc__status-row">
+            <button
+              className="trystero-poc__button trystero-poc__button--secondary"
+              type="button"
+              aria-pressed={strategy === 'nostr'}
+              onClick={() => selectStrategy('nostr')}
+            >
+              Nostr control
+            </button>
+            <button
+              className="trystero-poc__button trystero-poc__button--secondary"
+              type="button"
+              aria-pressed={strategy === 'nostr-wake'}
+              onClick={() => selectStrategy('nostr-wake')}
+            >
+              Nostr event-driven wake
+            </button>
+            <button
+              className="trystero-poc__button trystero-poc__button--secondary"
+              type="button"
+              aria-pressed={strategy === 'torrent'}
+              onClick={() => selectStrategy('torrent')}
+            >
+              BitTorrent historical
+            </button>
+          </div>
+          <p>Selected strategy: {strategyLabel(strategy)}</p>
           <button className="trystero-poc__button" type="button" onClick={createParty}>
             Create test party
           </button>
@@ -512,6 +665,7 @@ export function TrysteroPocPage() {
           <h2 id="poc-boundary-heading">What this proves</h2>
           <ul>
             <li>One active host can discover passive guests without a C00lG@mes+ signaling API.</li>
+            <li>The event-driven candidate sends a bounded guest wake only after the Nostr relay confirms the Trystero root subscription with EOSE.</li>
             <li>Guests should connect only to the host, not to one another.</li>
             <li>Application identity remains separate from transient Trystero peer identity.</li>
             <li>TURN is intentionally not configured; direct-connect failures are evidence for the decision gate.</li>
@@ -526,7 +680,7 @@ export function TrysteroPocPage() {
       <Page className="trystero-poc">
         <BackLink to="/">Home</BackLink>
         <div className="trystero-poc__hero">
-          <p className="trystero-poc__eyebrow">Issue #18 · feasibility spike</p>
+          <p className="trystero-poc__eyebrow">Issue #54 · rendezvous latency spike</p>
           <H1>Trystero networking POC</H1>
           <p className="trystero-poc__error" role="alert">The test-party fragment is incomplete or invalid.</p>
           <button className="trystero-poc__button" type="button" onClick={createParty}>
@@ -541,13 +695,14 @@ export function TrysteroPocPage() {
     <Page className="trystero-poc">
       <BackLink to="/">Home</BackLink>
       <div className="trystero-poc__hero">
-        <p className="trystero-poc__eyebrow">Issue #18 · feasibility spike · Trystero {TRYSTERO_VERSION}</p>
+        <p className="trystero-poc__eyebrow">Issue #54 · rendezvous latency spike · Trystero {TRYSTERO_POC_VERSION}</p>
         <H1>Trystero networking POC</H1>
         <P>
-          POC only. Production Chat still uses its existing coordinator. This page uses public Nostr rendezvous plus direct WebRTC and configures no TURN relay.
+          POC only. Production Chat is unchanged by this spike. This page uses public {strategyLabel(strategy)} rendezvous plus direct WebRTC and configures no TURN relay.
         </P>
         <div className="trystero-poc__status-row">
           <span className={`trystero-poc__status trystero-poc__status--${runtimeState}`}>{runtimeState}</span>
+          <span>{strategyLabel(strategy)}</span>
           <span>{route.role === 'host' ? 'Active host' : 'Passive guest'}</span>
           <span>{navigator.onLine ? 'Browser online' : 'Browser offline'}</span>
         </div>
@@ -557,7 +712,7 @@ export function TrysteroPocPage() {
       {route.role === 'host' && guestInvite ? (
         <section className="trystero-poc__card" aria-labelledby="guest-invite-heading">
           <h2 id="guest-invite-heading">Guest invite</h2>
-          <p>Open this single link on another device. For the cross-network test, turn Wi-Fi off on the iPhone before opening it.</p>
+          <p>For a late-join trial, wait for “HOST READY — paste/open the guest invite now” in the Evidence log, then open this single link on the guest device/browser.</p>
           <textarea className="trystero-poc__invite" readOnly rows={4} value={guestInvite} aria-label="Guest invite URL" />
           <button className="trystero-poc__button" type="button" onClick={() => void copyText(guestInvite, 'Guest invite copied.')}>
             Copy guest invite
@@ -572,8 +727,8 @@ export function TrysteroPocPage() {
             <div><dt>Role</dt><dd>{route.role}</dd></div>
             <div><dt>Configured passive</dt><dd>{route.role === 'guest' ? 'yes' : 'no'}</dd></div>
             <div><dt>Trystero reports passive</dt><dd>{actualPassive === null ? '—' : actualPassive ? 'yes' : 'no'}</dd></div>
-            <div><dt>Application identity</dt><dd title={appIdentity ?? undefined}>{short(appIdentity)}</dd></div>
-            <div><dt>Trystero peer identity</dt><dd title={transportIdentity ?? undefined}>{short(transportIdentity)}</dd></div>
+            <div><dt>Application identity</dt><dd>{appIdentity ? 'restored' : '—'}</dd></div>
+            <div><dt>Transport identity</dt><dd>{transportIdentity ? 'initialized' : '—'}</dd></div>
             <div><dt>Connected peers</dt><dd>{peers.length}</dd></div>
             <div><dt>Expected</dt><dd>{expectedPeerCount}</dd></div>
             <div><dt>Topology check</dt><dd>{topologyOk ? 'within star bound' : 'VIOLATION'}</dd></div>
@@ -584,8 +739,8 @@ export function TrysteroPocPage() {
           <h2 id="infrastructure-heading">Infrastructure boundary</h2>
           <dl className="trystero-poc__metrics">
             <div><dt>C00lG@mes+ signaling backend</dt><dd>none</dd></div>
-            <div><dt>Rendezvous</dt><dd>public Nostr relays</dd></div>
-            <div><dt>Nostr relay sockets</dt><dd>{relays.length}</dd></div>
+            <div><dt>Rendezvous</dt><dd>public {strategyLabel(strategy)}</dd></div>
+            <div><dt>Rendezvous sockets</dt><dd>{relays.length}</dd></div>
             <div><dt>STUN</dt><dd>Trystero defaults</dd></div>
             <div><dt>TURN configured</dt><dd>no</dd></div>
             <div><dt>Application traffic</dt><dd>direct WebRTC</dd></div>
@@ -602,8 +757,6 @@ export function TrysteroPocPage() {
             <table>
               <thead>
                 <tr>
-                  <th>Peer</th>
-                  <th>App identity</th>
                   <th>Connection</th>
                   <th>ICE</th>
                   <th>Path</th>
@@ -615,8 +768,6 @@ export function TrysteroPocPage() {
               <tbody>
                 {peers.map((peer) => (
                   <tr key={peer.peerId}>
-                    <td title={peer.peerId}>{short(peer.peerId)}</td>
-                    <td title={peer.appIdentity ?? undefined}>{short(peer.appIdentity)}</td>
                     <td>{peer.connectionState}</td>
                     <td>{peer.iceConnectionState}</td>
                     <td>{peer.path.localCandidateType ?? '—'} ↔ {peer.path.remoteCandidateType ?? '—'}</td>
@@ -632,8 +783,8 @@ export function TrysteroPocPage() {
       </section>
 
       <section className="trystero-poc__card" aria-labelledby="relay-heading">
-        <h2 id="relay-heading">Public Nostr rendezvous</h2>
-        {relays.length === 0 ? <p>No relay sockets are visible yet.</p> : (
+        <h2 id="relay-heading">Public {strategyLabel(strategy)} rendezvous</h2>
+        {relays.length === 0 ? <p>No rendezvous sockets are visible yet.</p> : (
           <ul className="trystero-poc__relay-list">
             {relays.map((relay) => <li key={relay.url}><code>{relay.url}</code><span>{relay.state}</span></li>)}
           </ul>
