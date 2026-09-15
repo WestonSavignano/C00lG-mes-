@@ -132,14 +132,14 @@
 .school-escape__paint {
   position: absolute;
   left: 50%;
-  bottom: max(88px, calc(env(safe-area-inset-bottom) + 76px));
+  bottom: max(82px, calc(env(safe-area-inset-bottom) + 70px));
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   max-width: calc(100% - 32px);
-  padding: 8px 10px;
+  padding: 8px;
   border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 999px;
+  border-radius: 28px;
   background: rgba(10, 13, 17, 0.72);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
   backdrop-filter: blur(8px);
@@ -148,9 +148,10 @@
 }
 
 .school-escape__pigments {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  position: relative;
+  width: 166px;
+  height: 166px;
+  flex: 0 0 166px;
 }
 
 .school-escape__pigment,
@@ -160,14 +161,43 @@
   border: 1px solid rgba(255, 255, 255, 0.36);
   font: inherit;
   cursor: pointer;
-  touch-action: manipulation;
+  touch-action: none;
 }
 
 .school-escape__pigment {
+  position: absolute;
+  top: 50%;
+  left: 50%;
   width: 44px;
   padding: 0;
   border-radius: 50%;
   box-shadow: inset 0 0 0 3px rgba(0, 0, 0, 0.12);
+  transform: translate(-50%, -50%);
+}
+
+.school-escape__pigment[data-pigment='red'] {
+  background: #d34b43;
+  transform: translate(-50%, -50%) translateY(-60px);
+}
+
+.school-escape__pigment[data-pigment='yellow'] {
+  background: #e6bd45;
+  transform: translate(-50%, -50%) translate(57px, -20px);
+}
+
+.school-escape__pigment[data-pigment='blue'] {
+  background: #4b76bf;
+  transform: translate(-50%, -50%) translate(35px, 49px);
+}
+
+.school-escape__pigment[data-pigment='white'] {
+  background: #f0eee7;
+  transform: translate(-50%, -50%) translate(-35px, 49px);
+}
+
+.school-escape__pigment[data-pigment='black'] {
+  background: #24272c;
+  transform: translate(-50%, -50%) translate(-57px, -20px);
 }
 
 .school-escape__pigment[aria-pressed='true'] {
@@ -176,24 +206,39 @@
     inset 0 0 0 3px rgba(0, 0, 0, 0.12);
 }
 
-.school-escape__pigment[data-pigment='red'] {
-  background: #d34b43;
+.school-escape__paint-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  width: 74px;
+  height: 74px;
+  place-items: center;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
 }
 
-.school-escape__pigment[data-pigment='yellow'] {
-  background: #e6bd45;
+.school-escape__paint-match {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(
+    rgba(248, 250, 252, 0.96) var(--match-progress),
+    rgba(248, 250, 252, 0.16) 0
+  );
+  box-shadow: 0 0 14px rgba(248, 250, 252, 0.18);
 }
 
-.school-escape__pigment[data-pigment='blue'] {
-  background: #4b76bf;
-}
-
-.school-escape__pigment[data-pigment='white'] {
-  background: #f0eee7;
-}
-
-.school-escape__pigment[data-pigment='black'] {
-  background: #24272c;
+.school-escape__paint-swatch {
+  position: relative;
+  z-index: 1;
+  width: 58px;
+  height: 58px;
+  border: 2px solid rgba(8, 10, 13, 0.84);
+  border-radius: 50%;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.18),
+    0 4px 12px rgba(0, 0, 0, 0.28);
 }
 
 .school-escape__paint-clean {
@@ -203,15 +248,7 @@
   background: rgba(255, 255, 255, 0.08);
   font-size: 0.8rem;
   font-weight: 700;
-}
-
-.school-escape__paint-match {
-  width: 20px;
-  height: 20px;
-  flex: 0 0 20px;
-  border: 3px solid rgba(248, 250, 252, 0.88);
-  border-radius: 50%;
-  box-shadow: 0 0 14px rgba(248, 250, 252, 0.3);
+  touch-action: manipulation;
 }
 
 .school-escape__teacher-alert {
@@ -234,7 +271,7 @@
 .school-escape__subtitle {
   position: absolute;
   left: 50%;
-  bottom: max(158px, calc(env(safe-area-inset-bottom) + 146px));
+  bottom: max(266px, calc(env(safe-area-inset-bottom) + 254px));
   max-width: min(560px, calc(100% - 48px));
   padding: 7px 12px;
   border-radius: 10px;
@@ -247,23 +284,39 @@
 
 @media (max-width: 620px) {
   .school-escape__paint {
-    gap: 7px;
-    padding: 7px;
+    gap: 5px;
+    padding: 6px;
   }
 
   .school-escape__pigments {
-    gap: 4px;
+    width: 158px;
+    height: 158px;
+    flex-basis: 158px;
   }
 
-  .school-escape__pigment {
-    width: 42px;
-    min-width: 42px;
-    min-height: 42px;
+  .school-escape__pigment[data-pigment='red'] {
+    transform: translate(-50%, -50%) translateY(-56px);
+  }
+
+  .school-escape__pigment[data-pigment='yellow'] {
+    transform: translate(-50%, -50%) translate(53px, -18px);
+  }
+
+  .school-escape__pigment[data-pigment='blue'] {
+    transform: translate(-50%, -50%) translate(33px, 46px);
+  }
+
+  .school-escape__pigment[data-pigment='white'] {
+    transform: translate(-50%, -50%) translate(-33px, 46px);
+  }
+
+  .school-escape__pigment[data-pigment='black'] {
+    transform: translate(-50%, -50%) translate(-53px, -18px);
   }
 
   .school-escape__paint-clean {
-    min-width: 42px;
-    min-height: 42px;
+    min-width: 44px;
+    min-height: 44px;
     padding: 0 9px;
     font-size: 0.72rem;
   }
