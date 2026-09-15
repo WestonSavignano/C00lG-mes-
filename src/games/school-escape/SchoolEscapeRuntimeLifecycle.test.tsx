@@ -8,6 +8,7 @@ vi.mock('./schoolEscapeRuntime', () => ({
 }))
 
 const controller = {
+  setPaintMix: vi.fn(),
   resize: vi.fn(),
   pause: vi.fn(),
   resume: vi.fn(),
@@ -47,6 +48,7 @@ describe('School Escape runtime lifecycle', () => {
         input: expect.any(Object),
         look: expect.any(Object),
         onFatalError: expect.any(Function),
+        onUiSnapshot: expect.any(Function),
       }),
     )
 
