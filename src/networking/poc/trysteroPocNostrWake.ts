@@ -3,35 +3,46 @@ const OPEN = 1
 const CONNECTING = 0
 const WAKE_PAYLOAD = JSON.stringify({ type: 'wake', version: 1 })
 const MAX_SEEN_WAKE_IDS = 64
-const MAX_WAKE_DIAGNOSTICS = 32
+const MAX_WAKE_DIAGNOSTICS = 64
 
 export const POC_NOSTR_WAKE_COOLDOWN_MS = 1_500
-export const POC_NOSTR_WAKE_SUBSCRIPTION_SETTLE_MS = 500
 
 export type PocNostrWakeDiagnostic = {
   at: string
   stage:
+    | 'relay-open'
+    | 'relay-reconnected'
+    | 'root-subscription-sent'
+    | 'root-subscription-ready'
+    | 'root-subscription-closed'
+    | 'guest-wake-armed'
     | 'guest-wake-sent'
     | 'host-wake-listener-armed'
+    | 'host-wake-subscription-sent'
+    | 'host-wake-listener-ready'
     | 'host-wake-received'
     | 'host-announcement-sent'
+  relayUrl?: string
   openRelayCount?: number
 }
 
 const wakeDiagnostics: PocNostrWakeDiagnostic[] = []
 
-function resetWakeDiagnostics() {
+export function resetPocNostrWakeDiagnostics() {
   wakeDiagnostics.length = 0
 }
 
-function recordWakeDiagnostic(
+export function recordPocNostrWakeDiagnostic(
   stage: PocNostrWakeDiagnostic['stage'],
-  openRelayCount?: number,
+  details: Pick<PocNostrWakeDiagnostic, 'relayUrl' | 'openRelayCount'> = {},
 ) {
   wakeDiagnostics.push({
     at: new Date().toISOString(),
     stage,
-    ...(openRelayCount === undefined ? {} : { openRelayCount }),
+    ...(details.relayUrl ? { relayUrl: details.relayUrl } : {}),
+    ...(details.openRelayCount === undefined
+      ? {}
+      : { openRelayCount: details.openRelayCount }),
   })
   if (wakeDiagnostics.length > MAX_WAKE_DIAGNOSTICS) {
     wakeDiagnostics.splice(0, wakeDiagnostics.length - MAX_WAKE_DIAGNOSTICS)
@@ -48,6 +59,15 @@ type SocketLike = {
   addEventListener(type: string, listener: EventListener): void
   removeEventListener(type: string, listener: EventListener): void
 }
+
+type RootReadyEvent = {
+  relayUrl: string
+  socket: SocketLike
+}
+
+type OnRootSubscriptionReady = (
+  listener: (event: RootReadyEvent) => void,
+) => () => void
 
 type CreateEvent = (topic: string, content: string) => Promise<string>
 type Subscribe = (subscriptionId: string, topic: string) => string
@@ -73,72 +93,36 @@ export function derivePocNostrWakeTopic(
   return hash('SHA-256', `CoolGamesPlusWake@${appId}@${roomId}@${rendezvousSecret}`)
 }
 
-function scheduleOnceAfterSubscriptionSettle(
-  socket: SocketLike,
-  payload: string,
-  onSent?: () => void,
-) {
-  const send = () => {
-    if (socket.readyState !== OPEN) return
-    socket.send(payload)
-    recordWakeDiagnostic('guest-wake-sent')
-    onSent?.()
-  }
-
-  const schedule = () => {
-    setTimeout(send, POC_NOSTR_WAKE_SUBSCRIPTION_SETTLE_MS)
-  }
-
-  if (socket.readyState === OPEN) {
-    schedule()
-    return 'open' as const
-  }
-
-  if (socket.readyState !== CONNECTING) {
-    return 'ignored' as const
-  }
-
-  const onOpen: EventListener = () => {
-    socket.removeEventListener('open', onOpen)
-    schedule()
-  }
-  socket.addEventListener('open', onOpen)
-  return 'waiting' as const
-}
-
-export async function sendPocNostrGuestWake({
+export async function startPocNostrGuestWake({
   appId,
   roomId,
   rendezvousSecret,
   createEvent,
-  sockets,
-  onWakeSent,
+  onRootSubscriptionReady,
 }: {
   appId: string
   roomId: string
   rendezvousSecret: string
   createEvent: CreateEvent
-  sockets: Record<string, SocketLike>
-  onWakeSent?: () => void
+  onRootSubscriptionReady: OnRootSubscriptionReady
 }) {
-  resetWakeDiagnostics()
   const wakeTopic = await derivePocNostrWakeTopic(appId, roomId, rendezvousSecret)
   const event = await createEvent(wakeTopic, WAKE_PAYLOAD)
-  let openRelays = 0
-  let waitingForOpen = 0
+  const sentSockets = new WeakSet<SocketLike>()
 
-  for (const socket of Object.values(sockets)) {
-    const result = scheduleOnceAfterSubscriptionSettle(socket, event, onWakeSent)
-    if (result === 'open') openRelays += 1
-    if (result === 'waiting') waitingForOpen += 1
-  }
+  recordPocNostrWakeDiagnostic('guest-wake-armed')
+
+  const stopReady = onRootSubscriptionReady(({ relayUrl, socket }) => {
+    if (socket.readyState !== OPEN || sentSockets.has(socket)) return
+    sentSockets.add(socket)
+    socket.send(event)
+    recordPocNostrWakeDiagnostic('guest-wake-sent', { relayUrl })
+  })
 
   return {
-    // Retain the existing POC-page field name; it now counts relays that were
-    // already open when their bounded post-open wake was scheduled.
-    sentImmediately: openRelays,
-    waitingForOpen,
-    settleMs: POC_NOSTR_WAKE_SUBSCRIPTION_SETTLE_MS,
+    stop() {
+      stopReady()
+    },
   }
 }
 
@@ -167,6 +151,16 @@ function parseWakeEvent(data: unknown, subscriptionId: string, wakeTopic: string
   return matchesTopic ? candidate.id : null
 }
 
+function isSubscriptionMessage(data: unknown, type: string, subscriptionId: string) {
+  if (typeof data !== 'string') return false
+  try {
+    const parsed = JSON.parse(data)
+    return Array.isArray(parsed) && parsed[0] === type && parsed[1] === subscriptionId
+  } catch {
+    return false
+  }
+}
+
 export async function startPocNostrHostWakeListener({
   appId,
   roomId,
@@ -192,7 +186,6 @@ export async function startPocNostrHostWakeListener({
   onWakeReceived?: () => void
   onAnnouncementSent?: (openRelayCount: number) => void
 }) {
-  resetWakeDiagnostics()
   const [wakeTopic, rootTopic] = await Promise.all([
     derivePocNostrWakeTopic(appId, roomId, rendezvousSecret),
     derivePocNostrRootTopic(appId, roomId),
@@ -200,6 +193,7 @@ export async function startPocNostrHostWakeListener({
   const subscriptionId = createSubscriptionId()
   const subscription = subscribe(subscriptionId, wakeTopic)
   const seenEventIds = new Set<string>()
+  const readyRelays = new Set<string>()
   let lastWakeAt = Number.NEGATIVE_INFINITY
   let stopped = false
   const cleanups: Array<() => void> = []
@@ -224,12 +218,26 @@ export async function startPocNostrHostWakeListener({
         openRelayCount += 1
       }
     }
-    recordWakeDiagnostic('host-announcement-sent', openRelayCount)
+    recordPocNostrWakeDiagnostic('host-announcement-sent', { openRelayCount })
     onAnnouncementSent?.(openRelayCount)
   }
 
-  const onWake = (data: unknown) => {
+  const onRelayMessage = (relayUrl: string, data: unknown) => {
     if (stopped) return
+
+    if (isSubscriptionMessage(data, 'EOSE', subscriptionId)) {
+      if (!readyRelays.has(relayUrl)) {
+        readyRelays.add(relayUrl)
+        recordPocNostrWakeDiagnostic('host-wake-listener-ready', { relayUrl })
+      }
+      return
+    }
+
+    if (isSubscriptionMessage(data, 'CLOSED', subscriptionId)) {
+      readyRelays.delete(relayUrl)
+      return
+    }
+
     const eventId = parseWakeEvent(data, subscriptionId, wakeTopic)
     if (!eventId || seenEventIds.has(eventId)) return
     rememberEvent(eventId)
@@ -237,34 +245,40 @@ export async function startPocNostrHostWakeListener({
     const current = now()
     if (current - lastWakeAt < POC_NOSTR_WAKE_COOLDOWN_MS) return
     lastWakeAt = current
-    recordWakeDiagnostic('host-wake-received')
+    recordPocNostrWakeDiagnostic('host-wake-received', { relayUrl })
     onWakeReceived?.()
     void announceHost()
   }
 
-  for (const socket of Object.values(sockets)) {
+  const sendSubscription = (relayUrl: string, socket: SocketLike) => {
+    if (stopped || socket.readyState !== OPEN) return
+    socket.send(subscription)
+    recordPocNostrWakeDiagnostic('host-wake-subscription-sent', { relayUrl })
+  }
+
+  for (const [relayUrl, socket] of Object.entries(sockets)) {
     const onMessage: EventListener = (event) => {
-      onWake((event as MessageEvent<unknown>).data)
+      onRelayMessage(relayUrl, (event as MessageEvent<unknown>).data)
     }
     socket.addEventListener('message', onMessage)
     cleanups.push(() => socket.removeEventListener('message', onMessage))
 
     if (socket.readyState === OPEN) {
-      socket.send(subscription)
+      sendSubscription(relayUrl, socket)
       continue
     }
 
     if (socket.readyState === CONNECTING) {
       const onOpen: EventListener = () => {
         socket.removeEventListener('open', onOpen)
-        if (!stopped && socket.readyState === OPEN) socket.send(subscription)
+        sendSubscription(relayUrl, socket)
       }
       socket.addEventListener('open', onOpen)
       cleanups.push(() => socket.removeEventListener('open', onOpen))
     }
   }
 
-  recordWakeDiagnostic('host-wake-listener-armed')
+  recordPocNostrWakeDiagnostic('host-wake-listener-armed')
 
   return {
     stop() {
