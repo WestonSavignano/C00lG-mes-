@@ -15,7 +15,7 @@
 }
 
 .discovery-kicker {
-  color: var(--color-accent);
+  color: var(--color-text-brand);
   font-size: 0.7rem;
   font-weight: 820;
   letter-spacing: 0.1em;
@@ -43,7 +43,7 @@
 
 .arcade-home__intro > p:last-child,
 .games-library__header > p:last-child {
-  color: var(--color-muted);
+  color: var(--color-text-muted);
   font-size: clamp(0.95rem, 2vw, 1.08rem);
 }
 

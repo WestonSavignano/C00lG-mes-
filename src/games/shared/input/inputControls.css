@@ -80,7 +80,7 @@
 }
 
 .semantic-action-button:focus-visible {
-  outline: 3px solid var(--color-accent);
+  outline: 3px solid var(--color-focus-ring);
   outline-offset: 3px;
 }
 
