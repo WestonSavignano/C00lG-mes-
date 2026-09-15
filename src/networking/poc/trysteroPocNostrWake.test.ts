@@ -4,6 +4,8 @@ import {
   POC_NOSTR_WAKE_COOLDOWN_MS,
   derivePocNostrRootTopic,
   derivePocNostrWakeTopic,
+  getPocNostrWakeDiagnostics,
+  resetPocNostrWakeDiagnostics,
   startPocNostrGuestWake,
   startPocNostrHostWakeListener,
 } from './trysteroPocNostrWake'
@@ -150,5 +152,61 @@ describe('event-driven Nostr late-guest wake', () => {
 
     listener.stop()
     expect(relay.send).toHaveBeenCalledWith(JSON.stringify(['CLOSE', 'wake-sub-id']))
+  })
+
+  it('records sanitized relay acknowledgement evidence for the manual host announcement', async () => {
+    resetPocNostrWakeDiagnostics()
+    const relay = createSocket(WebSocket.OPEN)
+    const announcementId = 'announcement-event-id'
+    const createEvent = vi.fn(async (_topic: string, content: string) => JSON.stringify([
+      'EVENT',
+      {
+        id: announcementId,
+        content,
+        tags: [],
+      },
+    ]))
+    const subscribe = vi.fn(() => 'wake-subscription')
+
+    const listener = await startPocNostrHostWakeListener({
+      appId: TRYSTERO_POC_APP_ID,
+      roomId: 'party-a',
+      rendezvousSecret: 'secret-a',
+      peerId: 'host-transport-peer',
+      createEvent,
+      subscribe,
+      createSubscriptionId: () => 'wake-sub-id',
+      sockets: { 'wss://relay.test': relay.socket },
+    })
+
+    const wakeTopic = await derivePocNostrWakeTopic(TRYSTERO_POC_APP_ID, 'party-a', 'secret-a')
+    relay.message(JSON.stringify([
+      'EVENT',
+      'wake-sub-id',
+      {
+        id: 'wake-1',
+        content: JSON.stringify({ type: 'wake', version: 1 }),
+        tags: [['x', wakeTopic]],
+      },
+    ]))
+
+    await vi.waitFor(() => expect(createEvent).toHaveBeenCalledTimes(1))
+    relay.message(JSON.stringify([
+      'OK',
+      announcementId,
+      false,
+      'rate-limited: slow down',
+    ]))
+
+    expect(getPocNostrWakeDiagnostics()).toContainEqual(expect.objectContaining({
+      stage: 'host-announcement-ack',
+      relayUrl: 'wss://relay.test',
+      accepted: false,
+      ackReasonCategory: 'rate-limited',
+    }))
+    expect(JSON.stringify(getPocNostrWakeDiagnostics())).not.toContain(announcementId)
+    expect(JSON.stringify(getPocNostrWakeDiagnostics())).not.toContain('slow down')
+
+    listener.stop()
   })
 })
