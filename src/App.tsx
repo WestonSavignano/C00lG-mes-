@@ -9,6 +9,8 @@ import HomePage from './pages/HomePage'
 import NotFoundPage from './pages/NotFoundPage'
 import AppShell from './shell/AppShell'
 
+const TrysteroPocPage = lazy(() => import('./pages/TrysteroPocPage'))
+const HostAuthorityPocPage = lazy(() => import('./pages/HostAuthorityPocPage'))
 const SchoolEscapePreviewPage = lazy(
   () => import('./games/school-escape/SchoolEscapePage'),
 )
@@ -22,6 +24,22 @@ function App() {
         <Route path="/chat" element={<ChatPage />} />
         <Route path="/soundboard" element={<Navigate replace to="/chat" />} />
         <Route path="/soundboard/sound" element={<Navigate replace to="/chat" />} />
+        <Route
+          path="/networking-poc/trystero"
+          element={(
+            <Suspense fallback={<div>Loading networking POC…</div>}>
+              <TrysteroPocPage />
+            </Suspense>
+          )}
+        />
+        <Route
+          path="/networking-poc/host-authority"
+          element={(
+            <Suspense fallback={<div>Loading host-authority POC…</div>}>
+              <HostAuthorityPocPage />
+            </Suspense>
+          )}
+        />
         <Route path="/games" element={<GamesPage />} />
         <Route
           path="/game-preview/school-escape"
