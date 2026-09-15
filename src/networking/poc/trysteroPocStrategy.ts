@@ -1,12 +1,12 @@
 import { buildTrysteroConfig, type PocRole } from './trysteroPocModel'
 
-export type PocStrategy = 'nostr' | 'nostr-fast' | 'torrent'
+export type PocStrategy = 'nostr' | 'nostr-wake' | 'torrent'
 
 export const TRYSTERO_POC_VERSION = '0.25.4'
 
 export function parsePocStrategy(search: string): PocStrategy {
   const strategy = new URLSearchParams(search).get('strategy')
-  if (strategy === 'torrent' || strategy === 'nostr-fast') return strategy
+  if (strategy === 'torrent' || strategy === 'nostr-wake') return strategy
   return 'nostr'
 }
 
