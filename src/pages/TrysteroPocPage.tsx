@@ -15,7 +15,15 @@ import {
   type PocHandshake,
 } from '../networking/poc/trysteroPocModel'
 import {
-  sendPocNostrGuestWake,
+  createPocNostrEoseModule,
+  type PocNostrAdapterObservation,
+  type PocNostrCoreModule,
+  type PocNostrModule,
+} from '../networking/poc/trysteroPocNostrEoseAdapter'
+import {
+  recordPocNostrWakeDiagnostic,
+  resetPocNostrWakeDiagnostics,
+  startPocNostrGuestWake,
   startPocNostrHostWakeListener,
 } from '../networking/poc/trysteroPocNostrWake'
 import {
@@ -36,6 +44,8 @@ import './TrysteroPocPage.css'
 const POC_PATH = '/networking-poc/trystero'
 const HOST_IDENTITY_KEY = 'c00lgames.poc.trystero.host'
 const REFRESH_INTERVAL_MS = 1_500
+const POC_NOSTR_CORE_MODULE_URL = `https://esm.run/@trystero-p2p/core@${TRYSTERO_POC_VERSION}`
+const POC_NOSTR_MODULE_URL = `https://esm.run/@trystero-p2p/nostr@${TRYSTERO_POC_VERSION}`
 
 const EMPTY_RTC_PATH: RtcPathSummary = {
   localCandidateType: null,
@@ -85,6 +95,9 @@ type TrysteroModule = {
   getRelaySockets(): Record<string, WebSocket>
   createEvent(topic: string, content: string): Promise<string>
   subscribe(subscriptionId: string, topic: string): string
+  onRootSubscriptionReady?: (
+    listener: (event: { relayUrl: string; socket: WebSocket }) => void,
+  ) => () => void
 }
 
 type PeerView = {
@@ -134,9 +147,47 @@ function strategyLabel(strategy: PocStrategy) {
   return 'Nostr'
 }
 
-async function loadTrystero(strategy: PocStrategy): Promise<TrysteroModule> {
-  const moduleUrl = getPocModuleUrl(strategy)
-  return import(/* @vite-ignore */ moduleUrl) as Promise<TrysteroModule>
+function moduleSource(strategy: PocStrategy) {
+  if (strategy === 'nostr-wake') {
+    return `local EOSE adapter + ${POC_NOSTR_CORE_MODULE_URL} + ${POC_NOSTR_MODULE_URL}`
+  }
+  return getPocModuleUrl(strategy)
+}
+
+function observationLogMessage(observation: PocNostrAdapterObservation) {
+  switch (observation.stage) {
+    case 'relay-open':
+      return `Nostr relay open: ${observation.relayUrl}`
+    case 'relay-reconnected':
+      return `Nostr relay reconnected: ${observation.relayUrl}`
+    case 'root-subscription-sent':
+      return `Trystero root subscription sent: ${observation.relayUrl}`
+    case 'root-subscription-ready':
+      return `Trystero root subscription ready (EOSE): ${observation.relayUrl}`
+    case 'root-subscription-closed':
+      return `Trystero root subscription closed: ${observation.relayUrl}`
+  }
+}
+
+async function loadTrystero(
+  strategy: PocStrategy,
+  observe?: (observation: PocNostrAdapterObservation) => void,
+): Promise<TrysteroModule> {
+  if (strategy !== 'nostr-wake') {
+    const moduleUrl = getPocModuleUrl(strategy)
+    return import(/* @vite-ignore */ moduleUrl) as Promise<TrysteroModule>
+  }
+
+  const [core, nostr] = await Promise.all([
+    import(/* @vite-ignore */ POC_NOSTR_CORE_MODULE_URL),
+    import(/* @vite-ignore */ POC_NOSTR_MODULE_URL),
+  ])
+
+  return createPocNostrEoseModule({
+    core: core as unknown as PocNostrCoreModule,
+    nostr: nostr as unknown as PocNostrModule,
+    observe,
+  }) as unknown as TrysteroModule
 }
 
 async function summarizePeer(peer: RTCPeerConnection) {
@@ -327,7 +378,15 @@ export function TrysteroPocPage() {
       addLog(`${route.role} application identity restored`)
       addLog(`loading Trystero ${TRYSTERO_POC_VERSION} ${strategyLabel(strategy)} strategy`)
 
-      const trystero = await loadTrystero(strategy)
+      if (strategy === 'nostr-wake') {
+        resetPocNostrWakeDiagnostics()
+      }
+
+      const trystero = await loadTrystero(strategy, (observation) => {
+        if (disposed) return
+        recordPocNostrWakeDiagnostic(observation.stage, { relayUrl: observation.relayUrl })
+        addLog(observationLogMessage(observation))
+      })
       if (disposed) {
         return
       }
@@ -417,15 +476,18 @@ export function TrysteroPocPage() {
           })
           if (!disposed) addLog('event-driven guest wake listener armed')
         } else {
-          const wake = await sendPocNostrGuestWake({
+          if (!trystero.onRootSubscriptionReady) {
+            throw new Error('EOSE-driven root subscription readiness is unavailable.')
+          }
+          wakeListener = await startPocNostrGuestWake({
             appId: TRYSTERO_POC_APP_ID,
             roomId: route.partyId,
             rendezvousSecret: route.secret,
             createEvent: trystero.createEvent,
-            sockets,
+            onRootSubscriptionReady: trystero.onRootSubscriptionReady,
           })
           if (!disposed) {
-            addLog(`one-shot guest wake queued: ${wake.sentImmediately} open relay(s), ${wake.waitingForOpen} connecting relay(s)`)
+            addLog('event-driven guest wake armed; waiting for Trystero root-subscription EOSE')
           }
         }
       }
@@ -520,7 +582,7 @@ export function TrysteroPocPage() {
     poc: {
       trysteroVersion: TRYSTERO_POC_VERSION,
       strategy,
-      moduleSource: getPocModuleUrl(strategy),
+      moduleSource: moduleSource(strategy),
       trickleIce: strategy !== 'torrent',
       turnConfigured: false,
     },
@@ -593,7 +655,7 @@ export function TrysteroPocPage() {
           <h2 id="poc-boundary-heading">What this proves</h2>
           <ul>
             <li>One active host can discover passive guests without a C00lG@mes+ signaling API.</li>
-            <li>The event-driven candidate adds one bounded guest wake instead of a permanent application heartbeat.</li>
+            <li>The event-driven candidate sends a bounded guest wake only after the Nostr relay confirms the Trystero root subscription with EOSE.</li>
             <li>Guests should connect only to the host, not to one another.</li>
             <li>Application identity remains separate from transient Trystero peer identity.</li>
             <li>TURN is intentionally not configured; direct-connect failures are evidence for the decision gate.</li>
