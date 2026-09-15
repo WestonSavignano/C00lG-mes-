@@ -11,6 +11,7 @@ const PRODUCTION_NOSTR_RELAY_URLS = [
 
 export type TrysteroHandshakeSend = (data: string) => Promise<void>
 export type TrysteroHandshakeReceive = () => Promise<{ data: unknown; metadata?: unknown }>
+export type PartyDiagnosticSource = 'start-host' | 'restore-host' | 'join-invite' | 'restore-guest'
 
 type RelaySocketLike = {
   readyState: number
@@ -59,6 +60,7 @@ export type TrysteroNostrModuleLike = {
 
 export type TrysteroNostrTransportOptions = {
   role: 'host' | 'guest'
+  diagnosticSource?: PartyDiagnosticSource
   partyId: string
   rendezvousCapability: string
   onMessage?: (data: string, peerId: string) => void | Promise<void>
@@ -94,6 +96,7 @@ type RelayStateCounts = {
 type PartyDiagnostic = {
   stage: PartyDiagnosticStage
   role: 'host' | 'guest'
+  source?: PartyDiagnosticSource
   elapsedMs?: number
   initiator?: boolean
   trickleIce?: boolean
@@ -152,11 +155,12 @@ function summarizeRelayStates(sockets: Record<string, RelaySocketLike>): RelaySt
 }
 
 function logPartyDiagnostic(diagnostic: PartyDiagnostic, warning = false) {
+  const serialized = JSON.stringify(diagnostic)
   if (warning) {
-    console.warn('[party-network]', diagnostic)
+    console.warn('[party-network]', diagnostic, serialized)
     return
   }
-  console.info('[party-network]', diagnostic)
+  console.info('[party-network]', diagnostic, serialized)
 }
 
 function hasUnsafeClosedPeer(room: TrysteroRoomLike) {
@@ -204,6 +208,7 @@ export class TrysteroNostrTransport {
     logPartyDiagnostic({
       stage: 'relay-health',
       role: this.options.role,
+      source: this.options.diagnosticSource,
       elapsedMs: this.elapsedMs(),
       relayCount: Object.keys(sockets).length,
       relayStates: summarizeRelayStates(sockets),
@@ -246,6 +251,7 @@ export class TrysteroNostrTransport {
           logPartyDiagnostic({
             stage: 'handshake-started',
             role: this.options.role,
+            source: this.options.diagnosticSource,
             elapsedMs: this.elapsedMs(),
             initiator: isInitiator,
           })
@@ -270,6 +276,7 @@ export class TrysteroNostrTransport {
           logPartyDiagnostic({
             stage: 'handshake-accepted',
             role: this.options.role,
+            source: this.options.diagnosticSource,
             elapsedMs: this.elapsedMs(),
             initiator: isInitiator,
           })
@@ -298,6 +305,7 @@ export class TrysteroNostrTransport {
           logPartyDiagnostic({
             stage: 'join-error',
             role: this.options.role,
+            source: this.options.diagnosticSource,
             elapsedMs: this.elapsedMs(),
             reason: classifyJoinError(details.error),
             error: redactDiagnosticError(details.error, [
@@ -316,6 +324,7 @@ export class TrysteroNostrTransport {
     logPartyDiagnostic({
       stage: 'transport-started',
       role: this.options.role,
+      source: this.options.diagnosticSource,
       elapsedMs: this.elapsedMs(),
       trickleIce: false,
       turnConfigured: false,
@@ -332,6 +341,7 @@ export class TrysteroNostrTransport {
       logPartyDiagnostic({
         stage: 'peer-joined',
         role: this.options.role,
+        source: this.options.diagnosticSource,
         elapsedMs: this.elapsedMs(),
       })
       this.logRelayHealth(module)
