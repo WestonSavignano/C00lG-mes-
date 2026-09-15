@@ -9,6 +9,7 @@ import {
   loadOrCreateIdentity,
   parsePartyHash,
   parsePocHandshake,
+  TRYSTERO_POC_APP_ID,
   validateRemoteHandshake,
   type PocHandshake,
 } from '../networking/poc/trysteroPocModel'
@@ -412,7 +413,7 @@ export function TrysteroPocPage() {
         const sockets = trystero.getRelaySockets()
         if (route.role === 'host') {
           wakeListener = await startPocNostrHostWakeListener({
-            appId: 'coolgamesplus-trystero-poc-v1',
+            appId: TRYSTERO_POC_APP_ID,
             roomId: route.partyId,
             rendezvousSecret: route.secret,
             peerId: trystero.selfId,
@@ -423,7 +424,7 @@ export function TrysteroPocPage() {
           if (!disposed) addLog('event-driven guest wake listener armed')
         } else {
           const wake = await sendPocNostrGuestWake({
-            appId: 'coolgamesplus-trystero-poc-v1',
+            appId: TRYSTERO_POC_APP_ID,
             roomId: route.partyId,
             rendezvousSecret: route.secret,
             createEvent: trystero.createEvent,
