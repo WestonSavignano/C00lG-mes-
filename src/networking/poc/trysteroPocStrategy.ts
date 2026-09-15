@@ -14,10 +14,14 @@ export function getPocModuleUrl(strategy: PocStrategy) {
     : `https://esm.run/trystero@${TRYSTERO_POC_VERSION}`
 }
 
-export function buildPocStrategyConfig(role: PocRole, secret: string) {
+export function buildPocStrategyConfig(
+  strategy: PocStrategy,
+  role: PocRole,
+  secret: string,
+) {
   return {
     ...buildTrysteroConfig(role, secret),
-    trickleIce: true,
+    trickleIce: strategy === 'nostr',
   }
 }
 
