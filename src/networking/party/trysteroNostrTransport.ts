@@ -70,6 +70,39 @@ export type TrysteroNostrTransportOptions = {
   poisonRegistry?: Set<string>
 }
 
+type PartyDiagnosticStage =
+  | 'transport-started'
+  | 'handshake-started'
+  | 'handshake-accepted'
+  | 'join-error'
+  | 'peer-joined'
+
+type PartyDiagnostic = {
+  stage: PartyDiagnosticStage
+  role: 'host' | 'guest'
+  initiator?: boolean
+  error?: string
+}
+
+function redactDiagnosticError(
+  error: string,
+  sensitiveValues: Array<string | null | undefined>,
+) {
+  let redacted = error.slice(0, 512)
+  for (const sensitive of sensitiveValues) {
+    if (sensitive) redacted = redacted.replaceAll(sensitive, '[redacted]')
+  }
+  return redacted
+}
+
+function logPartyDiagnostic(diagnostic: PartyDiagnostic, warning = false) {
+  if (warning) {
+    console.warn('[party-network]', diagnostic)
+    return
+  }
+  console.info('[party-network]', diagnostic)
+}
+
 function hasUnsafeClosedPeer(room: TrysteroRoomLike) {
   return Object.values(room.getPeers()).some((peer) =>
     peer.connectionState === 'closed'
@@ -136,6 +169,11 @@ export class TrysteroNostrTransport {
           isInitiator: boolean,
         ) => {
           this.assertActive()
+          logPartyDiagnostic({
+            stage: 'handshake-started',
+            role: this.options.role,
+            initiator: isInitiator,
+          })
           const guardedSend: TrysteroHandshakeSend = async (data) => {
             this.assertActive()
             await send(data)
@@ -154,6 +192,11 @@ export class TrysteroNostrTransport {
             isInitiator,
           )
           this.assertActive()
+          logPartyDiagnostic({
+            stage: 'handshake-accepted',
+            role: this.options.role,
+            initiator: isInitiator,
+          })
         }
       : undefined
 
@@ -173,19 +216,38 @@ export class TrysteroNostrTransport {
       {
         handshakeTimeoutMs: 15_000,
         onJoinError: (details) => {
-          if (!this.disposed) this.options.onJoinError?.(details)
+          if (this.disposed) return
+          logPartyDiagnostic({
+            stage: 'join-error',
+            role: this.options.role,
+            error: redactDiagnosticError(details.error, [
+              details.peerId,
+              this.options.partyId,
+              this.options.rendezvousCapability,
+            ]),
+          }, true)
+          this.options.onJoinError?.(details)
         },
         onPeerHandshake: applicationHandshake,
       },
     )
     this.room = room
+    logPartyDiagnostic({
+      stage: 'transport-started',
+      role: this.options.role,
+    })
     const action = room.makeAction(ACTION_NAMESPACE)
     action.onMessage = async (data, context) => {
       if (this.disposed) return
       await this.options.onMessage?.(data, context.peerId)
     }
     room.onPeerJoin = (peerId) => {
-      if (!this.disposed) this.options.onPeerJoin?.(peerId)
+      if (this.disposed) return
+      logPartyDiagnostic({
+        stage: 'peer-joined',
+        role: this.options.role,
+      })
+      this.options.onPeerJoin?.(peerId)
     }
     room.onPeerLeave = (peerId) => {
       if (!this.disposed) this.options.onPeerLeave?.(peerId)
