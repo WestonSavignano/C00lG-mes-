@@ -261,6 +261,7 @@ export async function startPocNostrHostWakeListener({
   now = () => Date.now(),
   onWakeReceived,
   onAnnouncementSent,
+  onWakeListenerReady,
 }: {
   appId: string
   roomId: string
@@ -273,6 +274,7 @@ export async function startPocNostrHostWakeListener({
   now?: () => number
   onWakeReceived?: () => void
   onAnnouncementSent?: (openRelayCount: number) => void
+  onWakeListenerReady?: (relayUrl: string) => void
 }) {
   const [wakeTopic, rootTopic] = await Promise.all([
     derivePocNostrWakeTopic(appId, roomId, rendezvousSecret),
@@ -331,6 +333,7 @@ export async function startPocNostrHostWakeListener({
       if (!readyRelays.has(relayUrl)) {
         readyRelays.add(relayUrl)
         recordPocNostrWakeDiagnostic('host-wake-listener-ready', { relayUrl })
+        onWakeListenerReady?.(relayUrl)
       }
       return
     }
