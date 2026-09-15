@@ -61,7 +61,9 @@ function SchoolEscapeGame({
   const input = useSemanticInput<SchoolEscapeAction>(schoolEscapeKeyboardBindings)
   const [look] = useState(createLookAccumulator)
   const [runtimeError, setRuntimeError] = useState<Error | null>(null)
+  const [retryVersion, setRetryVersion] = useState(0)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const runtimeRef = useRef<SchoolEscapeRuntimeController | null>(null)
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -92,6 +94,7 @@ function SchoolEscapeGame({
         }
 
         runtime = controller
+        runtimeRef.current = controller
         detachRuntimeLifecycle = attachRuntimeLifecycle(controller)
       })
       .catch(reportFatalError)
@@ -99,9 +102,26 @@ function SchoolEscapeGame({
     return () => {
       disposed = true
       detachRuntimeLifecycle?.()
+      if (runtimeRef.current === runtime) {
+        runtimeRef.current = null
+      }
       runtime?.dispose()
     }
-  }, [input.reader, look, runtimeEnabled])
+  }, [input.reader, look, retryVersion, runtimeEnabled])
+
+  const retryRuntime = () => {
+    const runtime = runtimeRef.current
+    setRuntimeError(null)
+
+    if (!runtime) {
+      setRetryVersion((version) => version + 1)
+      return
+    }
+
+    void runtime.restart().catch((error) => {
+      setRuntimeError(toError(error))
+    })
+  }
 
   return (
     <>
@@ -114,40 +134,55 @@ function SchoolEscapeGame({
         <div className="school-escape__runtime-error" role="alert">
           <strong>School Escape could not start.</strong>
           <span>
-            The 3D renderer was unavailable. Try reloading the preview or using a
-            browser with WebGL enabled.
+            The 3D renderer was unavailable. Try again or return to Games.
           </span>
+          <div className="school-escape__runtime-error-actions">
+            <button
+              className="school-escape__runtime-error-action"
+              onClick={retryRuntime}
+              type="button"
+            >
+              Retry
+            </button>
+            <a
+              className="school-escape__runtime-error-action school-escape__runtime-error-action--secondary"
+              href="/games"
+            >
+              Return to Games
+            </a>
+          </div>
         </div>
-      ) : null}
-      <div className="school-escape__controls">
-        <SchoolEscapeLookSurface look={look} />
-        <DirectionalControl
-          className="school-escape__move-control"
-          label="Move"
-          sourceId="school-escape-touch-move"
-          writer={input.writer}
-        />
-        <div className="school-escape__actions">
-          <ActionButton
-            action="sprint"
-            className="school-escape__action"
-            mode="hold"
-            sourceId="school-escape-touch-sprint"
+      ) : (
+        <div className="school-escape__controls">
+          <SchoolEscapeLookSurface look={look} />
+          <DirectionalControl
+            className="school-escape__move-control"
+            label="Move"
+            sourceId="school-escape-touch-move"
             writer={input.writer}
-          >
-            Sprint
-          </ActionButton>
-          <ActionButton
-            action="jump"
-            className="school-escape__action"
-            mode="press"
-            sourceId="school-escape-touch-jump"
-            writer={input.writer}
-          >
-            Jump
-          </ActionButton>
+          />
+          <div className="school-escape__actions">
+            <ActionButton
+              action="sprint"
+              className="school-escape__action"
+              mode="hold"
+              sourceId="school-escape-touch-sprint"
+              writer={input.writer}
+            >
+              Sprint
+            </ActionButton>
+            <ActionButton
+              action="jump"
+              className="school-escape__action"
+              mode="press"
+              sourceId="school-escape-touch-jump"
+              writer={input.writer}
+            >
+              Jump
+            </ActionButton>
+          </div>
         </div>
-      </div>
+      )}
     </>
   )
 }
