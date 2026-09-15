@@ -1,0 +1,29 @@
+import { describe, expect, it, vi } from 'vitest'
+import * as wakeModule from './trysteroPocNostrWake'
+
+describe('host invite readiness', () => {
+  it('becomes ready exactly once when root and wake subscriptions are ready on the same relay', () => {
+    const createTracker = Reflect.get(wakeModule, 'createPocHostInviteReadinessTracker')
+    expect(createTracker).toBeTypeOf('function')
+
+    const onReady = vi.fn()
+    const tracker = createTracker(onReady) as {
+      markRootReady(relayUrl: string): void
+      markWakeReady(relayUrl: string): void
+    }
+
+    tracker.markRootReady('wss://relay.test/')
+    expect(onReady).not.toHaveBeenCalled()
+
+    tracker.markWakeReady('wss://other.test')
+    expect(onReady).not.toHaveBeenCalled()
+
+    tracker.markWakeReady('wss://relay.test')
+    expect(onReady).toHaveBeenCalledTimes(1)
+    expect(onReady).toHaveBeenCalledWith('wss://relay.test')
+
+    tracker.markRootReady('wss://other.test/')
+    tracker.markWakeReady('wss://relay.test/')
+    expect(onReady).toHaveBeenCalledTimes(1)
+  })
+})
