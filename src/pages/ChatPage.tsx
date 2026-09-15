@@ -121,7 +121,15 @@ export default function ChatPage({ sessionFactory }: ChatPageProps) {
     if (route.kind === 'none' || route.kind === 'invalid') return
 
     const generation = ++generationRef.current
+    let cancelledBeforeStart = false
+
     void (async () => {
+      // React StrictMode intentionally replays effects in development. Defer
+      // transport creation by one microtask so the synthetic first pass can
+      // cancel before Trystero claims the room namespace.
+      await Promise.resolve()
+      if (cancelledBeforeStart || generation !== generationRef.current) return
+
       setBusy(true)
       setPageError(null)
       try {
@@ -143,6 +151,10 @@ export default function ChatPage({ sessionFactory }: ChatPageProps) {
         if (generation === generationRef.current) setBusy(false)
       }
     })()
+
+    return () => {
+      cancelledBeforeStart = true
+    }
   }, [factory, replaceSession, route, snapshot])
 
   useEffect(() => {
