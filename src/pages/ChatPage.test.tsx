@@ -133,6 +133,8 @@ describe('ChatPage client-only party UX', () => {
 
     await waitFor(() => expect(sessionFactory.joinGuestInvite).toHaveBeenCalledTimes(1))
     expect(screen.getByText(/finding host/i)).toBeInTheDocument()
+    expect(screen.getByText('0/8')).toBeInTheDocument()
+    expect(screen.getByText(/host not connected/i)).toBeInTheDocument()
     expect(screen.getByTestId('location')).toHaveTextContent('a=admit')
 
     act(() => guest.emit({ status: 'connected' }))
@@ -141,6 +143,7 @@ describe('ChatPage client-only party UX', () => {
       expect(screen.getByTestId('location')).toHaveTextContent('/chat#v=2&party=party-a&role=guest')
       expect(screen.getByTestId('location')).not.toHaveTextContent('a=admit')
       expect(screen.getByTestId('location')).not.toHaveTextContent('r=rv')
+      expect(screen.getByText('1/8')).toBeInTheDocument()
     })
   })
 
