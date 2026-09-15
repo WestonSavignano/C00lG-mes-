@@ -179,7 +179,7 @@ describe('TrysteroNostrTransport', () => {
       partyId: 'party-a',
       rendezvousCapability: 'rendezvous-a',
       loadModule: async () => module.module,
-      poisonRegistry: new Set(),
+      poisonRegistry,
     })
     await transport.start()
 
