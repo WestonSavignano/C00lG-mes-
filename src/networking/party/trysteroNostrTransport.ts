@@ -205,7 +205,9 @@ export class TrysteroNostrTransport {
         appId: APP_ID,
         password: this.options.rendezvousCapability,
         passive: this.options.role === 'guest',
-        trickleIce: true,
+        // Bundle ICE candidates with the offer/answer so connectivity does not
+        // depend on additional candidate messages surviving public relay loss.
+        trickleIce: false,
         relayConfig: {
           urls: [...PRODUCTION_NOSTR_RELAY_URLS],
           manualReconnection: false,
