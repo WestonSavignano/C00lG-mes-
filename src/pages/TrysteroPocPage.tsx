@@ -13,6 +13,10 @@ import {
   type PocHandshake,
 } from '../networking/poc/trysteroPocModel'
 import {
+  sendPocNostrGuestWake,
+  startPocNostrHostWakeListener,
+} from '../networking/poc/trysteroPocNostrWake'
+import {
   buildPocStrategyConfig,
   getPocModuleUrl,
   parsePocStrategy,
@@ -77,6 +81,8 @@ type TrysteroModule = {
   ): TrysteroRoom
   selfId: string
   getRelaySockets(): Record<string, WebSocket>
+  createEvent(topic: string, content: string): Promise<string>
+  subscribe(subscriptionId: string, topic: string): string
 }
 
 type PeerView = {
@@ -128,7 +134,9 @@ function short(value: string | null) {
 }
 
 function strategyLabel(strategy: PocStrategy) {
-  return strategy === 'torrent' ? 'BitTorrent' : 'Nostr'
+  if (strategy === 'torrent') return 'BitTorrent'
+  if (strategy === 'nostr-wake') return 'Nostr + guest wake'
+  return 'Nostr'
 }
 
 async function loadTrystero(strategy: PocStrategy): Promise<TrysteroModule> {
@@ -244,6 +252,7 @@ export function TrysteroPocPage() {
     let disposed = false
     let refreshTimer: ReturnType<typeof setInterval> | null = null
     let room: TrysteroRoom | null = null
+    let wakeListener: { stop(): void } | null = null
     const peerAppIdentity = peerAppIdentityRef.current
     const guestPeerByIdentity = guestPeerByIdentityRef.current
     const peerConnectedAt = peerConnectedAtRef.current
@@ -399,6 +408,33 @@ export function TrysteroPocPage() {
       setRuntimeState('discovering')
       addLog(`${route.role === 'host' ? 'active host' : 'passive guest'} joined public ${strategyLabel(strategy)} rendezvous`)
 
+      if (strategy === 'nostr-wake') {
+        const sockets = trystero.getRelaySockets()
+        if (route.role === 'host') {
+          wakeListener = await startPocNostrHostWakeListener({
+            appId: 'coolgamesplus-trystero-poc-v1',
+            roomId: route.partyId,
+            rendezvousSecret: route.secret,
+            peerId: trystero.selfId,
+            createEvent: trystero.createEvent,
+            subscribe: trystero.subscribe,
+            sockets,
+          })
+          if (!disposed) addLog('event-driven guest wake listener armed')
+        } else {
+          const wake = await sendPocNostrGuestWake({
+            appId: 'coolgamesplus-trystero-poc-v1',
+            roomId: route.partyId,
+            rendezvousSecret: route.secret,
+            createEvent: trystero.createEvent,
+            sockets,
+          })
+          if (!disposed) {
+            addLog(`one-shot guest wake queued: ${wake.sentImmediately} open relay(s), ${wake.waitingForOpen} connecting relay(s)`)
+          }
+        }
+      }
+
       room.onPeerJoin = (peerId) => {
         if (disposed) {
           return
@@ -456,6 +492,7 @@ export function TrysteroPocPage() {
 
     return () => {
       disposed = true
+      wakeListener?.stop()
       if (refreshTimer) {
         clearInterval(refreshTimer)
       }
@@ -489,7 +526,7 @@ export function TrysteroPocPage() {
       trysteroVersion: TRYSTERO_POC_VERSION,
       strategy,
       moduleSource: getPocModuleUrl(strategy),
-      trickleIce: strategy === 'nostr',
+      trickleIce: strategy !== 'torrent',
       turnConfigured: false,
     },
     browser: {
@@ -537,10 +574,18 @@ export function TrysteroPocPage() {
             <button
               className="trystero-poc__button trystero-poc__button--secondary"
               type="button"
+              aria-pressed={strategy === 'nostr-wake'}
+              onClick={() => selectStrategy('nostr-wake')}
+            >
+              Nostr event-driven wake
+            </button>
+            <button
+              className="trystero-poc__button trystero-poc__button--secondary"
+              type="button"
               aria-pressed={strategy === 'torrent'}
               onClick={() => selectStrategy('torrent')}
             >
-              BitTorrent candidate
+              BitTorrent historical
             </button>
           </div>
           <p>Selected strategy: {strategyLabel(strategy)}</p>
@@ -553,6 +598,7 @@ export function TrysteroPocPage() {
           <h2 id="poc-boundary-heading">What this proves</h2>
           <ul>
             <li>One active host can discover passive guests without a C00lG@mes+ signaling API.</li>
+            <li>The event-driven candidate adds one bounded guest wake instead of a permanent application heartbeat.</li>
             <li>Guests should connect only to the host, not to one another.</li>
             <li>Application identity remains separate from transient Trystero peer identity.</li>
             <li>TURN is intentionally not configured; direct-connect failures are evidence for the decision gate.</li>
