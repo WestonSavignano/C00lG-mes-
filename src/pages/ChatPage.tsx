@@ -7,592 +7,489 @@ import {
   type FormEvent,
 } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { MAX_CHAT_MESSAGE_LENGTH } from '../chat/chatProtocol'
 import BackLink from '../components/BackLink'
 import H1 from '../components/H1'
 import P from '../components/P'
 import Page from '../components/Page'
 import PageHeader from '../components/PageHeader'
-import { MAX_CHAT_HISTORY, MAX_CHAT_MESSAGE_LENGTH } from '../chat/chatProtocol'
+import type {
+  PartySessionClient,
+  PartySessionSnapshot,
+} from '../networking/party/PartySession'
 import {
-  RoomChatController,
-  type RoomChatControllerClient,
-  type RoomChatRole,
-} from '../chat/RoomChatController'
-import type { RoomChatCanonicalMessage } from '../chat/roomChatProtocol'
-import {
-  RoomClient,
-  RoomClientError,
-  type RoomCoordinatorClient,
-} from '../networking/room/RoomClient'
-import {
-  RoomPeerManager,
-  type RoomPeerEvent,
-  type RoomPeerManagerClient,
-} from '../networking/room/RoomPeerManager'
-import {
-  isRoomId,
-  isSecret,
-  type GuestAuth,
-  type HostAuth,
-  type RoomState,
-} from '../networking/room/roomProtocol'
-import { moderateChatText } from '../moderation/moderationConfig'
+  createBrowserPartySessionFactory,
+  type PartySessionFactoryClient,
+  type PartySessionStart,
+} from '../networking/party/createPartySession'
+import { parsePartyHash } from '../networking/party/partyRoutes'
 import './ChatPage.css'
 
-type RoomClientFactory = () => RoomCoordinatorClient
-type PeerManagerFactory = (client: RoomCoordinatorClient) => RoomPeerManagerClient
-type ChatControllerFactory = (
-  peers: RoomPeerManagerClient,
-  role: RoomChatRole,
-) => RoomChatControllerClient
+type HostSessionControls = PartySessionClient & {
+  setLocked(locked: boolean): Promise<void>
+  removeMember(memberId: string): Promise<void>
+}
 
 type ChatPageProps = {
-  roomClientFactory?: RoomClientFactory
-  peerManagerFactory?: PeerManagerFactory
-  chatControllerFactory?: ChatControllerFactory
+  sessionFactory?: PartySessionFactoryClient
 }
 
-type RoomRoute =
-  | { kind: 'none' }
-  | { kind: 'invalid' }
-  | { kind: 'host'; roomId: string; hostSecret: string; inviteSecret: string }
-  | { kind: 'guest'; roomId: string; inviteSecret: string }
+type DiscoveryDelay = {
+  key: string
+  level: 'slow' | 'retry'
+} | null
 
-type PeerStates = Record<string, string>
-
-function createDefaultRoomClient() {
-  return new RoomClient()
+function isHostControls(session: PartySessionClient | null): session is HostSessionControls {
+  return Boolean(session
+    && 'setLocked' in session
+    && typeof session.setLocked === 'function'
+    && 'removeMember' in session
+    && typeof session.removeMember === 'function')
 }
 
-function createDefaultPeerManager(client: RoomCoordinatorClient) {
-  return new RoomPeerManager(client)
-}
-
-function createDefaultChatController(peers: RoomPeerManagerClient, role: RoomChatRole) {
-  return new RoomChatController(peers, role)
-}
-
-function parseRoomRoute(hash: string): RoomRoute {
-  const params = new URLSearchParams(hash.replace(/^#/u, ''))
-  const roomId = params.get('room')
-  const hostSecret = params.get('host')
-  const inviteSecret = params.get('invite')
-
-  if (!roomId && !hostSecret && !inviteSecret) {
-    return { kind: 'none' }
-  }
-  if (!roomId || !isRoomId(roomId)) {
-    return { kind: 'invalid' }
-  }
-  if (hostSecret) {
-    if (!isSecret(hostSecret) || !inviteSecret || !isSecret(inviteSecret)) {
-      return { kind: 'invalid' }
-    }
-    return { kind: 'host', roomId, hostSecret, inviteSecret }
-  }
-  if (inviteSecret && isSecret(inviteSecret)) {
-    return { kind: 'guest', roomId, inviteSecret }
-  }
-  return { kind: 'invalid' }
-}
-
-function roomClientErrorMessage(error: unknown) {
-  if (!(error instanceof RoomClientError)) {
-    return 'Chat rooms are temporarily unavailable. Try again shortly.'
-  }
-
-  switch (error.code) {
-    case 'room_locked':
-      return 'This room is locked. Ask the host to unlock it before joining.'
-    case 'room_full':
-      return 'This room is full.'
-    case 'member_removed':
-      return 'You were removed from this room.'
-    case 'room_not_found':
-      return 'This room no longer exists or has expired.'
-    case 'invalid_credentials':
-      return 'This room link is invalid.'
-    case 'aborted':
-      return ''
-    default:
-      return 'Chat rooms are temporarily unavailable. Try again shortly.'
+function statusText(snapshot: PartySessionSnapshot) {
+  switch (snapshot.status) {
+    case 'starting': return 'Starting Chat…'
+    case 'waiting': return 'Waiting for guests…'
+    case 'finding-host': return 'Finding host…'
+    case 'connected': return 'Connected'
+    case 'reconnecting': return 'Reconnecting…'
+    case 'removed': return 'You were removed from this Chat.'
+    case 'reload-required': return 'Reload this page to reconnect safely.'
+    case 'error': return snapshot.error ?? 'Chat could not connect.'
   }
 }
 
-function buildGuestInvite(roomId: string, inviteSecret: string, pathname: string) {
-  const url = new URL(pathname, window.location.origin)
-  url.hash = new URLSearchParams({ room: roomId, invite: inviteSecret }).toString()
-  return url.toString()
+function routeMatchesSession(
+  route: ReturnType<typeof parsePartyHash>,
+  snapshot: PartySessionSnapshot | null,
+) {
+  if (!snapshot || !('partyId' in route) || route.partyId !== snapshot.partyId) return false
+  if (route.kind === 'host') return snapshot.role === 'host'
+  if (route.kind === 'guest' || route.kind === 'guest-invite') return snapshot.role === 'guest'
+  return false
 }
 
-function ChatPageSession({
-  roomClientFactory = createDefaultRoomClient,
-  peerManagerFactory = createDefaultPeerManager,
-  chatControllerFactory = createDefaultChatController,
-}: ChatPageProps) {
+export default function ChatPage({ sessionFactory }: ChatPageProps) {
   const location = useLocation()
   const navigate = useNavigate()
-  const route = useMemo(() => parseRoomRoute(location.hash), [location.hash])
-  const [isCreating, setIsCreating] = useState(false)
-  const [roomState, setRoomState] = useState<RoomState | null>(null)
-  const [peerStates, setPeerStates] = useState<PeerStates>({})
-  const [messages, setMessages] = useState<RoomChatCanonicalMessage[]>([])
-  const [messageInput, setMessageInput] = useState('')
-  const [selfMemberId, setSelfMemberId] = useState<string | null>(
-    route.kind === 'host' ? 'host' : null,
+  const factory = useMemo(
+    () => sessionFactory ?? createBrowserPartySessionFactory(),
+    [sessionFactory],
   )
-  const [selfLabel, setSelfLabel] = useState(route.kind === 'host' ? 'Host' : '')
-  const [statusText, setStatusText] = useState(
-    route.kind === 'guest' ? 'Joining…' : route.kind === 'host' ? 'Waiting for guests…' : '',
-  )
-  const [error, setError] = useState<string | null>(
-    route.kind === 'invalid' ? 'This chat room link is invalid.' : null,
-  )
-  const [copyStatus, setCopyStatus] = useState<string | null>(null)
-  const setupGenerationRef = useRef(0)
-  const clientRef = useRef<RoomCoordinatorClient | null>(null)
-  const peersRef = useRef<RoomPeerManagerClient | null>(null)
-  const chatRef = useRef<RoomChatControllerClient | null>(null)
-  const unsubscribeRefs = useRef<Array<() => void>>([])
+  const route = useMemo(() => parsePartyHash(location.hash), [location.hash])
+  const sessionRef = useRef<PartySessionClient | null>(null)
+  const unsubscribeRef = useRef<(() => void) | null>(null)
+  const startMetaRef = useRef<Pick<PartySessionStart, 'canonicalHash' | 'scrubInviteAfterConnect'> | null>(null)
+  const generationRef = useRef(0)
+  const intentionalLeaveRef = useRef(false)
+  const [snapshot, setSnapshot] = useState<PartySessionSnapshot | null>(null)
+  const [pageError, setPageError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [draft, setDraft] = useState('')
+  const [copied, setCopied] = useState(false)
+  const [discoveryDelay, setDiscoveryDelay] = useState<DiscoveryDelay>(null)
 
-  const appendMessage = useCallback((message: RoomChatCanonicalMessage) => {
-    setMessages((current) => [...current, message].slice(-MAX_CHAT_HISTORY))
+  const replaceSession = useCallback(async (start: PartySessionStart) => {
+    unsubscribeRef.current?.()
+    const previous = sessionRef.current
+    if (previous && previous !== start.session) {
+      await previous.dispose()
+    }
+    sessionRef.current = start.session
+    startMetaRef.current = {
+      canonicalHash: start.canonicalHash,
+      scrubInviteAfterConnect: start.scrubInviteAfterConnect,
+    }
+    setSnapshot(start.session.getSnapshot())
+    unsubscribeRef.current = start.session.subscribe(setSnapshot)
+    setPageError(null)
   }, [])
 
-  const teardown = useCallback(() => {
-    for (const unsubscribe of unsubscribeRefs.current) {
-      unsubscribe()
-    }
-    unsubscribeRefs.current = []
-    chatRef.current?.close()
-    chatRef.current = null
-    peersRef.current?.close()
-    peersRef.current = null
-    clientRef.current?.close()
-    clientRef.current = null
-  }, [])
-
-  const handlePeerEvent = useCallback((event: RoomPeerEvent) => {
-    if (event.type === 'room-state') {
-      setRoomState(event.state)
-      return
-    }
-    if (event.type === 'peer-state') {
-      setPeerStates((current) => ({ ...current, [event.memberId]: event.state }))
-      return
-    }
-    if (event.type === 'removed') {
-      setStatusText('Removed from room')
-      setError('You were removed from this room.')
-      return
-    }
-    if (event.type === 'error') {
-      const message = roomClientErrorMessage(event.error)
-      if (message) {
-        setError(message)
-      }
-    }
-  }, [])
+  const navigateToHash = useCallback((hash: string) => {
+    navigate({ pathname: location.pathname, search: location.search, hash }, { replace: true })
+  }, [location.pathname, location.search, navigate])
 
   useEffect(() => {
-    setupGenerationRef.current += 1
-    const setupGeneration = setupGenerationRef.current
-
-    if (route.kind === 'none' || route.kind === 'invalid') {
-      return () => {
-        setupGenerationRef.current += 1
-        teardown()
+    if (intentionalLeaveRef.current) {
+      if (route.kind === 'none') {
+        intentionalLeaveRef.current = false
       }
+      return
     }
+    if (routeMatchesSession(route, snapshot)) return
+    if (route.kind === 'none' || route.kind === 'invalid') return
 
-    const client = roomClientFactory()
-    clientRef.current = client
+    const generation = ++generationRef.current
+    let cancelledBeforeStart = false
 
-    const startRoom = async () => {
+    void (async () => {
+      // React StrictMode intentionally replays effects in development. Defer
+      // transport creation by one microtask so the synthetic first pass can
+      // cancel before Trystero claims the room namespace.
+      await Promise.resolve()
+      if (cancelledBeforeStart || generation !== generationRef.current) return
+
+      setBusy(true)
+      setPageError(null)
       try {
-        let role: RoomChatRole
-        let hostAuth: HostAuth | null = null
-        let guestAuth: GuestAuth | null = null
+        let start: PartySessionStart
+        if (route.kind === 'host') start = await factory.restoreHost(route.partyId)
+        else if (route.kind === 'guest') start = await factory.restoreGuest(route.partyId)
+        else start = await factory.joinGuestInvite(route)
 
-        if (route.kind === 'host') {
-          role = 'host'
-          hostAuth = {
-            role: 'host',
-            roomId: route.roomId,
-            hostSecret: route.hostSecret,
-          }
-        } else {
-          role = 'guest'
-          const joined = await client.joinOrResume(route.roomId, route.inviteSecret)
-          if (setupGenerationRef.current !== setupGeneration) {
-            return
-          }
-          guestAuth = {
-            role: 'guest',
-            roomId: route.roomId,
-            memberId: joined.memberId,
-            memberSecret: joined.memberSecret,
-          }
-          setSelfMemberId(joined.memberId)
-          setSelfLabel(joined.label)
-          setStatusText('Reconnecting…')
-        }
-
-        if (setupGenerationRef.current !== setupGeneration) {
+        if (generation !== generationRef.current) {
+          await start.session.dispose()
           return
         }
-
-        const peers = peerManagerFactory(client)
-        peersRef.current = peers
-        const chat = chatControllerFactory(peers, role)
-        chatRef.current = chat
-        unsubscribeRefs.current = [
-          peers.onEvent(handlePeerEvent),
-          chat.onMessage(appendMessage),
-        ]
-
-        if (hostAuth) {
-          peers.startHost(hostAuth)
-        } else if (guestAuth) {
-          peers.startGuest(guestAuth)
+        await replaceSession(start)
+      } catch (error) {
+        if (generation === generationRef.current) {
+          setPageError(error instanceof Error ? error.message : 'Chat could not start.')
         }
-      } catch (setupError) {
-        if (setupGenerationRef.current !== setupGeneration) {
-          return
-        }
-        const message = roomClientErrorMessage(setupError)
-        if (message) {
-          setError(message)
-        }
-        if (setupError instanceof RoomClientError && setupError.code === 'member_removed') {
-          setStatusText('Removed from room')
-        } else {
-          setStatusText('Unable to join room')
-        }
+      } finally {
+        if (generation === generationRef.current) setBusy(false)
       }
-    }
-
-    void startRoom()
+    })()
 
     return () => {
-      setupGenerationRef.current += 1
-      teardown()
+      cancelledBeforeStart = true
     }
-  }, [
-    appendMessage,
-    chatControllerFactory,
-    handlePeerEvent,
-    peerManagerFactory,
-    roomClientFactory,
-    route,
-    teardown,
-  ])
+  }, [factory, replaceSession, route, snapshot])
 
-  const handleStartChat = async () => {
-    if (isCreating) {
-      return
+  useEffect(() => {
+    const meta = startMetaRef.current
+    if (!meta?.scrubInviteAfterConnect || snapshot?.status !== 'connected') return
+    meta.scrubInviteAfterConnect = false
+    navigateToHash(meta.canonicalHash)
+  }, [navigateToHash, snapshot?.status])
+
+  const waitingForHost = snapshot?.role === 'guest'
+    && (snapshot.status === 'finding-host' || snapshot.status === 'reconnecting')
+  const discoveryKey = waitingForHost ? `${snapshot.partyId}:${snapshot.status}` : null
+  const visibleDiscoveryDelay = discoveryDelay?.key === discoveryKey ? discoveryDelay.level : 'none'
+
+  useEffect(() => {
+    if (!discoveryKey) return
+
+    const slowTimer = window.setTimeout(
+      () => setDiscoveryDelay({ key: discoveryKey, level: 'slow' }),
+      10_000,
+    )
+    const retryTimer = window.setTimeout(
+      () => setDiscoveryDelay({ key: discoveryKey, level: 'retry' }),
+      75_000,
+    )
+    return () => {
+      window.clearTimeout(slowTimer)
+      window.clearTimeout(retryTimer)
     }
-    setIsCreating(true)
-    setError(null)
-    const client = roomClientFactory()
+  }, [discoveryKey])
+
+  useEffect(() => () => {
+    generationRef.current += 1
+    unsubscribeRef.current?.()
+    const session = sessionRef.current
+    sessionRef.current = null
+    if (session) void session.dispose()
+  }, [])
+
+  const startHost = useCallback(async () => {
+    setBusy(true)
+    setPageError(null)
+    const generation = ++generationRef.current
+    try {
+      const start = await factory.startHost()
+      if (generation !== generationRef.current) {
+        await start.session.dispose()
+        return
+      }
+      await replaceSession(start)
+      navigateToHash(start.canonicalHash)
+    } catch (error) {
+      setPageError(error instanceof Error ? error.message : 'Chat could not start.')
+    } finally {
+      if (generation === generationRef.current) setBusy(false)
+    }
+  }, [factory, navigateToHash, replaceSession])
+
+  const retryGuestConnection = useCallback(async () => {
+    const current = sessionRef.current
+    const currentSnapshot = snapshot
+    if (!current || currentSnapshot?.role !== 'guest') return
+
+    const generation = ++generationRef.current
+    setBusy(true)
+    setPageError(null)
+    unsubscribeRef.current?.()
+    unsubscribeRef.current = null
+    sessionRef.current = null
+    startMetaRef.current = null
 
     try {
-      const created = await client.createRoom()
-      const hash = new URLSearchParams({
-        room: created.roomId,
-        host: created.hostSecret,
-        invite: created.inviteSecret,
-      }).toString()
-      client.close()
-      setIsCreating(false)
-      navigate(`/chat#${hash}`, { replace: true })
-    } catch (creationError) {
-      client.close()
-      const message = roomClientErrorMessage(creationError)
-      if (message) {
-        setError(message)
+      const cleanup = await current.dispose()
+      if (cleanup.requiresReload) {
+        setSnapshot({ ...currentSnapshot, status: 'reload-required', error: null })
+        return
       }
-      setIsCreating(false)
-    }
-  }
 
-  const handleRoomLock = async (locked: boolean) => {
-    if (route.kind !== 'host' || !clientRef.current) {
-      return
+      const start = await factory.restoreGuest(currentSnapshot.partyId)
+      if (generation !== generationRef.current) {
+        await start.session.dispose()
+        return
+      }
+      await replaceSession(start)
+    } catch (error) {
+      if (generation === generationRef.current) {
+        setPageError(error instanceof Error ? error.message : 'Chat could not reconnect.')
+      }
+    } finally {
+      if (generation === generationRef.current) setBusy(false)
     }
-    setError(null)
+  }, [factory, replaceSession, snapshot])
+
+  const copyInvite = useCallback(async () => {
+    if (!snapshot?.inviteUrl) return
     try {
-      const state = await clientRef.current.setLocked({
-        role: 'host',
-        roomId: route.roomId,
-        hostSecret: route.hostSecret,
-      }, locked)
-      peersRef.current?.setRoomLocked(state.locked)
-      setRoomState(state)
-    } catch (controlError) {
-      const message = roomClientErrorMessage(controlError)
-      if (message) {
-        setError(message)
-      }
+      await navigator.clipboard.writeText(snapshot.inviteUrl)
+      setCopied(true)
+    } catch {
+      setPageError('Copy failed. Select the invite link and copy it manually.')
     }
-  }
+  }, [snapshot])
 
-  const handleRemoveMember = async (memberId: string) => {
-    if (route.kind !== 'host' || !clientRef.current) {
-      return
-    }
-    setError(null)
+  const shareInvite = useCallback(async () => {
+    if (!snapshot?.inviteUrl) return
     try {
-      const state = await clientRef.current.removeMember({
-        role: 'host',
-        roomId: route.roomId,
-        hostSecret: route.hostSecret,
-      }, memberId)
-      peersRef.current?.removePeer(memberId)
-      setRoomState(state)
-    } catch (controlError) {
-      const message = roomClientErrorMessage(controlError)
-      if (message) {
-        setError(message)
+      if (navigator.share) {
+        await navigator.share({ title: 'Join my C00lG@mes+ Chat', url: snapshot.inviteUrl })
+      } else {
+        await navigator.clipboard.writeText(snapshot.inviteUrl)
+        setCopied(true)
       }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return
+      setPageError('Sharing failed. You can still copy the invite link manually.')
     }
-  }
+  }, [snapshot])
 
-  const handleSendMessage = (event: FormEvent<HTMLFormElement>) => {
+  const toggleLock = useCallback(async () => {
+    const session = sessionRef.current
+    if (!snapshot || !isHostControls(session)) return
+    try {
+      await session.setLocked(!snapshot.locked)
+    } catch (error) {
+      setPageError(error instanceof Error ? error.message : 'Chat lock could not be changed.')
+    }
+  }, [snapshot])
+
+  const removeMember = useCallback(async (memberId: string) => {
+    const session = sessionRef.current
+    if (!isHostControls(session)) return
+    try {
+      await session.removeMember(memberId)
+    } catch (error) {
+      setPageError(error instanceof Error ? error.message : 'That guest could not be removed.')
+    }
+  }, [])
+
+  const submitMessage = useCallback(async (event: FormEvent) => {
     event.preventDefault()
-    if (!messageInput.trim() || !chatRef.current) {
-      return
+    const text = draft.trim()
+    const session = sessionRef.current
+    if (!session || !text) return
+    try {
+      await session.sendMessage(text)
+      setDraft('')
+      setPageError(null)
+    } catch (error) {
+      setPageError(error instanceof Error ? error.message : 'Message could not be sent.')
     }
+  }, [draft])
+
+  const leaveChat = useCallback(async () => {
+    intentionalLeaveRef.current = true
+    generationRef.current += 1
+    unsubscribeRef.current?.()
+    unsubscribeRef.current = null
+    const session = sessionRef.current
+    sessionRef.current = null
+    startMetaRef.current = null
+    setBusy(true)
 
     try {
-      chatRef.current.send(messageInput)
-      setMessageInput('')
-      setError(null)
-    } catch {
-      setError('Your connection is not ready yet. Try again when it reconnects.')
+      if (session) await session.dispose()
+    } finally {
+      setSnapshot(null)
+      setPageError(null)
+      setDraft('')
+      setCopied(false)
+      setBusy(false)
+      navigateToHash('')
     }
-  }
+  }, [navigateToHash])
 
-  const copyText = async (label: string, value: string) => {
-    setCopyStatus(null)
-    try {
-      if (!navigator.clipboard) {
-        throw new Error('Clipboard unavailable')
-      }
-      await navigator.clipboard.writeText(value)
-      setCopyStatus(`${label} copied.`)
-    } catch {
-      setCopyStatus(`Select and copy the ${label.toLowerCase()} manually.`)
-    }
-  }
-
-  const restart = () => {
-    setupGenerationRef.current += 1
-    teardown()
-    navigate('/chat', { replace: true })
-  }
-
-  const connectedGuestCount = roomState?.members.filter((member) => (
-    !member.removed && peerStates[member.memberId] === 'connected'
-  )).length ?? 0
-  const guestConnected = peerStates.host === 'connected'
-  const canSend = route.kind === 'host' || (route.kind === 'guest' && guestConnected)
-  const guestStatusText = route.kind === 'guest'
-    ? statusText === 'Removed from room' || statusText === 'Unable to join room'
-      ? statusText
+  const canSend = snapshot?.role === 'host' || snapshot?.status === 'connected'
+  const guestConnected = snapshot?.role === 'guest' && snapshot.status === 'connected'
+  const visibleMembers = snapshot?.role === 'guest' && !guestConnected ? [] : (snapshot?.members ?? [])
+  const localGuestListed = snapshot?.role === 'guest'
+    && visibleMembers.some((member) => member.memberId === snapshot.localMemberId)
+  const peopleCount = !snapshot
+    ? 0
+    : snapshot.role === 'host'
+      ? visibleMembers.length + 1
       : guestConnected
-        ? 'Connected'
-        : selfMemberId
-          ? 'Reconnecting…'
-          : statusText || 'Joining…'
-    : statusText
-
-  let shareUrl = ''
-  if (route.kind === 'host') {
-    shareUrl = buildGuestInvite(route.roomId, route.inviteSecret, location.pathname)
-  }
+        ? Math.max(visibleMembers.length + 1, 2)
+        : 0
+  const routeError = route.kind === 'invalid'
+    ? 'This Chat link is incomplete or no longer valid.'
+    : null
 
   return (
     <Page className="chat-page">
-      <PageHeader>
-        <BackLink to="/">Home</BackLink>
-        <H1>Chat</H1>
-        <P>Durable rooms with direct browser-to-browser messaging and automatic reconnect after refresh.</P>
-      </PageHeader>
-
       <div className="chat-shell">
-        {route.kind === 'none' ? (
-          <section className="chat-card chat-card--intro" aria-labelledby="start-chat-title">
-            <p className="chat-eyebrow">Private room</p>
-            <h2 id="start-chat-title">Start a chat room</h2>
-            <p>Create one durable room, share one invite, and let your group reconnect without repeating WebRTC setup.</p>
-            <button
-              className="chat-button chat-button--primary"
-              disabled={isCreating}
-              onClick={handleStartChat}
-              type="button"
-            >
-              {isCreating ? 'Starting…' : 'Start Chat'}
+        <BackLink to="/">Back to C00lG@mes+</BackLink>
+        <PageHeader>
+          <H1>{snapshot?.role === 'host' ? 'Your Chat' : 'Chat'}</H1>
+          <P>
+            Start a small private party, share one invite link, and keep chatting while the host is online.
+          </P>
+        </PageHeader>
+
+        {!snapshot ? (
+          <section className="chat-card" aria-label="Start Chat">
+            <h2>Start a Chat</h2>
+            <p>The browser that starts the Chat is the host. Keep this tab available while guests are using the party.</p>
+            <button className="chat-button chat-button--primary" type="button" disabled={busy} onClick={() => void startHost()}>
+              {busy ? 'Starting…' : 'Start Chat'}
             </button>
           </section>
-        ) : null}
-
-        {route.kind === 'invalid' ? (
-          <section className="chat-card">
-            <p className="chat-eyebrow">Invalid room</p>
-            <h2>That chat link cannot be opened</h2>
-            <p>Ask the host for a fresh invite or start a new room.</p>
-          </section>
-        ) : null}
-
-        {route.kind === 'host' ? (
-          <section className="chat-card" aria-labelledby="room-controls-title">
-            <div className="chat-room-heading">
+        ) : (
+          <>
+            <section className="chat-card chat-room-grid" aria-label="Chat controls">
               <div>
-                <p className="chat-eyebrow">Host controls</p>
-                <h2 id="room-controls-title">Your room</h2>
-              </div>
-              <span className="chat-connected-indicator">
-                {roomState?.locked ? 'Locked' : 'Open'}
-              </span>
-            </div>
-            <p>Share the invite below—not the private host URL in your address bar.</p>
-            <label className="chat-field">
-              <span>Guest invite</span>
-              <input aria-label="Guest invite" readOnly type="text" value={shareUrl} />
-            </label>
-            <div className="chat-actions">
-              <button className="chat-button" onClick={() => copyText('Guest invite', shareUrl)} type="button">
-                Copy invite
-              </button>
-              <button
-                className="chat-button"
-                onClick={() => void handleRoomLock(!roomState?.locked)}
-                type="button"
-              >
-                {roomState?.locked ? 'Unlock room' : 'Lock room'}
-              </button>
-            </div>
-            <p className="chat-status" role="status">
-              {connectedGuestCount > 0
-                ? `${connectedGuestCount} guest${connectedGuestCount === 1 ? '' : 's'} connected`
-                : 'Waiting for guests…'}
-            </p>
-          </section>
-        ) : null}
-
-        {(route.kind === 'host' || route.kind === 'guest') ? (
-          <section className="chat-room-grid">
-            <aside className="chat-card chat-roster" aria-label="Room members">
-              <p className="chat-eyebrow">People</p>
-              <div className="chat-member-row">
-                <div>
-                  <strong>Host</strong>
-                  <span>{route.kind === 'host' ? 'You' : peerStates.host === 'connected' ? 'Online' : 'Reconnecting'}</span>
-                </div>
-              </div>
-              {roomState?.members.filter((member) => !member.removed).map((member) => (
-                <div className="chat-member-row" key={member.memberId}>
-                  <div>
-                    <strong>{member.label}{member.memberId === selfMemberId ? ' (You)' : ''}</strong>
-                    <span>
-                      {peerStates[member.memberId] === 'connected' || (route.kind === 'guest' && member.memberId === selfMemberId)
-                        ? 'Online'
-                        : member.present ? 'Connecting' : 'Offline'}
-                    </span>
+                <span className="chat-eyebrow">Party status</span>
+                <p className={`chat-status chat-status--${snapshot.status}`}>{statusText(snapshot)}</p>
+                <p className="chat-room-id">Party {snapshot.partyId}</p>
+                {visibleDiscoveryDelay === 'slow' ? (
+                  <p className="chat-note">Finding the host can take a little longer on some networks.</p>
+                ) : null}
+                {visibleDiscoveryDelay === 'retry' ? (
+                  <div className="chat-retry-panel">
+                    <p className="chat-note">Finding the host is taking longer than expected.</p>
+                    <button className="chat-button" type="button" disabled={busy} onClick={() => void retryGuestConnection()}>
+                      Retry
+                    </button>
                   </div>
-                  {route.kind === 'host' ? (
+                ) : null}
+              </div>
+
+              {snapshot.role === 'host' && (
+                <div className="chat-invite-panel">
+                  <label className="chat-field">
+                    <span>Guest invite</span>
+                    {snapshot.inviteUrl ? (
+                      <input readOnly value={snapshot.inviteUrl} aria-label="Guest invite link" onFocus={(event) => event.currentTarget.select()} />
+                    ) : (
+                      <input readOnly value="Chat is locked" aria-label="Guest invite link" />
+                    )}
+                  </label>
+                  <div className="chat-actions">
+                    <button className="chat-button" type="button" disabled={!snapshot.inviteUrl} onClick={() => void copyInvite()}>
+                      {copied ? 'Copied' : 'Copy Invite'}
+                    </button>
+                    <button className="chat-button" type="button" disabled={!snapshot.inviteUrl} onClick={() => void shareInvite()}>
+                      Share Invite
+                    </button>
+                    <button className="chat-button" type="button" onClick={() => void toggleLock()}>
+                      {snapshot.locked ? 'Unlock Chat' : 'Lock Chat'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </section>
+
+            <section className="chat-card chat-roster" aria-label="People in Chat">
+              <div className="chat-section-heading">
+                <h2>People</h2>
+                <span>{peopleCount === 1 ? '1 person' : `${peopleCount} people`}</span>
+              </div>
+              <div className="chat-member-row">
+                <span>Host</span>
+                <strong>{snapshot.role === 'host' ? 'You' : guestConnected ? 'Host' : 'Host not connected'}</strong>
+              </div>
+              {snapshot.role === 'guest' && guestConnected && !localGuestListed ? (
+                <div className="chat-member-row">
+                  <span>{snapshot.localLabel}</span>
+                  <strong>You</strong>
+                </div>
+              ) : null}
+              {visibleMembers.map((member) => (
+                <div className="chat-member-row" key={member.memberId}>
+                  <span>{member.label}</span>
+                  {snapshot.role === 'host' ? (
                     <button
-                      className="chat-button chat-button--small"
-                      onClick={() => void handleRemoveMember(member.memberId)}
+                      className="chat-button chat-button--danger"
                       type="button"
+                      aria-label={`Remove ${member.label}`}
+                      onClick={() => void removeMember(member.memberId)}
                     >
                       Remove
                     </button>
-                  ) : null}
+                  ) : member.memberId === snapshot.localMemberId ? <strong>You</strong> : <span>Guest</span>}
                 </div>
               ))}
-            </aside>
+            </section>
 
-            <section className="chat-panel" aria-label="Room chat">
-              <div className="chat-panel__header">
-                <div>
-                  <p className="chat-eyebrow">{selfLabel || (route.kind === 'host' ? 'Host' : 'Room member')}</p>
-                  <h2>{route.kind === 'guest' ? guestStatusText : 'Room chat'}</h2>
-                </div>
-                <span className="chat-connected-indicator">
-                  {route.kind === 'host'
-                    ? `${connectedGuestCount} connected`
-                    : guestConnected ? 'Peer-to-peer' : 'Reconnecting'}
-                </span>
-              </div>
-
+            <section className="chat-panel" aria-label="Chat messages">
               <div className="chat-messages" aria-live="polite">
-                {messages.length === 0 ? (
-                  <p className="chat-empty">
-                    {canSend ? 'Send the first message.' : 'Messages become available when the connection is ready.'}
-                  </p>
-                ) : messages.map((message) => {
-                  const isLocal = message.sender.memberId === selfMemberId
-                  return (
-                    <article
-                      className={`chat-message chat-message--${isLocal ? 'local' : 'remote'}`}
-                      key={message.id}
-                    >
-                      <span>{isLocal ? 'You' : message.sender.label}</span>
-                      <p>{moderateChatText(message.payload.text)}</p>
-                    </article>
-                  )
-                })}
+                {snapshot.messages.length === 0 ? (
+                  <p className="chat-empty">No messages yet.</p>
+                ) : snapshot.messages.map((message) => (
+                  <article
+                    className={`chat-message ${message.sender.memberId === snapshot.localMemberId ? 'chat-message--local' : 'chat-message--remote'}`}
+                    key={`${message.id}-${message.sentAt}`}
+                  >
+                    <strong>{message.sender.memberId === snapshot.localMemberId ? 'You' : message.sender.label}</strong>
+                    <p>{message.text}</p>
+                  </article>
+                ))}
               </div>
-
-              <form className="chat-composer" onSubmit={handleSendMessage}>
-                <label className="chat-field chat-field--message">
+              <form className="chat-composer" onSubmit={(event) => void submitMessage(event)}>
+                <label className="chat-field">
                   <span>Message</span>
                   <input
                     aria-label="Message"
                     autoComplete="off"
-                    disabled={!canSend}
                     maxLength={MAX_CHAT_MESSAGE_LENGTH}
-                    onChange={(event) => setMessageInput(event.target.value)}
-                    placeholder={canSend ? 'Message the room' : 'Reconnecting…'}
-                    type="text"
-                    value={messageInput}
+                    value={draft}
+                    disabled={!canSend || snapshot.status === 'removed'}
+                    onChange={(event) => setDraft(event.currentTarget.value)}
+                    placeholder={canSend ? 'Type a message…' : 'Waiting for the host…'}
                   />
                 </label>
-                <button
-                  className="chat-button chat-button--primary"
-                  disabled={!canSend || !messageInput.trim()}
-                  type="submit"
-                >
+                <button className="chat-button chat-button--primary" type="submit" disabled={!canSend || !draft.trim()}>
                   Send
                 </button>
               </form>
             </section>
-          </section>
-        ) : null}
+          </>
+        )}
 
-        {error ? <p className="chat-error" role="alert">{error}</p> : null}
-        {copyStatus ? <p className="chat-copy-status" role="status">{copyStatus}</p> : null}
+        {(pageError || routeError || snapshot?.error) && (
+          <p className="chat-error" role="alert">{pageError ?? routeError ?? snapshot?.error}</p>
+        )}
 
-        {route.kind !== 'none' ? (
-          <button className="chat-button chat-button--quiet" onClick={restart} type="button">
-            Leave room
+        {location.hash ? (
+          <button className="chat-button chat-button--quiet" type="button" disabled={busy} onClick={() => void leaveChat()}>
+            Leave Chat
           </button>
         ) : null}
 
-        <aside className="chat-note">
-          <strong>Room privacy</strong>
-          <p>Vercel coordinates room membership and short-lived WebRTC signaling only. Chat messages are not stored by the coordinator and travel over WebRTC data channels.</p>
-        </aside>
+        <p className="chat-note">
+          Chat is hosted by the player who started the party. Public connection services help browsers find each other; C00lG@mes+ does not run a dynamic Chat coordinator or store the party in the cloud.
+        </p>
       </div>
     </Page>
   )
 }
-
-function ChatPage(props: ChatPageProps) {
-  const location = useLocation()
-  return <ChatPageSession key={location.hash} {...props} />
-}
-
-export default ChatPage

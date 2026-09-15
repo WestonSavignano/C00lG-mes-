@@ -74,17 +74,17 @@ describe('App routes', () => {
       .toHaveAttribute('href', '/games/neon-drift')
   })
 
-  it('renders the canonical Chat route', () => {
+  it('renders the canonical Chat route', async () => {
     renderRoute('/chat')
 
-    expect(screen.getByRole('heading', { level: 1, name: 'Chat' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Chat' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Start Chat' })).toBeInTheDocument()
   })
 
-  it('redirects legacy Soundboard routes to Chat', () => {
+  it('redirects legacy Soundboard routes to Chat', async () => {
     renderRoute('/soundboard')
 
-    expect(screen.getByRole('heading', { level: 1, name: 'Chat' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Chat' })).toBeInTheDocument()
   })
 
   it('renders the complete catalog as visual game tiles', () => {
