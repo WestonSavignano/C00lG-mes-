@@ -63,8 +63,14 @@ describe('POC Nostr EOSE adapter', () => {
       defaultRelayUrls: ['wss://relay.test'],
     }
     const observe = vi.fn()
+    const observeMessage = vi.fn()
 
-    const module = createPocNostrEoseModule({ core, nostr, observe })
+    const module = createPocNostrEoseModule({
+      core,
+      nostr,
+      observe,
+      observeMessage,
+    })
     expect(module.joinRoom).toBe(joinRoom)
     expect(adapter).not.toBeNull()
 
@@ -91,7 +97,7 @@ describe('POC Nostr EOSE adapter', () => {
     ]))
     expect(onMessage).toHaveBeenCalledWith('root-topic', hostAnnouncement)
     expect(onRootReady).not.toHaveBeenCalled()
-    expect(observe).toHaveBeenCalledWith({
+    expect(observeMessage).toHaveBeenCalledWith({
       stage: 'trystero-message-received',
       relayUrl: 'wss://relay.test',
       messageKind: 'announcement',
@@ -103,13 +109,13 @@ describe('POC Nostr EOSE adapter', () => {
       JSON.stringify({ peerId: 'guest-transport-secret', offer: 'encrypted-sdp-secret' }),
       { kind: 'signal' },
     )
-    expect(observe).toHaveBeenCalledWith({
+    expect(observeMessage).toHaveBeenCalledWith({
       stage: 'trystero-message-published',
       relayUrl: 'wss://relay.test',
       messageKind: 'offer',
     })
 
-    const serializedObservations = JSON.stringify(observe.mock.calls)
+    const serializedObservations = JSON.stringify(observeMessage.mock.calls)
     expect(serializedObservations).not.toContain('host-transport-secret')
     expect(serializedObservations).not.toContain('guest-transport-secret')
     expect(serializedObservations).not.toContain('encrypted-sdp-secret')
