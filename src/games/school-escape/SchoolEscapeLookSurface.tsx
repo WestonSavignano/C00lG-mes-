@@ -89,10 +89,18 @@ function SchoolEscapeLookSurface({ look }: SchoolEscapeLookSurfaceProps) {
   }, [clearInterruptedLook])
 
   useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        clearInterruptedLook()
+      }
+    }
+
     window.addEventListener('blur', clearInterruptedLook)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
 
     return () => {
       window.removeEventListener('blur', clearInterruptedLook)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
       clearInterruptedLook()
     }
   }, [clearInterruptedLook])
