@@ -3,6 +3,7 @@ import BackLink from '../components/BackLink'
 import H1 from '../components/H1'
 import P from '../components/P'
 import Page from '../components/Page'
+import { buildSafePocDiagnostics } from '../networking/poc/trysteroPocDiagnostics'
 import {
   buildPartyUrl,
   evaluateGuestAdmission,
@@ -125,13 +126,6 @@ function websocketState(state: number) {
     default:
       return `unknown (${state})`
   }
-}
-
-function short(value: string | null) {
-  if (!value) {
-    return '—'
-  }
-  return value.length > 16 ? `${value.slice(0, 8)}…${value.slice(-6)}` : value
 }
 
 function strategyLabel(strategy: PocStrategy) {
@@ -330,7 +324,7 @@ export function TrysteroPocPage() {
       }
 
       setAppIdentity(localIdentity)
-      addLog(`${route.role} application identity restored: ${short(localIdentity)}`)
+      addLog(`${route.role} application identity restored`)
       addLog(`loading Trystero ${TRYSTERO_POC_VERSION} ${strategyLabel(strategy)} strategy`)
 
       const trystero = await loadTrystero(strategy)
@@ -339,7 +333,7 @@ export function TrysteroPocPage() {
       }
       trysteroRef.current = trystero
       setTransportIdentity(trystero.selfId)
-      addLog(`Trystero transport identity: ${short(trystero.selfId)}`)
+      addLog('Trystero transport identity initialized')
 
       const localHandshake: PocHandshake = {
         version: 1,
@@ -353,11 +347,11 @@ export function TrysteroPocPage() {
         route.partyId,
         {
           handshakeTimeoutMs: 10_000,
-          onJoinError: (details) => {
+          onJoinError: () => {
             if (disposed) {
               return
             }
-            const message = `join error for ${short(details.peerId)}: ${details.error}`
+            const message = 'Transport join attempt failed.'
             addLog(message)
             setRuntimeError(message)
           },
@@ -397,7 +391,7 @@ export function TrysteroPocPage() {
                 peerPing.delete(previousPeer)
               }
               guestPeerByIdentity.set(remoteHandshake.appIdentity, peerId)
-              addLog(`${admission.reconnecting ? 'returning' : 'new'} guest admitted: ${short(remoteHandshake.appIdentity)}`)
+              addLog(`${admission.reconnecting ? 'returning' : 'new'} guest admitted`)
             }
 
             peerAppIdentity.set(peerId, remoteHandshake.appIdentity)
@@ -442,15 +436,15 @@ export function TrysteroPocPage() {
         }
         const elapsed = Math.round(performance.now() - startedAtRef.current)
         peerConnectedAt.set(peerId, elapsed)
-        addLog(`WebRTC peer connected after ${elapsed} ms: ${short(peerId)}`)
+        addLog(`WebRTC peer connected after ${elapsed} ms`)
         void room?.ping(peerId).then((pingMs) => {
           if (!disposed) {
             peerPing.set(peerId, Math.round(pingMs))
-            addLog(`peer ping ${short(peerId)}: ${Math.round(pingMs)} ms`)
+            addLog(`peer ping: ${Math.round(pingMs)} ms`)
             void refreshDiagnostics()
           }
         }).catch(() => {
-          addLog(`peer ping failed: ${short(peerId)}`)
+          addLog('peer ping failed')
         })
         void refreshDiagnostics()
       }
@@ -466,7 +460,7 @@ export function TrysteroPocPage() {
         peerAppIdentity.delete(peerId)
         peerConnectedAt.delete(peerId)
         peerPing.delete(peerId)
-        addLog(`WebRTC peer disconnected: ${short(peerId)}`)
+        addLog('WebRTC peer disconnected')
         void refreshDiagnostics()
       }
 
@@ -488,7 +482,7 @@ export function TrysteroPocPage() {
       const message = error instanceof Error ? error.message : 'Trystero POC failed to start.'
       setRuntimeError(message)
       setRuntimeState('error')
-      addLog(`startup error: ${message}`)
+      addLog('startup error')
     })
 
     return () => {
@@ -521,7 +515,7 @@ export function TrysteroPocPage() {
       ? peers.length <= 7
       : peers.length <= 1
 
-  const diagnostics = useMemo(() => ({
+  const diagnostics = useMemo(() => buildSafePocDiagnostics({
     capturedAt: new Date().toISOString(),
     poc: {
       trysteroVersion: TRYSTERO_POC_VERSION,
@@ -661,8 +655,8 @@ export function TrysteroPocPage() {
             <div><dt>Role</dt><dd>{route.role}</dd></div>
             <div><dt>Configured passive</dt><dd>{route.role === 'guest' ? 'yes' : 'no'}</dd></div>
             <div><dt>Trystero reports passive</dt><dd>{actualPassive === null ? '—' : actualPassive ? 'yes' : 'no'}</dd></div>
-            <div><dt>Application identity</dt><dd title={appIdentity ?? undefined}>{short(appIdentity)}</dd></div>
-            <div><dt>Trystero peer identity</dt><dd title={transportIdentity ?? undefined}>{short(transportIdentity)}</dd></div>
+            <div><dt>Application identity</dt><dd>{appIdentity ? 'restored' : '—'}</dd></div>
+            <div><dt>Transport identity</dt><dd>{transportIdentity ? 'initialized' : '—'}</dd></div>
             <div><dt>Connected peers</dt><dd>{peers.length}</dd></div>
             <div><dt>Expected</dt><dd>{expectedPeerCount}</dd></div>
             <div><dt>Topology check</dt><dd>{topologyOk ? 'within star bound' : 'VIOLATION'}</dd></div>
@@ -691,8 +685,6 @@ export function TrysteroPocPage() {
             <table>
               <thead>
                 <tr>
-                  <th>Peer</th>
-                  <th>App identity</th>
                   <th>Connection</th>
                   <th>ICE</th>
                   <th>Path</th>
@@ -704,8 +696,6 @@ export function TrysteroPocPage() {
               <tbody>
                 {peers.map((peer) => (
                   <tr key={peer.peerId}>
-                    <td title={peer.peerId}>{short(peer.peerId)}</td>
-                    <td title={peer.appIdentity ?? undefined}>{short(peer.appIdentity)}</td>
                     <td>{peer.connectionState}</td>
                     <td>{peer.iceConnectionState}</td>
                     <td>{peer.path.localCandidateType ?? '—'} ↔ {peer.path.remoteCandidateType ?? '—'}</td>
