@@ -97,6 +97,7 @@ describe('event-driven Nostr late-guest wake', () => {
     const subscribe = vi.fn(() => 'wake-subscription')
     const onWakeReceived = vi.fn()
     const onAnnouncementSent = vi.fn()
+    const onWakeListenerReady = vi.fn()
     let now = 10_000
 
     const listener = await startPocNostrHostWakeListener({
@@ -108,6 +109,7 @@ describe('event-driven Nostr late-guest wake', () => {
       subscribe,
       onWakeReceived,
       onAnnouncementSent,
+      onWakeListenerReady,
       createSubscriptionId: () => 'wake-sub-id',
       now: () => now,
       sockets: { relay: relay.socket },
@@ -116,6 +118,10 @@ describe('event-driven Nostr late-guest wake', () => {
     expect(POC_NOSTR_WAKE_COOLDOWN_MS).toBeGreaterThanOrEqual(1_000)
     expect(subscribe).toHaveBeenCalledTimes(1)
     expect(relay.send).toHaveBeenCalledWith('wake-subscription')
+
+    relay.message(JSON.stringify(['EOSE', 'wake-sub-id']))
+    expect(onWakeListenerReady).toHaveBeenCalledTimes(1)
+    expect(onWakeListenerReady).toHaveBeenCalledWith('relay')
 
     const wakeTopic = await derivePocNostrWakeTopic(TRYSTERO_POC_APP_ID, 'party-a', 'secret-a')
     const rootTopic = await derivePocNostrRootTopic(TRYSTERO_POC_APP_ID, 'party-a')
