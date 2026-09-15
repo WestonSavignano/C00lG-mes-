@@ -8,7 +8,10 @@ import {
   schoolEscapeKeyboardBindings,
   type SchoolEscapeAction,
 } from './schoolEscapeInput'
-import { createSchoolEscapeRuntime } from './schoolEscapeRuntime'
+import {
+  createSchoolEscapeRuntime,
+  type SchoolEscapeRuntimeController,
+} from './schoolEscapeRuntime'
 import './schoolEscape.css'
 
 type SchoolEscapeGameProps = {
@@ -17,6 +20,39 @@ type SchoolEscapeGameProps = {
 
 function toError(error: unknown) {
   return error instanceof Error ? error : new Error(String(error))
+}
+
+function attachRuntimeLifecycle(runtime: SchoolEscapeRuntimeController) {
+  const resize = () => runtime.resize()
+  const pause = () => runtime.pause()
+  const resumeIfVisible = () => {
+    if (document.visibilityState !== 'hidden') {
+      runtime.resume()
+    }
+  }
+  const handleVisibilityChange = () => {
+    if (document.visibilityState === 'hidden') {
+      runtime.pause()
+    } else {
+      runtime.resume()
+    }
+  }
+
+  window.addEventListener('resize', resize)
+  window.addEventListener('orientationchange', resize)
+  window.addEventListener('blur', pause)
+  window.addEventListener('focus', resumeIfVisible)
+  document.addEventListener('fullscreenchange', resize)
+  document.addEventListener('visibilitychange', handleVisibilityChange)
+
+  return () => {
+    window.removeEventListener('resize', resize)
+    window.removeEventListener('orientationchange', resize)
+    window.removeEventListener('blur', pause)
+    window.removeEventListener('focus', resumeIfVisible)
+    document.removeEventListener('fullscreenchange', resize)
+    document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }
 }
 
 function SchoolEscapeGame({
@@ -34,7 +70,8 @@ function SchoolEscapeGame({
     }
 
     let disposed = false
-    let runtime: Awaited<ReturnType<typeof createSchoolEscapeRuntime>> | null = null
+    let runtime: SchoolEscapeRuntimeController | null = null
+    let detachRuntimeLifecycle: (() => void) | null = null
 
     const reportFatalError = (error: unknown) => {
       if (!disposed) {
@@ -55,11 +92,13 @@ function SchoolEscapeGame({
         }
 
         runtime = controller
+        detachRuntimeLifecycle = attachRuntimeLifecycle(controller)
       })
       .catch(reportFatalError)
 
     return () => {
       disposed = true
+      detachRuntimeLifecycle?.()
       runtime?.dispose()
     }
   }, [input.reader, look, runtimeEnabled])
