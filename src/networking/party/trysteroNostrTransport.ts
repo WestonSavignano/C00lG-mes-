@@ -2,6 +2,13 @@ const APP_ID = 'coolgamesplus-party-v2'
 const ACTION_NAMESPACE = 'party-v2'
 const sharedPoisonRegistry = new Set<string>()
 
+const PRODUCTION_NOSTR_RELAY_URLS = [
+  'wss://relay02.lnfi.network',
+  'wss://nostr.data.haus',
+  'wss://relay-can.zombi.cloudrodion.com',
+  'wss://yabu.me/v2',
+]
+
 export type TrysteroHandshakeSend = (data: string) => Promise<void>
 export type TrysteroHandshakeReceive = () => Promise<{ data: unknown; metadata?: unknown }>
 
@@ -25,6 +32,7 @@ export type TrysteroNostrModuleLike = {
       passive: boolean
       trickleIce: boolean
       relayConfig?: {
+        urls?: string[]
         redundancy?: number
         manualReconnection?: boolean
         warnOnRelayFailure?: boolean
@@ -156,7 +164,7 @@ export class TrysteroNostrTransport {
         passive: this.options.role === 'guest',
         trickleIce: true,
         relayConfig: {
-          redundancy: 5,
+          urls: [...PRODUCTION_NOSTR_RELAY_URLS],
           manualReconnection: false,
           warnOnRelayFailure: true,
         },
