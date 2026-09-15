@@ -1,7 +1,8 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import * as pocPageModule from './TrysteroPocPage'
 import { TrysteroPocPage } from './TrysteroPocPage'
 
 describe('TrysteroPocPage', () => {
@@ -57,5 +58,19 @@ describe('TrysteroPocPage', () => {
     expect(screen.getByRole('button', { name: /BitTorrent historical/i })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByText(/Selected strategy: BitTorrent/i)).toBeInTheDocument()
     expect(window.location.search).toBe('?strategy=torrent')
+  })
+
+  it('mirrors page evidence events to the browser console as they occur', () => {
+    const reportEvent = Reflect.get(pocPageModule, 'reportPocEvidenceEvent')
+    expect(reportEvent).toBeTypeOf('function')
+
+    const consoleInfo = vi.fn()
+    const entry = reportEvent('WebRTC peer connected after 896 ms', consoleInfo) as {
+      at: string
+      message: string
+    }
+
+    expect(entry.message).toBe('WebRTC peer connected after 896 ms')
+    expect(consoleInfo).toHaveBeenCalledWith('[Trystero POC]', entry)
   })
 })
