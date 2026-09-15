@@ -18,6 +18,7 @@ afterEach(() => {
   vi.restoreAllMocks()
   delete (HTMLElement.prototype as Partial<HTMLElement>).setPointerCapture
   delete (HTMLElement.prototype as Partial<HTMLElement>).releasePointerCapture
+  Reflect.deleteProperty(document, 'visibilityState')
 })
 
 describe('SchoolEscapeLookSurface', () => {
@@ -112,6 +113,31 @@ describe('SchoolEscapeLookSurface', () => {
       clientY: 110,
     })
     window.dispatchEvent(new Event('blur'))
+
+    expect(look.consume()).toEqual({ x: 0, y: 0 })
+  })
+
+  it('clears pending look when the page becomes hidden', () => {
+    const look = createLookAccumulator()
+    render(<SchoolEscapeLookSurface look={look} />)
+    const surface = screen.getByLabelText('Look around')
+
+    fireEvent.pointerDown(surface, {
+      pointerId: 11,
+      clientX: 100,
+      clientY: 100,
+    })
+    fireEvent.pointerMove(surface, {
+      pointerId: 11,
+      clientX: 142,
+      clientY: 91,
+    })
+
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      value: 'hidden',
+    })
+    document.dispatchEvent(new Event('visibilitychange'))
 
     expect(look.consume()).toEqual({ x: 0, y: 0 })
   })
