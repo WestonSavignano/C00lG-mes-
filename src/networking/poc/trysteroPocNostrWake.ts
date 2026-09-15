@@ -112,21 +112,24 @@ function toHex(bytes: Uint8Array) {
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')
 }
 
-async function hash(algorithm: 'SHA-1' | 'SHA-256', value: string) {
-  const digest = await crypto.subtle.digest(algorithm, encoder.encode(value))
-  return toHex(new Uint8Array(digest))
+async function digest(algorithm: 'SHA-1' | 'SHA-256', value: string) {
+  return new Uint8Array(await crypto.subtle.digest(algorithm, encoder.encode(value)))
 }
 
-export function derivePocNostrRootTopic(appId: string, roomId: string) {
-  return hash('SHA-1', `Trystero@${appId}@${roomId}`)
+export async function derivePocNostrRootTopic(appId: string, roomId: string) {
+  const bytes = await digest('SHA-1', `Trystero@${appId}@${roomId}`)
+  return Array.from(bytes, (byte) => byte.toString(36)).join('')
 }
 
-export function derivePocNostrWakeTopic(
+export async function derivePocNostrWakeTopic(
   appId: string,
   roomId: string,
   rendezvousSecret: string,
 ) {
-  return hash('SHA-256', `CoolGamesPlusWake@${appId}@${roomId}@${rendezvousSecret}`)
+  return toHex(await digest(
+    'SHA-256',
+    `CoolGamesPlusWake@${appId}@${roomId}@${rendezvousSecret}`,
+  ))
 }
 
 export async function startPocNostrGuestWake({
