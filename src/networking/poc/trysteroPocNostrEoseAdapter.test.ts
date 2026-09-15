@@ -9,10 +9,16 @@ type TopicAdapter = {
     onMessage: (topic: string, content: string) => void,
     context: { kind: 'root' | 'self' },
   ): Promise<() => void> | (() => void)
+  publishTopic(
+    client: unknown,
+    topic: string,
+    message: unknown,
+    context: { kind: 'announce' | 'signal' },
+  ): Promise<unknown>
 }
 
 describe('POC Nostr EOSE adapter', () => {
-  it('marks a Trystero root subscription ready only after that relay returns matching EOSE', async () => {
+  it('marks a Trystero root subscription ready only after that relay returns matching EOSE and exposes safe message stages', async () => {
     const send = vi.fn()
     const socket = { readyState: WebSocket.OPEN }
     const client = {
@@ -77,13 +83,36 @@ describe('POC Nostr EOSE adapter', () => {
     expect(send).toHaveBeenCalledWith(JSON.stringify(['REQ', 'root-sub-id', 'root-topic']))
     expect(onRootReady).not.toHaveBeenCalled()
 
+    const hostAnnouncement = JSON.stringify({ peerId: 'host-transport-secret' })
     onRelayMessage?.(JSON.stringify([
       'EVENT',
       'root-sub-id',
-      { content: 'host-announcement', tags: [['x', 'root-topic']] },
+      { content: hostAnnouncement, tags: [['x', 'root-topic']] },
     ]))
-    expect(onMessage).toHaveBeenCalledWith('root-topic', 'host-announcement')
+    expect(onMessage).toHaveBeenCalledWith('root-topic', hostAnnouncement)
     expect(onRootReady).not.toHaveBeenCalled()
+    expect(observe).toHaveBeenCalledWith({
+      stage: 'trystero-message-received',
+      relayUrl: 'wss://relay.test',
+      messageKind: 'announcement',
+    })
+
+    await adapter!.publishTopic(
+      relay,
+      'peer-topic',
+      JSON.stringify({ peerId: 'guest-transport-secret', offer: 'encrypted-sdp-secret' }),
+      { kind: 'signal' },
+    )
+    expect(observe).toHaveBeenCalledWith({
+      stage: 'trystero-message-published',
+      relayUrl: 'wss://relay.test',
+      messageKind: 'offer',
+    })
+
+    const serializedObservations = JSON.stringify(observe.mock.calls)
+    expect(serializedObservations).not.toContain('host-transport-secret')
+    expect(serializedObservations).not.toContain('guest-transport-secret')
+    expect(serializedObservations).not.toContain('encrypted-sdp-secret')
 
     onRelayMessage?.(JSON.stringify(['EOSE', 'other-sub-id']))
     expect(onRootReady).not.toHaveBeenCalled()
@@ -100,7 +129,7 @@ describe('POC Nostr EOSE adapter', () => {
     })
 
     onReconnect?.()
-    expect(send).toHaveBeenCalledTimes(2)
+    expect(send).toHaveBeenCalledTimes(3)
     onRelayMessage?.(JSON.stringify(['EOSE', 'root-sub-id']))
     expect(onRootReady).toHaveBeenCalledTimes(2)
 
