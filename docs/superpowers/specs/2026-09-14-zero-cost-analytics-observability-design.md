@@ -17,13 +17,13 @@ The current provider decisions are:
 | --- | --- | ---: | --- |
 | Google Search Console | **ADOPT** | $0 | Search discovery/indexing/query intelligence; no client analytics SDK |
 | CloudFront + CloudWatch default metrics | **ADOPT** | $0 additional metric cost | Production request/transfer/error health from the hosting layer |
-| Cloudflare Web Analytics | **ADOPT WITH CONSTRAINTS, NOT YET ENABLED** | $0 | Strong privacy/cost fit, but current non-proxied controls do not prove the private `/chat#...` capability boundary without a real canary and route-loading contract |
-| Sentry Developer | **ADOPT WITH CONSTRAINTS, NOT YET ENABLED** | $0 | Useful browser error/release observability if capture is explicit, aggressively sanitized, Replay is absent, and synthetic-secret canaries pass |
+| Cloudflare Web Analytics | **DEFER PENDING CANARY** | $0 if later enabled | Strong privacy/cost fit, but current non-proxied controls do not prove the private `/chat#...` capability boundary without a real canary and route-loading contract |
+| Sentry Developer | **DEFER PENDING CANARY** | $0 if later enabled | Useful browser error/release observability candidate, but production use is not approved until explicit sanitization plus synthetic-secret canaries pass |
 | PostHog | **DEFER** | $0 at current low volume | Free tier is generous, but normal JS defaults/identity/session surface conflict with #39's no-ID/no-autocapture v1 contract |
 | Simple Analytics | **DEFER** | paid for intended production use | Good privacy fit from #39, but no longer preferred under the explicit $0-first constraint while transport/retention gates remain unresolved |
 | Plausible / GA4 | **DEFER** | paid / $0 respectively | No material advantage over the lower-cost/minimal path that justifies their identity/governance tradeoffs |
 
-**Launch baseline:** Search Console + CloudFront/CloudWatch. Add Cloudflare Web Analytics and Sentry only after the focused implementation canaries below prove they cannot leak private Party/Chat state. Do not add PostHog until a named product decision needs curated event analytics that the aggregate stack cannot answer.
+**Launch baseline:** Search Console + CloudFront/CloudWatch. Cloudflare Web Analytics and Sentry are preferred free candidates only; they remain deferred until focused implementation canaries prove they cannot leak private Party/Chat state. Do not add PostHog until a named product decision needs curated event analytics that the aggregate stack cannot answer.
 
 ## Locked privacy architecture from #39
 
@@ -111,9 +111,9 @@ Current AWS references:
 - https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/monitoring-using-cloudwatch.html
 - https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/viewing-cloudfront-metrics.html
 
-## 3. Cloudflare Web Analytics — ADOPT WITH CONSTRAINTS, NOT YET ENABLED
+## 3. Cloudflare Web Analytics — DEFER PENDING CANARY
 
-Cloudflare Web Analytics is economically and conceptually attractive, but production enablement requires more evidence than the vendor's privacy positioning alone.
+Cloudflare Web Analytics is economically and conceptually attractive, but current evidence is insufficient for production adoption under the Issue #52 secret-handling acceptance gate.
 
 ### What current documentation establishes
 
@@ -143,7 +143,7 @@ Relevant references:
 - https://developers.cloudflare.com/web-analytics/faq/
 - https://developers.cloudflare.com/web-analytics/changelog/
 
-### Why it is not an unconditional launch approval
+### Why it is not adopted yet
 
 The Cool Games Plus threat model is unusual because private Party capabilities live in browser-visible fragments on `/chat#...`.
 
@@ -157,11 +157,13 @@ Cloudflare's documentation is reassuring but insufficient for our exact boundary
 
 A fragment is not sent in normal HTTP requests/referrers, but that HTTP property is not enough: a browser JavaScript analytics beacon can read `window.location` itself. Our requirement is stronger: **prove the actual beacon never transmits the synthetic capability canary**.
 
-### Required architecture if adopted
+Because that proof does not yet exist, Issue #52 does not adopt Cloudflare for production. It records Cloudflare as the preferred free aggregate web/RUM candidate for a focused canary.
+
+### Required architecture for a future canary/adoption path
 
 Do not place one global Cloudflare beacon in the generic application shell and rely on configuration.
 
-The safe target is:
+The safe target to test is:
 
 - manual snippet only;
 - `spa: false`;
@@ -173,7 +175,7 @@ The safe target is:
 
 This architecture deliberately gives up SPA route auto-tracking in exchange for a much stronger private-route boundary. The generated route-specific documents planned by #38 make this practical.
 
-### Required canary before enablement
+### Required canary before any adoption
 
 A focused implementation/spike must obtain a real Cloudflare Web Analytics site token and inspect network requests for synthetic values.
 
@@ -192,13 +194,13 @@ Verify no fragment/capability canary appears in:
 - dashboard path/referrer dimensions;
 - any available raw/debug view/export under our account.
 
-If this cannot be proven, **do not enable Cloudflare Web Analytics**. Search Console + CloudFront/CloudWatch remains an acceptable zero-cost fallback.
+If this cannot be proven, **reject Cloudflare Web Analytics for the current architecture**. Search Console + CloudFront/CloudWatch remains an acceptable zero-cost baseline.
 
 ### Decision
 
-**ADOPT WITH CONSTRAINTS.** Cloudflare is the preferred free aggregate web/RUM candidate, but production activation is blocked on the canary and route-loading contract above.
+**DEFER.** Cloudflare is the preferred free aggregate web/RUM candidate, but the Issue #52 acceptance gate forbids adopting it until the canary proves fragments/capabilities cannot reach the service.
 
-## 4. Sentry Developer — ADOPT WITH CONSTRAINTS, NOT YET ENABLED
+## 4. Sentry Developer — DEFER PENDING CANARY
 
 Sentry is useful for a different problem than product analytics: operational detection of browser/runtime failures correlated to a controlled release.
 
@@ -314,7 +316,7 @@ Also verify:
 
 ### Decision
 
-**ADOPT WITH CONSTRAINTS.** Sentry Developer is the preferred free browser-error candidate, but it must ship through a separate, explicit sanitization/canary implementation Issue. It is not part of #52's documentation PR.
+**DEFER.** Sentry Developer is the preferred free browser-error candidate, but it must first pass a separate explicit sanitization/canary spike. Production adoption is not authorized by Issue #52.
 
 ## 5. PostHog — DEFER
 
@@ -393,8 +395,8 @@ GA4 is free but remains structurally broader than the no-ID/no-advertising/no-au
 | Search Console | $0 | Search intelligence |
 | CloudFront Free flat-rate plan | $0 target | #22 owns eligibility/feature validation and separately billable AWS features |
 | CloudFront default CloudWatch metrics | $0 additional metric cost | Requests/bytes/error rates |
-| Cloudflare Web Analytics | $0 | Only after canary; otherwise omitted |
-| Sentry Developer | $0 | Only after canary; 1 user / 5k errors / 30-day lookback current plan |
+| Cloudflare Web Analytics | $0 | **Deferred pending canary**; otherwise omitted |
+| Sentry Developer | $0 | **Deferred pending canary**; 1 user / 5k errors / 30-day lookback current plan |
 | PostHog | $0 while under 1M events | **Deferred**, so launch usage is zero |
 | Plausible | $0 | Not used |
 | Simple Analytics | $0 | Not used |
@@ -425,30 +427,32 @@ Do not upgrade merely for headroom.
 
 ### B. After #38 static route documents exist — Cloudflare canary
 
-Create one focused implementation/spike Issue that:
+Create one focused spike Issue that:
 
 - creates/uses the Cloudflare Web Analytics site token;
 - injects the manual `spa: false` snippet only into public/indexable static documents;
 - leaves `/chat`, POC, preview, diagnostics, and 404 documents beacon-free;
 - makes transition from public Party to private `/chat#...` a hard document navigation;
 - executes the synthetic-secret canary;
-- either enables Cloudflare or removes it entirely based on evidence.
+- records **GO / NO-GO** evidence; only a GO may authorize a later production enablement change.
 
 If the canary fails, do not add another paid analytics service automatically. Keep the zero-client-analytics fallback until a real measurement gap matters.
 
-### C. Independent Sentry implementation
+### C. Independent Sentry canary
 
-Create a separate focused Issue/PR for Sentry because error monitoring has a different data contract and rollback surface from web analytics.
+Create a separate focused spike Issue because error monitoring has a different data contract and rollback surface from web analytics.
 
-The implementation must:
+The spike must:
 
 - use Developer/free tier initially;
 - omit Replay;
 - enable IP/data scrubbing;
 - use explicit controlled error codes/context;
 - perform client-side deny-by-construction filtering plus server-side defense in depth;
-- pass the synthetic-secret canary before production activation;
-- remain independently removable without affecting Cloudflare/product behavior.
+- pass the synthetic-secret canary before any production activation;
+- record **GO / NO-GO** evidence.
+
+A later implementation may enable Sentry only after GO. It must remain independently removable without affecting Cloudflare/product behavior.
 
 ### D. Product events only when needed
 
@@ -486,7 +490,7 @@ This document is engineering/product architecture, not legal advice.
 
 ## Validation contract for follow-up implementations
 
-Every browser provider implementation must include a real outbound-network canary. Unit tests that assert a sanitizer function is correct are necessary but not sufficient.
+Every browser provider canary/implementation must include a real outbound-network canary. Unit tests that assert a sanitizer function is correct are necessary but not sufficient.
 
 Synthetic markers should cover at least:
 
@@ -507,9 +511,9 @@ Do not put a real invite/capability in committed test evidence.
 
 For launch, optimize for **low operational burden and safe absence of data** rather than dashboard completeness.
 
-1. **Search Console + CloudFront/CloudWatch:** ship as the baseline.
-2. **Cloudflare Web Analytics:** preferred free aggregate web/RUM layer, but only after a beacon/network canary and route boundary prove private Chat fragments cannot leak.
-3. **Sentry Developer:** preferred free browser-error layer, but only after an independently reviewed sanitization/canary implementation with Replay absent.
+1. **Search Console + CloudFront/CloudWatch:** adopt and ship as the baseline.
+2. **Cloudflare Web Analytics:** preferred free aggregate web/RUM candidate, **deferred** until a beacon/network canary and route boundary prove private Chat fragments cannot leak.
+3. **Sentry Developer:** preferred free browser-error candidate, **deferred** until an independently reviewed sanitization/canary spike passes with Replay absent.
 4. **PostHog:** keep deferred until a concrete product decision needs curated event analytics.
 5. **Simple Analytics/Plausible/GA4:** do not add at launch.
 
