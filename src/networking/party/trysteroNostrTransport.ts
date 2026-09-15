@@ -12,6 +12,10 @@ const PRODUCTION_NOSTR_RELAY_URLS = [
 export type TrysteroHandshakeSend = (data: string) => Promise<void>
 export type TrysteroHandshakeReceive = () => Promise<{ data: unknown; metadata?: unknown }>
 
+type RelaySocketLike = {
+  readyState: number
+}
+
 export type TrysteroRoomLike = {
   makeAction: (namespace: string) => {
     send: (data: string, options?: { target?: string | string[] | null }) => Promise<void>
@@ -50,6 +54,7 @@ export type TrysteroNostrModuleLike = {
       handshakeTimeoutMs?: number
     },
   ) => TrysteroRoomLike
+  getRelaySockets?: () => Record<string, RelaySocketLike>
 }
 
 export type TrysteroNostrTransportOptions = {
@@ -72,15 +77,30 @@ export type TrysteroNostrTransportOptions = {
 
 type PartyDiagnosticStage =
   | 'transport-started'
+  | 'relay-health'
   | 'handshake-started'
   | 'handshake-accepted'
   | 'join-error'
   | 'peer-joined'
 
+type RelayStateCounts = {
+  connecting: number
+  open: number
+  closing: number
+  closed: number
+  unknown: number
+}
+
 type PartyDiagnostic = {
   stage: PartyDiagnosticStage
   role: 'host' | 'guest'
+  elapsedMs?: number
   initiator?: boolean
+  trickleIce?: boolean
+  turnConfigured?: boolean
+  relayCount?: number
+  relayStates?: RelayStateCounts
+  reason?: 'sdp-connectivity-failed' | 'application-handshake-failed' | 'password-failed' | 'unknown'
   error?: string
 }
 
@@ -93,6 +113,42 @@ function redactDiagnosticError(
     if (sensitive) redacted = redacted.replaceAll(sensitive, '[redacted]')
   }
   return redacted
+}
+
+function classifyJoinError(error: string): NonNullable<PartyDiagnostic['reason']> {
+  const normalized = error.toLowerCase()
+  if (normalized.includes('could not connect to peer') && normalized.includes('sdp')) {
+    return 'sdp-connectivity-failed'
+  }
+  if (normalized.includes('handshake')) {
+    return 'application-handshake-failed'
+  }
+  if (normalized.includes('password')) {
+    return 'password-failed'
+  }
+  return 'unknown'
+}
+
+function summarizeRelayStates(sockets: Record<string, RelaySocketLike>): RelayStateCounts {
+  const counts: RelayStateCounts = {
+    connecting: 0,
+    open: 0,
+    closing: 0,
+    closed: 0,
+    unknown: 0,
+  }
+
+  for (const socket of Object.values(sockets)) {
+    switch (socket.readyState) {
+      case 0: counts.connecting += 1; break
+      case 1: counts.open += 1; break
+      case 2: counts.closing += 1; break
+      case 3: counts.closed += 1; break
+      default: counts.unknown += 1
+    }
+  }
+
+  return counts
 }
 
 function logPartyDiagnostic(diagnostic: PartyDiagnostic, warning = false) {
@@ -121,6 +177,7 @@ export class TrysteroNostrTransport {
   private startPromise: Promise<void> | null = null
   private disposePromise: Promise<{ requiresReload: boolean }> | null = null
   private disposed = false
+  private startedAtMs = 0
   private readonly options: TrysteroNostrTransportOptions
   private readonly poisonRegistry: Set<string>
   private readonly roomKey: string
@@ -137,6 +194,22 @@ export class TrysteroNostrTransport {
     }
   }
 
+  private elapsedMs() {
+    return this.startedAtMs ? Math.max(0, Date.now() - this.startedAtMs) : 0
+  }
+
+  private logRelayHealth(module: TrysteroNostrModuleLike) {
+    const sockets = module.getRelaySockets?.()
+    if (!sockets) return
+    logPartyDiagnostic({
+      stage: 'relay-health',
+      role: this.options.role,
+      elapsedMs: this.elapsedMs(),
+      relayCount: Object.keys(sockets).length,
+      relayStates: summarizeRelayStates(sockets),
+    })
+  }
+
   async start() {
     this.assertActive()
     if (this.room) {
@@ -149,6 +222,7 @@ export class TrysteroNostrTransport {
       throw new Error('The previous peer transport could not shut down safely; reload this page to reconnect')
     }
 
+    this.startedAtMs = Date.now()
     this.startPromise = this.startGeneration()
     try {
       await this.startPromise
@@ -172,6 +246,7 @@ export class TrysteroNostrTransport {
           logPartyDiagnostic({
             stage: 'handshake-started',
             role: this.options.role,
+            elapsedMs: this.elapsedMs(),
             initiator: isInitiator,
           })
           const guardedSend: TrysteroHandshakeSend = async (data) => {
@@ -195,6 +270,7 @@ export class TrysteroNostrTransport {
           logPartyDiagnostic({
             stage: 'handshake-accepted',
             role: this.options.role,
+            elapsedMs: this.elapsedMs(),
             initiator: isInitiator,
           })
         }
@@ -222,12 +298,15 @@ export class TrysteroNostrTransport {
           logPartyDiagnostic({
             stage: 'join-error',
             role: this.options.role,
+            elapsedMs: this.elapsedMs(),
+            reason: classifyJoinError(details.error),
             error: redactDiagnosticError(details.error, [
               details.peerId,
               this.options.partyId,
               this.options.rendezvousCapability,
             ]),
           }, true)
+          this.logRelayHealth(module)
           this.options.onJoinError?.(details)
         },
         onPeerHandshake: applicationHandshake,
@@ -237,7 +316,12 @@ export class TrysteroNostrTransport {
     logPartyDiagnostic({
       stage: 'transport-started',
       role: this.options.role,
+      elapsedMs: this.elapsedMs(),
+      trickleIce: false,
+      turnConfigured: false,
+      relayCount: PRODUCTION_NOSTR_RELAY_URLS.length,
     })
+    this.logRelayHealth(module)
     const action = room.makeAction(ACTION_NAMESPACE)
     action.onMessage = async (data, context) => {
       if (this.disposed) return
@@ -248,7 +332,9 @@ export class TrysteroNostrTransport {
       logPartyDiagnostic({
         stage: 'peer-joined',
         role: this.options.role,
+        elapsedMs: this.elapsedMs(),
       })
+      this.logRelayHealth(module)
       this.options.onPeerJoin?.(peerId)
     }
     room.onPeerLeave = (peerId) => {
