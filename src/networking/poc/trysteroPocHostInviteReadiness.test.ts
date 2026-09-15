@@ -26,4 +26,16 @@ describe('host invite readiness', () => {
     tracker.markWakeReady('wss://relay.test/')
     expect(onReady).toHaveBeenCalledTimes(1)
   })
+
+  it('reports host readiness to both the page evidence log and browser console', () => {
+    const reportReady = Reflect.get(wakeModule, 'reportPocHostInviteReady')
+    expect(reportReady).toBeTypeOf('function')
+
+    const addLog = vi.fn()
+    const consoleInfo = vi.fn()
+    reportReady(addLog, consoleInfo)
+
+    expect(addLog).toHaveBeenCalledWith('HOST READY — paste/open the guest invite now')
+    expect(consoleInfo).toHaveBeenCalledWith('HOST READY — paste/open the guest invite now')
+  })
 })
