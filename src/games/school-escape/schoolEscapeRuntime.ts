@@ -108,6 +108,7 @@ export async function createSchoolEscapeRuntime(
   return {
     resize() {
       if (!disposed) {
+        applyRenderQuality(engine, qualityState.tier)
         engine.resize()
       }
     },
