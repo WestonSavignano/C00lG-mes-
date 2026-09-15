@@ -1,11 +1,13 @@
 import { buildTrysteroConfig, type PocRole } from './trysteroPocModel'
 
-export type PocStrategy = 'nostr' | 'torrent'
+export type PocStrategy = 'nostr' | 'nostr-fast' | 'torrent'
 
 export const TRYSTERO_POC_VERSION = '0.25.4'
 
 export function parsePocStrategy(search: string): PocStrategy {
-  return new URLSearchParams(search).get('strategy') === 'torrent' ? 'torrent' : 'nostr'
+  const strategy = new URLSearchParams(search).get('strategy')
+  if (strategy === 'torrent' || strategy === 'nostr-fast') return strategy
+  return 'nostr'
 }
 
 export function getPocModuleUrl(strategy: PocStrategy) {
@@ -21,7 +23,7 @@ export function buildPocStrategyConfig(
 ) {
   return {
     ...buildTrysteroConfig(role, secret),
-    trickleIce: strategy === 'nostr',
+    trickleIce: strategy !== 'torrent',
   }
 }
 
