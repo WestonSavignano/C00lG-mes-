@@ -4,7 +4,6 @@ const CLOSED = 'CLOSED'
 const ROOT_KIND = 'root'
 const ANNOUNCE_KIND = 'announce'
 const OPEN = 1
-const CONNECTING = 0
 const DEFAULT_REDUNDANCY = 5
 const STEADY_ANNOUNCE_INTERVAL_MS = 60_000
 const WAKE_PAYLOAD = JSON.stringify({ type: 'wake', version: 1 })
@@ -357,8 +356,7 @@ export async function startEventDrivenRendezvous({
   log: (diagnostic: RendezvousDiagnostic) => void
   now?: () => number
 }) {
-  const sockets = module.getRelaySockets()
-  const relayCount = Object.keys(sockets).length
+  const currentSockets = () => module.getRelaySockets()
   const wakeTopic = await deriveWakeTopic(appId, roomId, rendezvousCapability)
   const readyRootRelays = new Set<string>()
   const cleanups: Array<() => void> = []
@@ -374,6 +372,7 @@ export async function startEventDrivenRendezvous({
       if (stopped) return
       const canonical = canonicalRelayUrl(relayUrl)
       readyRootRelays.add(canonical)
+      const sockets = currentSockets()
       if (!didLogReady) {
         didLogReady = true
         log({
@@ -381,7 +380,7 @@ export async function startEventDrivenRendezvous({
           relayUrl: canonical,
           readyRelayCount: readyRootRelays.size,
           openRelayCount: countOpenRelays(sockets),
-          relayCount,
+          relayCount: Object.keys(sockets).length,
         })
       }
       if (socket.readyState !== OPEN || sentSockets.has(socket)) return
@@ -409,27 +408,22 @@ export async function startEventDrivenRendezvous({
   const subscription = module.subscribe(subscriptionId, wakeTopic)
   const readyWakeRelays = new Set<string>()
   const seenWakeIds = new Set<string>()
+  const subscribedSockets = new WeakSet<SocketLike>()
   let didLogReady = false
   let lastWakeAt = Number.NEGATIVE_INFINITY
 
   const maybeLogReady = (relayUrl: string) => {
     if (didLogReady || !readyRootRelays.has(relayUrl) || !readyWakeRelays.has(relayUrl)) return
     didLogReady = true
+    const sockets = currentSockets()
     log({
       stage: 'host-rendezvous-ready',
       relayUrl,
       readyRelayCount: [...readyRootRelays].filter((url) => readyWakeRelays.has(url)).length,
       openRelayCount: countOpenRelays(sockets),
-      relayCount,
+      relayCount: Object.keys(sockets).length,
     })
   }
-
-  const stopRootReady = module.onRootSubscriptionReady(({ relayUrl }) => {
-    const canonical = canonicalRelayUrl(relayUrl)
-    readyRootRelays.add(canonical)
-    maybeLogReady(canonical)
-  })
-  cleanups.push(stopRootReady)
 
   const rememberWake = (eventId: string) => {
     seenWakeIds.add(eventId)
@@ -441,6 +435,7 @@ export async function startEventDrivenRendezvous({
   const reannounce = async () => {
     const announcement = await module.createEvent(rootTopic, JSON.stringify({ peerId: module.selfId }))
     if (stopped) return
+    const sockets = currentSockets()
     const attemptedRelayCount = Object.keys(sockets).length
     let openRelayCount = 0
     for (const socket of Object.values(sockets)) {
@@ -451,10 +446,11 @@ export async function startEventDrivenRendezvous({
     log({ stage: 'host-reannounce-sent', openRelayCount, attemptedRelayCount })
   }
 
-  const sendWakeSubscription = (relayUrl: string, socket: SocketLike) => {
-    if (stopped || socket.readyState !== OPEN) return
-    socket.send(subscription)
+  const installWakeSubscription = (relayUrl: string, socket: SocketLike) => {
+    if (stopped || socket.readyState !== OPEN || subscribedSockets.has(socket)) return
     const canonical = canonicalRelayUrl(relayUrl)
+    subscribedSockets.add(socket)
+    readyWakeRelays.delete(canonical)
 
     const onMessage: EventListener = (event) => {
       if (stopped) return
@@ -478,28 +474,24 @@ export async function startEventDrivenRendezvous({
       log({
         stage: 'host-wake-received',
         relayUrl: canonical,
-        openRelayCount: countOpenRelays(sockets),
+        openRelayCount: countOpenRelays(currentSockets()),
       })
       void reannounce()
     }
 
     socket.addEventListener('message', onMessage)
     cleanups.push(() => socket.removeEventListener('message', onMessage))
+    socket.send(subscription)
   }
 
-  for (const [relayUrl, socket] of Object.entries(sockets)) {
-    if (socket.readyState === OPEN) {
-      sendWakeSubscription(relayUrl, socket)
-      continue
-    }
-    if (socket.readyState !== CONNECTING) continue
-    const onOpen: EventListener = () => {
-      socket.removeEventListener('open', onOpen)
-      sendWakeSubscription(relayUrl, socket)
-    }
-    socket.addEventListener('open', onOpen)
-    cleanups.push(() => socket.removeEventListener('open', onOpen))
-  }
+  const stopRootReady = module.onRootSubscriptionReady(({ relayUrl, socket }) => {
+    if (stopped) return
+    const canonical = canonicalRelayUrl(relayUrl)
+    readyRootRelays.add(canonical)
+    installWakeSubscription(canonical, socket)
+    maybeLogReady(canonical)
+  })
+  cleanups.push(stopRootReady)
 
   return {
     stop() {
@@ -507,7 +499,7 @@ export async function startEventDrivenRendezvous({
       stopped = true
       for (const cleanup of cleanups) cleanup()
       const close = JSON.stringify(['CLOSE', subscriptionId])
-      for (const socket of Object.values(sockets)) {
+      for (const socket of Object.values(currentSockets())) {
         if (socket.readyState === OPEN) socket.send(close)
       }
     },
