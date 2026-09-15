@@ -83,6 +83,50 @@ describe('TrysteroNostrTransport', () => {
     expect(guestModule.joinRoom.mock.calls[0]?.[0]).toMatchObject({ passive: true })
   })
 
+  it('emits privacy-safe diagnostics across transport, handshake, join-error, and peer-join boundaries', async () => {
+    const info = vi.spyOn(console, 'info').mockImplementation(() => undefined)
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    try {
+      const fake = createFakeRoom()
+      const module = createModule(fake.room)
+      const transport = new TrysteroNostrTransport({
+        role: 'guest',
+        partyId: 'party-secret',
+        rendezvousCapability: 'rendezvous-secret',
+        onPeerHandshake: async () => undefined,
+        loadModule: async () => module.module,
+        poisonRegistry: new Set(),
+      })
+
+      await transport.start()
+      const callbacks = module.joinRoom.mock.calls[0]?.[2]
+      expect(callbacks).toBeDefined()
+
+      await callbacks?.onPeerHandshake?.(
+        'peer-secret',
+        async () => undefined,
+        async () => ({ data: 'ignored' }),
+        false,
+      )
+      callbacks?.onJoinError?.({ error: 'handshake timed out', peerId: 'peer-secret' })
+      fake.room.onPeerJoin?.('peer-secret')
+
+      const output = JSON.stringify([...info.mock.calls, ...warn.mock.calls])
+      expect(output).toContain('transport-started')
+      expect(output).toContain('handshake-started')
+      expect(output).toContain('handshake-accepted')
+      expect(output).toContain('join-error')
+      expect(output).toContain('peer-joined')
+      expect(output).toContain('handshake timed out')
+      expect(output).not.toContain('peer-secret')
+      expect(output).not.toContain('party-secret')
+      expect(output).not.toContain('rendezvous-secret')
+    } finally {
+      info.mockRestore()
+      warn.mockRestore()
+    }
+  })
+
   it('targets guest application traffic only at the authenticated host peer', async () => {
     const fake = createFakeRoom()
     const module = createModule(fake.room)
