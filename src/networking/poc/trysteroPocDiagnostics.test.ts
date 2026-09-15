@@ -45,7 +45,10 @@ describe('Trystero POC diagnostics privacy', () => {
           usesTurn: false,
         },
       }],
-      logs: [{ at: '2026-09-15T17:00:01.000Z', message: 'WebRTC peer connected after 1837 ms' }],
+      logs: [{
+        at: '2026-09-15T17:00:01.000Z',
+        message: 'remote-peer-secret-id connected to party-secret-id after 1837 ms',
+      }],
     })
 
     const serialized = JSON.stringify(diagnostics)
@@ -58,5 +61,6 @@ describe('Trystero POC diagnostics privacy', () => {
     expect(serialized).toContain('1837')
     expect(serialized).toContain('srflx')
     expect(serialized).toContain('nostr-wake')
+    expect(serialized).toContain('[redacted]')
   })
 })
