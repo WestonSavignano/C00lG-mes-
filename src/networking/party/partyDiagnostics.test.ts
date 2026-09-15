@@ -96,7 +96,7 @@ describe('party diagnostics provenance', () => {
     ])
   })
 
-  it('emits a copy-friendly JSON diagnostic payload with the transport source', async () => {
+  it('emits a privacy-safe structured diagnostic object with the transport source', async () => {
     const info = vi.spyOn(console, 'info').mockImplementation(() => undefined)
     try {
       const room = fakeRoom()
@@ -115,11 +115,21 @@ describe('party diagnostics provenance', () => {
 
       await transport.start()
 
-      const transportStarted = info.mock.calls.find((call) =>
-        typeof call[2] === 'string' && call[2].includes('transport-started'))
-      expect(transportStarted?.[2]).toContain('"source":"join-invite"')
-      expect(transportStarted?.[2]).not.toContain('party-secret')
-      expect(transportStarted?.[2]).not.toContain('rendezvous-secret')
+      const transportStarted = info.mock.calls.find((call) => (
+        call[0] === '[party-network]'
+        && typeof call[1] === 'object'
+        && call[1] !== null
+        && (call[1] as { stage?: unknown }).stage === 'transport-started'
+      ))
+      expect(transportStarted?.[1]).toEqual(expect.objectContaining({
+        stage: 'transport-started',
+        source: 'join-invite',
+      }))
+      expect(transportStarted).toHaveLength(2)
+
+      const output = JSON.stringify(transportStarted?.[1])
+      expect(output).not.toContain('party-secret')
+      expect(output).not.toContain('rendezvous-secret')
     } finally {
       info.mockRestore()
     }
