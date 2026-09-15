@@ -92,7 +92,7 @@ describe('event-driven Nostr late-guest wake', () => {
       expect(connecting.send).toHaveBeenCalledTimes(1)
       expect(connecting.send).toHaveBeenCalledWith('signed-wake-event')
       expect(onWakeSent).toHaveBeenCalledTimes(2)
-      expect(result).toEqual({ openRelays: 1, waitingForOpen: 1, settleMs: 500 })
+      expect(result).toEqual({ sentImmediately: 1, waitingForOpen: 1, settleMs: 500 })
     } finally {
       vi.useRealTimers()
     }
