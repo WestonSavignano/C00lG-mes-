@@ -159,6 +159,29 @@ describe('School Escape Babylon runtime', () => {
     runtime.dispose()
   })
 
+  it('recomputes capped DPR when the viewport moves to a display with a different DPR', async () => {
+    setHardwareCapabilities({
+      deviceMemory: 16,
+      hardwareConcurrency: 12,
+      devicePixelRatio: 2,
+    })
+
+    const runtime = await createSchoolEscapeRuntime(createRuntimeOptions())
+    expect(babylon.setHardwareScalingLevel).toHaveBeenLastCalledWith(1 / 1.75)
+
+    Object.defineProperty(window, 'devicePixelRatio', {
+      configurable: true,
+      value: 1.25,
+    })
+
+    runtime.resize()
+
+    expect(babylon.setHardwareScalingLevel).toHaveBeenLastCalledWith(1 / 1.25)
+    expect(babylon.resize).toHaveBeenCalledTimes(1)
+
+    runtime.dispose()
+  })
+
   it('resets frame timing on resume so background time cannot trigger a downgrade', async () => {
     setHardwareCapabilities({
       deviceMemory: 16,
