@@ -247,4 +247,68 @@ describe('School Escape Babylon runtime', () => {
 
     runtime.dispose()
   })
+
+  it('steps gameplay input and emits bounded contextual UI snapshots', async () => {
+    let now = 0
+    vi.spyOn(performance, 'now').mockImplementation(() => now)
+
+    const input = createSemanticInput<SchoolEscapeAction>()
+    const look = createLookAccumulator()
+    const onUiSnapshot = vi.fn()
+    const runtime = await createSchoolEscapeRuntime({
+      canvas: document.createElement('canvas'),
+      input: input.reader,
+      look,
+      onFatalError: vi.fn(),
+      onUiSnapshot,
+    })
+
+    expect(onUiSnapshot).toHaveBeenLastCalledWith({
+      nearbySurfaceId: null,
+      matchScore: null,
+      teacherAlert: 'none',
+      subtitle: null,
+      phase: 'playing',
+    })
+
+    runtime.setPaintMix({
+      red: 0,
+      yellow: 1,
+      blue: 1,
+      white: 0,
+      black: 0,
+    })
+
+    const renderLoop = babylon.getRenderLoop()
+    input.writer.setMoveSource('test-move', 0, -1)
+    for (let frame = 0; frame < 65; frame += 1) {
+      now += 16
+      renderLoop?.()
+    }
+
+    input.writer.setMoveSource('test-move', -1, 0)
+    for (let frame = 0; frame < 85; frame += 1) {
+      now += 16
+      renderLoop?.()
+    }
+    input.writer.clearMoveSource('test-move')
+
+    const contextualSnapshots = onUiSnapshot.mock.calls
+      .map(([snapshot]) => snapshot)
+      .filter((snapshot) => snapshot.nearbySurfaceId === 'classroom-green')
+
+    expect(contextualSnapshots.length).toBeGreaterThan(0)
+    expect(contextualSnapshots.at(-1)?.matchScore).toBeGreaterThan(0.6)
+
+    look.add(24, -10)
+    now += 16
+    renderLoop?.()
+    expect(look.consume()).toEqual({ x: 0, y: 0 })
+
+    expect(onUiSnapshot.mock.calls.length).toBeLessThanOrEqual(
+      Math.ceil(now / 100) + 2,
+    )
+
+    runtime.dispose()
+  })
 })
