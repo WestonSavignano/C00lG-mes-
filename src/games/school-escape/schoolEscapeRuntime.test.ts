@@ -73,6 +73,15 @@ function setHardwareCapabilities({
   })
 }
 
+function createRuntimeOptions() {
+  return {
+    canvas: document.createElement('canvas'),
+    input: createSemanticInput<SchoolEscapeAction>().reader,
+    look: createLookAccumulator(),
+    onFatalError: vi.fn(),
+  }
+}
+
 describe('School Escape Babylon runtime', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -133,12 +142,7 @@ describe('School Escape Babylon runtime', () => {
     let now = 0
     vi.spyOn(performance, 'now').mockImplementation(() => now)
 
-    const runtime = await createSchoolEscapeRuntime({
-      canvas: document.createElement('canvas'),
-      input: createSemanticInput<SchoolEscapeAction>().reader,
-      look: createLookAccumulator(),
-      onFatalError: vi.fn(),
-    })
+    const runtime = await createSchoolEscapeRuntime(createRuntimeOptions())
 
     expect(babylon.setHardwareScalingLevel).toHaveBeenCalledWith(1 / 1.75)
 
@@ -151,6 +155,72 @@ describe('School Escape Babylon runtime', () => {
     }
 
     expect(babylon.setHardwareScalingLevel).toHaveBeenLastCalledWith(1 / 1.35)
+
+    runtime.dispose()
+  })
+
+  it('resets frame timing on resume so background time cannot trigger a downgrade', async () => {
+    setHardwareCapabilities({
+      deviceMemory: 16,
+      hardwareConcurrency: 12,
+      devicePixelRatio: 2,
+    })
+
+    let now = 0
+    vi.spyOn(performance, 'now').mockImplementation(() => now)
+
+    const runtime = await createSchoolEscapeRuntime(createRuntimeOptions())
+    const renderLoop = babylon.getRenderLoop()
+
+    for (let frame = 0; frame < 190; frame += 1) {
+      now += 16
+      renderLoop?.()
+    }
+
+    expect(babylon.setHardwareScalingLevel).toHaveBeenCalledTimes(1)
+
+    runtime.pause()
+    now += 5_000
+    runtime.resume()
+    now += 16
+    renderLoop?.()
+
+    expect(babylon.setHardwareScalingLevel).toHaveBeenCalledTimes(1)
+    expect(babylon.setHardwareScalingLevel).toHaveBeenLastCalledWith(1 / 1.75)
+
+    runtime.dispose()
+  })
+
+  it('restarts adaptive quality as a fresh session at the hardware-selected tier', async () => {
+    setHardwareCapabilities({
+      deviceMemory: 16,
+      hardwareConcurrency: 12,
+      devicePixelRatio: 2,
+    })
+
+    let now = 0
+    vi.spyOn(performance, 'now').mockImplementation(() => now)
+
+    const runtime = await createSchoolEscapeRuntime(createRuntimeOptions())
+    const renderLoop = babylon.getRenderLoop()
+
+    for (let frame = 0; frame < 320; frame += 1) {
+      now += 26
+      renderLoop?.()
+    }
+
+    expect(babylon.setHardwareScalingLevel).toHaveBeenLastCalledWith(1 / 1.35)
+
+    await runtime.restart()
+
+    expect(babylon.setHardwareScalingLevel).toHaveBeenLastCalledWith(1 / 1.75)
+
+    for (let frame = 0; frame < 120; frame += 1) {
+      now += 35
+      renderLoop?.()
+    }
+
+    expect(babylon.setHardwareScalingLevel).toHaveBeenLastCalledWith(1 / 1.75)
 
     runtime.dispose()
   })
