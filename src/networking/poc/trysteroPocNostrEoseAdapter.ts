@@ -205,8 +205,7 @@ export function createPocNostrEoseModule({
       DEFAULT_REDUNDANCY,
       true,
     ).map((url) => {
-      let client: SocketClientLike
-      client = relayManager.register(url, () => core.makeSocket(
+      const client = relayManager.register(url, () => core.makeSocket(
         url,
         (data) => handleRelayMessage(client, data),
         () => resubscribe(client),
