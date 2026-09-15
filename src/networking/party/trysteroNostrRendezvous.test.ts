@@ -49,12 +49,13 @@ function createRoom(peer?: RTCPeerConnection) {
 
 function createEventDrivenModule(room: TrysteroRoomLike, socket: FakeSocket) {
   let rootReady: ((event: { relayUrl: string; socket: FakeSocket }) => void) | null = null
+  let currentSocket = socket
   let eventCounter = 0
   const relayUrl = 'wss://relay.example'
   const module = {
     selfId: 'transport-peer-secret',
     joinRoom: vi.fn(() => room),
-    getRelaySockets: vi.fn(() => ({ [relayUrl]: socket })),
+    getRelaySockets: vi.fn(() => ({ [relayUrl]: currentSocket })),
     createEvent: vi.fn(async (topic: string, content: string) => JSON.stringify([
       'EVENT',
       {
@@ -80,7 +81,10 @@ function createEventDrivenModule(room: TrysteroRoomLike, socket: FakeSocket) {
     module: module as unknown as TrysteroNostrModuleLike,
     relayUrl,
     triggerRootReady() {
-      rootReady?.({ relayUrl, socket })
+      rootReady?.({ relayUrl, socket: currentSocket })
+    },
+    replaceSocket(nextSocket: FakeSocket) {
+      currentSocket = nextSocket
     },
   }
 }
@@ -89,6 +93,11 @@ function diagnosticsFrom(spy: ReturnType<typeof vi.spyOn>) {
   return spy.mock.calls
     .filter((call) => call[0] === '[party-network]')
     .map((call) => call[1] as Record<string, unknown>)
+}
+
+function findWakeRequest(socket: FakeSocket) {
+  return socket.sent.map((message) => JSON.parse(message) as unknown[])
+    .find((message) => message[0] === 'REQ')
 }
 
 describe('event-driven production Nostr rendezvous', () => {
@@ -164,14 +173,14 @@ describe('event-driven production Nostr rendezvous', () => {
       })
 
       await transport.start()
-      const wakeReq = socket.sent.map((message) => JSON.parse(message) as unknown[])
-        .find((message) => message[0] === 'REQ')
+      expect(socket.sent).toEqual([])
+      fake.triggerRootReady()
+
+      const wakeReq = findWakeRequest(socket)
       expect(wakeReq).toBeDefined()
       const wakeSubscriptionId = wakeReq?.[1] as string
       const wakeFilter = wakeReq?.[2] as { '#x': string[] }
       const wakeTopic = wakeFilter['#x'][0]
-
-      fake.triggerRootReady()
       socket.emitMessage(JSON.stringify(['EOSE', wakeSubscriptionId]))
 
       let diagnostics = diagnosticsFrom(info)
@@ -217,6 +226,34 @@ describe('event-driven production Nostr rendezvous', () => {
       expect(output).not.toContain('rendezvous-secret')
       expect(output).not.toContain('transport-peer-secret')
       expect(output).not.toContain('wake-event-id')
+    } finally {
+      info.mockRestore()
+    }
+  })
+
+  it('re-arms the host wake subscription on a replacement relay socket after reconnect', async () => {
+    const info = vi.spyOn(console, 'info').mockImplementation(() => undefined)
+    try {
+      const firstSocket = new FakeSocket()
+      const room = createRoom()
+      const fake = createEventDrivenModule(room, firstSocket)
+      const transport = new TrysteroNostrTransport({
+        role: 'host',
+        partyId: 'party-secret',
+        rendezvousCapability: 'rendezvous-secret',
+        loadModule: async () => fake.module,
+        poisonRegistry: new Set(),
+      })
+
+      await transport.start()
+      fake.triggerRootReady()
+      expect(findWakeRequest(firstSocket)).toBeDefined()
+
+      const replacementSocket = new FakeSocket()
+      fake.replaceSocket(replacementSocket)
+      fake.triggerRootReady()
+
+      expect(findWakeRequest(replacementSocket)).toBeDefined()
     } finally {
       info.mockRestore()
     }
