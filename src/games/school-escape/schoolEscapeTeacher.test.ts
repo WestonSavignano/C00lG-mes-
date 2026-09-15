@@ -141,7 +141,7 @@ describe('SchoolEscapeTeacherController', () => {
     }
 
     expect(snapshot.teacher.state).toBe('patrol')
-    expect(snapshot.events.alertChanged).toBe('none')
+    expect(snapshot.alert).toBe('none')
   })
 
   it('emits golden-slice completion once only after the near-miss has resolved', () => {
