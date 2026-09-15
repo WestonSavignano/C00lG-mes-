@@ -25,10 +25,11 @@ describe('TrysteroPocPage', () => {
     expect(screen.getByText(/does not replace production Chat/i)).toBeInTheDocument()
     expect(screen.getByRole('group', { name: /rendezvous strategy/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Nostr control/i })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByRole('button', { name: /BitTorrent candidate/i })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: /Nostr event-driven wake/i })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: /BitTorrent historical/i })).toHaveAttribute('aria-pressed', 'false')
   })
 
-  it('switches the diagnostic harness to the BitTorrent candidate before creating a party', async () => {
+  it('switches the diagnostic harness to the event-driven Nostr wake candidate before creating a party', async () => {
     const user = userEvent.setup()
     render(
       <MemoryRouter initialEntries={['/networking-poc/trystero']}>
@@ -36,9 +37,24 @@ describe('TrysteroPocPage', () => {
       </MemoryRouter>,
     )
 
-    await user.click(screen.getByRole('button', { name: /BitTorrent candidate/i }))
+    await user.click(screen.getByRole('button', { name: /Nostr event-driven wake/i }))
 
-    expect(screen.getByRole('button', { name: /BitTorrent candidate/i })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: /Nostr event-driven wake/i })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByText(/Selected strategy: Nostr \+ guest wake/i)).toBeInTheDocument()
+    expect(window.location.search).toBe('?strategy=nostr-wake')
+  })
+
+  it('still exposes BitTorrent as historical comparison evidence', async () => {
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter initialEntries={['/networking-poc/trystero']}>
+        <TrysteroPocPage />
+      </MemoryRouter>,
+    )
+
+    await user.click(screen.getByRole('button', { name: /BitTorrent historical/i }))
+
+    expect(screen.getByRole('button', { name: /BitTorrent historical/i })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByText(/Selected strategy: BitTorrent/i)).toBeInTheDocument()
     expect(window.location.search).toBe('?strategy=torrent')
   })
