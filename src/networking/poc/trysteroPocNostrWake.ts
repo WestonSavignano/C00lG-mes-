@@ -40,6 +40,7 @@ export type PocNostrWakeDiagnostic = {
     | 'host-wake-listener-armed'
     | 'host-wake-subscription-sent'
     | 'host-wake-listener-ready'
+    | 'host-invite-ready'
     | 'host-wake-received'
     | 'host-announcement-sent'
     | 'host-announcement-ack'
@@ -87,6 +88,53 @@ export function recordPocNostrWakeDiagnostic(
 
 export function getPocNostrWakeDiagnostics() {
   return wakeDiagnostics.map((entry) => ({ ...entry }))
+}
+
+function canonicalRelayUrl(relayUrl: string) {
+  try {
+    const url = new URL(relayUrl)
+    if (url.pathname === '/' && !url.search && !url.hash) {
+      return `${url.protocol}//${url.host}`
+    }
+    return url.toString().replace(/\/$/u, '')
+  } catch {
+    return relayUrl.replace(/\/$/u, '')
+  }
+}
+
+export function createPocHostInviteReadinessTracker(
+  onReady: (relayUrl: string) => void,
+) {
+  const rootReadyRelays = new Set<string>()
+  const wakeReadyRelays = new Set<string>()
+  let didBecomeReady = false
+
+  const maybeReady = (relayUrl: string) => {
+    if (
+      didBecomeReady
+      || !rootReadyRelays.has(relayUrl)
+      || !wakeReadyRelays.has(relayUrl)
+    ) {
+      return
+    }
+
+    didBecomeReady = true
+    recordPocNostrWakeDiagnostic('host-invite-ready', { relayUrl })
+    onReady(relayUrl)
+  }
+
+  return {
+    markRootReady(relayUrl: string) {
+      const canonical = canonicalRelayUrl(relayUrl)
+      rootReadyRelays.add(canonical)
+      maybeReady(canonical)
+    },
+    markWakeReady(relayUrl: string) {
+      const canonical = canonicalRelayUrl(relayUrl)
+      wakeReadyRelays.add(canonical)
+      maybeReady(canonical)
+    },
+  }
 }
 
 type SocketLike = {
