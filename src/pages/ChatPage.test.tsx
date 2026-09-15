@@ -143,7 +143,7 @@ describe('ChatPage client-only party UX', () => {
       expect(screen.getByTestId('location')).toHaveTextContent('/chat#v=2&party=party-a&role=guest')
       expect(screen.getByTestId('location')).not.toHaveTextContent('a=admit')
       expect(screen.getByTestId('location')).not.toHaveTextContent('r=rv')
-      expect(screen.getByText('1/8')).toBeInTheDocument()
+      expect(screen.getByText('2/8')).toBeInTheDocument()
     })
   })
 
