@@ -11,6 +11,9 @@ import AppShell from './shell/AppShell'
 
 const TrysteroPocPage = lazy(() => import('./pages/TrysteroPocPage'))
 const HostAuthorityPocPage = lazy(() => import('./pages/HostAuthorityPocPage'))
+const SchoolEscapePreviewPage = lazy(
+  () => import('./games/school-escape/SchoolEscapePage'),
+)
 
 function App() {
   return (
@@ -38,6 +41,14 @@ function App() {
           )}
         />
         <Route path="/games" element={<GamesPage />} />
+        <Route
+          path="/game-preview/school-escape"
+          element={(
+            <Suspense fallback={<div role="status">Loading School Escape…</div>}>
+              <SchoolEscapePreviewPage />
+            </Suspense>
+          )}
+        />
         {gameRouteEntries.map((entry) => (
           <Route key={entry.game.id} path={entry.path} element={entry.element} />
         ))}
