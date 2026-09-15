@@ -66,6 +66,14 @@ export async function createSchoolEscapeRuntime(
   )
   let previousFrameAt = performance.now()
 
+  const resetQualitySession = () => {
+    qualityState = createQualityPolicyState(
+      chooseInitialQuality(readQualityCapabilities()),
+    )
+    previousFrameAt = performance.now()
+    applyRenderQuality(engine, qualityState.tier)
+  }
+
   applyRenderQuality(engine, qualityState.tier)
 
   const renderFrame = () => {
@@ -108,6 +116,7 @@ export async function createSchoolEscapeRuntime(
     },
     resume() {
       if (!disposed && !failed) {
+        previousFrameAt = performance.now()
         paused = false
       }
     },
@@ -118,6 +127,7 @@ export async function createSchoolEscapeRuntime(
 
       failed = false
       paused = false
+      resetQualitySession()
     },
     dispose() {
       if (disposed) {
