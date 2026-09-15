@@ -1,3 +1,15 @@
+import {
+  createEventDrivenNostrModule,
+  deriveTrysteroRootTopic,
+  startEventDrivenRendezvous,
+  type EventDrivenNostrModule,
+  type RendezvousDiagnostic,
+  type TrysteroNostrCoreModule,
+  type TrysteroNostrPrimitives,
+} from './trysteroNostrRendezvous'
+
+export { deriveTrysteroRootTopic }
+
 const APP_ID = 'coolgamesplus-party-v2'
 const ACTION_NAMESPACE = 'party-v2'
 const sharedPoisonRegistry = new Set<string>()
@@ -15,6 +27,9 @@ export type PartyDiagnosticSource = 'start-host' | 'restore-host' | 'join-invite
 
 type RelaySocketLike = {
   readyState: number
+  send?: (data: string) => void
+  addEventListener?: (type: string, listener: EventListener) => void
+  removeEventListener?: (type: string, listener: EventListener) => void
 }
 
 export type TrysteroRoomLike = {
@@ -55,7 +70,13 @@ export type TrysteroNostrModuleLike = {
       handshakeTimeoutMs?: number
     },
   ) => TrysteroRoomLike
+  selfId?: string
   getRelaySockets?: () => Record<string, RelaySocketLike>
+  createEvent?: (topic: string, content: string) => Promise<string>
+  subscribe?: (subscriptionId: string, topic: string) => string
+  onRootSubscriptionReady?: (
+    listener: (event: { relayUrl: string; socket: RelaySocketLike }) => void,
+  ) => () => void
 }
 
 export type TrysteroNostrTransportOptions = {
@@ -80,10 +101,17 @@ export type TrysteroNostrTransportOptions = {
 type PartyDiagnosticStage =
   | 'transport-started'
   | 'relay-health'
+  | 'host-rendezvous-ready'
+  | 'guest-rendezvous-ready'
+  | 'guest-wake-sent'
+  | 'host-wake-received'
+  | 'host-reannounce-sent'
   | 'handshake-started'
   | 'handshake-accepted'
   | 'join-error'
   | 'peer-joined'
+  | 'peer-left'
+  | 'rtc-path'
 
 type RelayStateCounts = {
   connecting: number
@@ -92,6 +120,8 @@ type RelayStateCounts = {
   closed: number
   unknown: number
 }
+
+type CandidateType = 'host' | 'srflx' | 'prflx' | 'relay' | 'unknown'
 
 type PartyDiagnostic = {
   stage: PartyDiagnosticStage
@@ -103,6 +133,16 @@ type PartyDiagnostic = {
   turnConfigured?: boolean
   relayCount?: number
   relayStates?: RelayStateCounts
+  relayUrl?: string
+  readyRelayCount?: number
+  openRelayCount?: number
+  wakeIndex?: number
+  attemptedRelayCount?: number
+  peerCount?: number
+  localCandidateType?: CandidateType
+  remoteCandidateType?: CandidateType
+  roundTripTimeMs?: number | null
+  usesTurn?: boolean
   reason?: 'sdp-connectivity-failed' | 'application-handshake-failed' | 'password-failed' | 'unknown'
   error?: string
 }
@@ -155,12 +195,11 @@ function summarizeRelayStates(sockets: Record<string, RelaySocketLike>): RelaySt
 }
 
 function logPartyDiagnostic(diagnostic: PartyDiagnostic, warning = false) {
-  const serialized = JSON.stringify(diagnostic)
   if (warning) {
-    console.warn('[party-network]', diagnostic, serialized)
+    console.warn('[party-network]', diagnostic)
     return
   }
-  console.info('[party-network]', diagnostic, serialized)
+  console.info('[party-network]', diagnostic)
 }
 
 function hasUnsafeClosedPeer(room: TrysteroRoomLike) {
@@ -171,8 +210,82 @@ function hasUnsafeClosedPeer(room: TrysteroRoomLike) {
     || peer.iceConnectionState === 'failed')
 }
 
+function isEventDrivenModule(module: TrysteroNostrModuleLike): module is TrysteroNostrModuleLike & {
+  selfId: string
+  getRelaySockets: NonNullable<TrysteroNostrModuleLike['getRelaySockets']>
+  createEvent: NonNullable<TrysteroNostrModuleLike['createEvent']>
+  subscribe: NonNullable<TrysteroNostrModuleLike['subscribe']>
+  onRootSubscriptionReady: NonNullable<TrysteroNostrModuleLike['onRootSubscriptionReady']>
+} {
+  if (
+    typeof module.selfId !== 'string'
+    || !module.selfId
+    || typeof module.getRelaySockets !== 'function'
+    || typeof module.createEvent !== 'function'
+    || typeof module.subscribe !== 'function'
+    || typeof module.onRootSubscriptionReady !== 'function'
+  ) {
+    return false
+  }
+
+  const sockets = module.getRelaySockets()
+  return Object.values(sockets).every((socket) => (
+    typeof socket.send === 'function'
+    && typeof socket.addEventListener === 'function'
+    && typeof socket.removeEventListener === 'function'
+  ))
+}
+
+function controlledCandidateType(value: unknown): CandidateType {
+  return value === 'host' || value === 'srflx' || value === 'prflx' || value === 'relay'
+    ? value
+    : 'unknown'
+}
+
+async function summarizeRtcPath(peer: RTCPeerConnection) {
+  const report = await peer.getStats()
+  const records = new Map<string, Record<string, unknown>>()
+  report.forEach((record) => {
+    const candidate = record as unknown as Record<string, unknown>
+    if (typeof candidate.id === 'string') records.set(candidate.id, candidate)
+  })
+
+  const pair = [...records.values()].find((record) => (
+    record.type === 'candidate-pair'
+    && record.state === 'succeeded'
+    && (record.selected === true || record.nominated === true)
+  ))
+  if (!pair) return null
+
+  const local = typeof pair.localCandidateId === 'string'
+    ? records.get(pair.localCandidateId)
+    : undefined
+  const remote = typeof pair.remoteCandidateId === 'string'
+    ? records.get(pair.remoteCandidateId)
+    : undefined
+  const localCandidateType = controlledCandidateType(local?.candidateType)
+  const remoteCandidateType = controlledCandidateType(remote?.candidateType)
+  const rttSeconds = typeof pair.currentRoundTripTime === 'number'
+    ? pair.currentRoundTripTime
+    : null
+
+  return {
+    localCandidateType,
+    remoteCandidateType,
+    roundTripTimeMs: rttSeconds === null ? null : Math.round(rttSeconds * 1_000),
+    usesTurn: localCandidateType === 'relay' || remoteCandidateType === 'relay',
+  }
+}
+
 async function loadProductionModule(): Promise<TrysteroNostrModuleLike> {
-  return import('@trystero-p2p/nostr') as unknown as Promise<TrysteroNostrModuleLike>
+  const [core, nostr] = await Promise.all([
+    import('@trystero-p2p/core'),
+    import('@trystero-p2p/nostr'),
+  ])
+  return createEventDrivenNostrModule({
+    core: core as unknown as TrysteroNostrCoreModule,
+    nostr: nostr as unknown as TrysteroNostrPrimitives,
+  }) as unknown as TrysteroNostrModuleLike
 }
 
 export class TrysteroNostrTransport {
@@ -180,8 +293,10 @@ export class TrysteroNostrTransport {
   private action: ReturnType<TrysteroRoomLike['makeAction']> | null = null
   private startPromise: Promise<void> | null = null
   private disposePromise: Promise<{ requiresReload: boolean }> | null = null
+  private rendezvousStop: (() => void) | null = null
   private disposed = false
   private startedAtMs = 0
+  private lastRelayHealthKey: string | null = null
   private readonly options: TrysteroNostrTransportOptions
   private readonly poisonRegistry: Set<string>
   private readonly roomKey: string
@@ -202,17 +317,49 @@ export class TrysteroNostrTransport {
     return this.startedAtMs ? Math.max(0, Date.now() - this.startedAtMs) : 0
   }
 
-  private logRelayHealth(module: TrysteroNostrModuleLike) {
+  private logRelayHealth(module: TrysteroNostrModuleLike, force = false) {
     const sockets = module.getRelaySockets?.()
     if (!sockets) return
+    const relayStates = summarizeRelayStates(sockets)
+    const relayCount = Object.keys(sockets).length
+    const healthKey = JSON.stringify({ relayCount, relayStates })
+    if (!force && healthKey === this.lastRelayHealthKey) return
+    this.lastRelayHealthKey = healthKey
     logPartyDiagnostic({
       stage: 'relay-health',
       role: this.options.role,
       source: this.options.diagnosticSource,
       elapsedMs: this.elapsedMs(),
-      relayCount: Object.keys(sockets).length,
-      relayStates: summarizeRelayStates(sockets),
+      relayCount,
+      relayStates,
     })
+  }
+
+  private logRendezvousDiagnostic(diagnostic: RendezvousDiagnostic) {
+    logPartyDiagnostic({
+      ...diagnostic,
+      role: this.options.role,
+      source: this.options.diagnosticSource,
+      elapsedMs: this.elapsedMs(),
+    })
+  }
+
+  private async logRtcPath(peerId: string) {
+    const peer = this.room?.getPeers()[peerId]
+    if (!peer || this.disposed) return
+    try {
+      const path = await summarizeRtcPath(peer)
+      if (!path || this.disposed) return
+      logPartyDiagnostic({
+        stage: 'rtc-path',
+        role: this.options.role,
+        source: this.options.diagnosticSource,
+        elapsedMs: this.elapsedMs(),
+        ...path,
+      })
+    } catch {
+      // RTC diagnostics must never affect the live party path.
+    }
   }
 
   async start() {
@@ -228,6 +375,7 @@ export class TrysteroNostrTransport {
     }
 
     this.startedAtMs = Date.now()
+    this.lastRelayHealthKey = null
     this.startPromise = this.startGeneration()
     try {
       await this.startPromise
@@ -288,8 +436,6 @@ export class TrysteroNostrTransport {
         appId: APP_ID,
         password: this.options.rendezvousCapability,
         passive: this.options.role === 'guest',
-        // Match the successful #18 POC's Nostr/default WebRTC behavior: trickle
-        // ICE candidates incrementally instead of bundling them into SDP.
         trickleIce: true,
         relayConfig: {
           urls: [...PRODUCTION_NOSTR_RELAY_URLS],
@@ -314,7 +460,7 @@ export class TrysteroNostrTransport {
               this.options.rendezvousCapability,
             ]),
           }, true)
-          this.logRelayHealth(module)
+          this.logRelayHealth(module, true)
           this.options.onJoinError?.(details)
         },
         onPeerHandshake: applicationHandshake,
@@ -331,6 +477,23 @@ export class TrysteroNostrTransport {
       relayCount: PRODUCTION_NOSTR_RELAY_URLS.length,
     })
     this.logRelayHealth(module)
+
+    if (isEventDrivenModule(module)) {
+      const rendezvous = await startEventDrivenRendezvous({
+        role: this.options.role,
+        appId: APP_ID,
+        roomId: this.options.partyId,
+        rendezvousCapability: this.options.rendezvousCapability,
+        module: module as unknown as EventDrivenNostrModule,
+        log: (diagnostic) => this.logRendezvousDiagnostic(diagnostic),
+      })
+      if (this.disposed) {
+        rendezvous.stop()
+        return
+      }
+      this.rendezvousStop = () => rendezvous.stop()
+    }
+
     const action = room.makeAction(ACTION_NAMESPACE)
     action.onMessage = async (data, context) => {
       if (this.disposed) return
@@ -343,12 +506,22 @@ export class TrysteroNostrTransport {
         role: this.options.role,
         source: this.options.diagnosticSource,
         elapsedMs: this.elapsedMs(),
+        peerCount: Object.keys(room.getPeers()).length,
       })
       this.logRelayHealth(module)
+      void this.logRtcPath(peerId)
       this.options.onPeerJoin?.(peerId)
     }
     room.onPeerLeave = (peerId) => {
-      if (!this.disposed) this.options.onPeerLeave?.(peerId)
+      if (this.disposed) return
+      logPartyDiagnostic({
+        stage: 'peer-left',
+        role: this.options.role,
+        source: this.options.diagnosticSource,
+        elapsedMs: this.elapsedMs(),
+        peerCount: Object.keys(room.getPeers()).length,
+      })
+      this.options.onPeerLeave?.(peerId)
     }
 
     this.action = action
@@ -378,6 +551,8 @@ export class TrysteroNostrTransport {
   dispose() {
     if (!this.disposePromise) {
       this.disposed = true
+      this.rendezvousStop?.()
+      this.rendezvousStop = null
       this.disposePromise = this.disposeGeneration()
     }
     return this.disposePromise
