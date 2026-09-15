@@ -6,6 +6,7 @@ const MAX_SEEN_WAKE_IDS = 64
 const MAX_WAKE_DIAGNOSTICS = 32
 
 export const POC_NOSTR_WAKE_COOLDOWN_MS = 1_500
+export const POC_NOSTR_WAKE_SUBSCRIPTION_SETTLE_MS = 500
 
 export type PocNostrWakeDiagnostic = {
   at: string
@@ -72,20 +73,25 @@ export function derivePocNostrWakeTopic(
   return hash('SHA-256', `CoolGamesPlusWake@${appId}@${roomId}@${rendezvousSecret}`)
 }
 
-function sendOnceWhenOpen(
+function scheduleOnceAfterSubscriptionSettle(
   socket: SocketLike,
   payload: string,
   onSent?: () => void,
 ) {
   const send = () => {
+    if (socket.readyState !== OPEN) return
     socket.send(payload)
     recordWakeDiagnostic('guest-wake-sent')
     onSent?.()
   }
 
+  const schedule = () => {
+    setTimeout(send, POC_NOSTR_WAKE_SUBSCRIPTION_SETTLE_MS)
+  }
+
   if (socket.readyState === OPEN) {
-    send()
-    return 'sent' as const
+    schedule()
+    return 'open' as const
   }
 
   if (socket.readyState !== CONNECTING) {
@@ -94,7 +100,7 @@ function sendOnceWhenOpen(
 
   const onOpen: EventListener = () => {
     socket.removeEventListener('open', onOpen)
-    if (socket.readyState === OPEN) send()
+    schedule()
   }
   socket.addEventListener('open', onOpen)
   return 'waiting' as const
@@ -118,16 +124,20 @@ export async function sendPocNostrGuestWake({
   resetWakeDiagnostics()
   const wakeTopic = await derivePocNostrWakeTopic(appId, roomId, rendezvousSecret)
   const event = await createEvent(wakeTopic, WAKE_PAYLOAD)
-  let sentImmediately = 0
+  let openRelays = 0
   let waitingForOpen = 0
 
   for (const socket of Object.values(sockets)) {
-    const result = sendOnceWhenOpen(socket, event, onWakeSent)
-    if (result === 'sent') sentImmediately += 1
+    const result = scheduleOnceAfterSubscriptionSettle(socket, event, onWakeSent)
+    if (result === 'open') openRelays += 1
     if (result === 'waiting') waitingForOpen += 1
   }
 
-  return { sentImmediately, waitingForOpen }
+  return {
+    openRelays,
+    waitingForOpen,
+    settleMs: POC_NOSTR_WAKE_SUBSCRIPTION_SETTLE_MS,
+  }
 }
 
 function parseWakeEvent(data: unknown, subscriptionId: string, wakeTopic: string) {
