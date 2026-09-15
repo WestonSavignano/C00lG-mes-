@@ -330,6 +330,17 @@ export default function ChatPage({ sessionFactory }: ChatPageProps) {
   }, [navigateToHash])
 
   const canSend = snapshot?.role === 'host' || snapshot?.status === 'connected'
+  const guestConnected = snapshot?.role === 'guest' && snapshot.status === 'connected'
+  const visibleMembers = snapshot?.role === 'guest' && !guestConnected ? [] : (snapshot?.members ?? [])
+  const localGuestListed = snapshot?.role === 'guest'
+    && visibleMembers.some((member) => member.memberId === snapshot.localMemberId)
+  const peopleCount = !snapshot
+    ? 0
+    : snapshot.role === 'host'
+      ? visibleMembers.length + 1
+      : guestConnected
+        ? Math.max(visibleMembers.length + 1, 2)
+        : 0
   const routeError = route.kind === 'invalid'
     ? 'This Chat link is incomplete or no longer valid.'
     : null
@@ -401,13 +412,19 @@ export default function ChatPage({ sessionFactory }: ChatPageProps) {
             <section className="chat-card chat-roster" aria-label="People in Chat">
               <div className="chat-section-heading">
                 <h2>People</h2>
-                <span>{snapshot.members.length + 1}/8</span>
+                <span>{peopleCount}/8</span>
               </div>
               <div className="chat-member-row">
                 <span>Host</span>
-                <strong>{snapshot.role === 'host' ? 'You' : 'Host'}</strong>
+                <strong>{snapshot.role === 'host' ? 'You' : guestConnected ? 'Host' : 'Host not connected'}</strong>
               </div>
-              {snapshot.members.map((member) => (
+              {snapshot.role === 'guest' && guestConnected && !localGuestListed ? (
+                <div className="chat-member-row">
+                  <span>{snapshot.localLabel}</span>
+                  <strong>You</strong>
+                </div>
+              ) : null}
+              {visibleMembers.map((member) => (
                 <div className="chat-member-row" key={member.memberId}>
                   <span>{member.label}</span>
                   {snapshot.role === 'host' ? (
