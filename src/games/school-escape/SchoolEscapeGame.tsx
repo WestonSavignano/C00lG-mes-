@@ -16,7 +16,7 @@ import {
 import {
   EMPTY_PAINT_MIX,
   type PaintMix,
-  type Pigment,
+  type PaintPigment,
 } from './schoolEscapeTypes'
 import './schoolEscape.css'
 
@@ -33,7 +33,7 @@ const INITIAL_UI_SNAPSHOT: SchoolEscapeUiSnapshot = {
 }
 
 const PIGMENTS: readonly Readonly<{
-  id: Pigment
+  id: PaintPigment
   label: string
 }>[] = [
   { id: 'red', label: 'Red' },
@@ -190,7 +190,7 @@ function SchoolEscapeGame({
     })
   }
 
-  const addPigment = (pigment: Pigment) => {
+  const addPigment = (pigment: PaintPigment) => {
     setPaintMix((current) => ({
       ...current,
       [pigment]: Math.min(1, current[pigment] + 0.1),
