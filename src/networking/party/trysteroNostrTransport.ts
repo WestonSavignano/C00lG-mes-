@@ -288,9 +288,9 @@ export class TrysteroNostrTransport {
         appId: APP_ID,
         password: this.options.rendezvousCapability,
         passive: this.options.role === 'guest',
-        // Bundle ICE candidates with the offer/answer so connectivity does not
-        // depend on additional candidate messages surviving public relay loss.
-        trickleIce: false,
+        // Match the successful #18 POC's Nostr/default WebRTC behavior: trickle
+        // ICE candidates incrementally instead of bundling them into SDP.
+        trickleIce: true,
         relayConfig: {
           urls: [...PRODUCTION_NOSTR_RELAY_URLS],
           manualReconnection: false,
@@ -326,7 +326,7 @@ export class TrysteroNostrTransport {
       role: this.options.role,
       source: this.options.diagnosticSource,
       elapsedMs: this.elapsedMs(),
-      trickleIce: false,
+      trickleIce: true,
       turnConfigured: false,
       relayCount: PRODUCTION_NOSTR_RELAY_URLS.length,
     })
