@@ -131,16 +131,19 @@ function moveToward(
   }
 
   const step = Math.min(distance, Math.max(0, maxDistance))
+  const reached = step >= distance - EPSILON
   const scale = step / distance
 
   return {
-    position: {
-      x: position.x + dx * scale,
-      y: position.y + (target.y - position.y) * scale,
-      z: position.z + dz * scale,
-    },
+    position: reached
+      ? { ...target }
+      : {
+          x: position.x + dx * scale,
+          y: position.y + (target.y - position.y) * scale,
+          z: position.z + dz * scale,
+        },
     moved: step > EPSILON,
-    reached: step >= distance - EPSILON,
+    reached,
     facing: {
       x: dx / distance,
       z: dz / distance,
