@@ -38,4 +38,23 @@ describe('host invite readiness', () => {
     expect(addLog).toHaveBeenCalledWith('HOST READY — paste/open the guest invite now')
     expect(consoleInfo).toHaveBeenCalledWith('HOST READY — paste/open the guest invite now')
   })
+
+  it('streams sanitized event diagnostics to the browser console as they occur', () => {
+    const consoleInfo = vi.spyOn(console, 'info').mockImplementation(() => undefined)
+    wakeModule.resetPocNostrWakeDiagnostics()
+
+    wakeModule.recordPocNostrWakeDiagnostic('guest-wake-sent', {
+      relayUrl: 'wss://relay.test/',
+    })
+
+    expect(consoleInfo).toHaveBeenCalledWith(
+      '[Trystero POC:event]',
+      expect.objectContaining({
+        stage: 'guest-wake-sent',
+        relayUrl: 'wss://relay.test/',
+      }),
+    )
+
+    consoleInfo.mockRestore()
+  })
 })
