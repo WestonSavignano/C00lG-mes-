@@ -35,7 +35,7 @@ function createModule(room: TrysteroRoomLike) {
 }
 
 describe('TrysteroNostrTransport', () => {
-  it('uses the reviewed active-host/passive-guest Nostr configuration with a pinned relay pool and no TURN', async () => {
+  it('uses the reviewed active-host/passive-guest Nostr configuration with bundled ICE, a pinned relay pool, and no TURN', async () => {
     const hostRoom = createFakeRoom()
     const hostModule = createModule(hostRoom.room)
     const host = new TrysteroNostrTransport({
@@ -52,7 +52,7 @@ describe('TrysteroNostrTransport', () => {
         appId: 'coolgamesplus-party-v2',
         password: 'rendezvous-a',
         passive: false,
-        trickleIce: true,
+        trickleIce: false,
         relayConfig: {
           urls: [
             'wss://relay02.lnfi.network',
