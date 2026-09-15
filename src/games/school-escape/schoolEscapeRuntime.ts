@@ -2,6 +2,13 @@ import { Engine } from '@babylonjs/core/Engines/engine'
 import { Scene } from '@babylonjs/core/scene'
 import type { SemanticInputReader } from '../shared/input/semanticInput'
 import type { LookInputReader, SchoolEscapeAction } from './schoolEscapeInput'
+import {
+  QUALITY_SETTINGS,
+  chooseInitialQuality,
+  createQualityPolicyState,
+  updateQualityPolicy,
+  type QualityTier,
+} from './schoolEscapeQuality'
 
 export type SchoolEscapeRuntimeController = {
   resize(): void
@@ -18,8 +25,32 @@ export type SchoolEscapeRuntimeOptions = {
   onFatalError(error: Error): void
 }
 
+type NavigatorWithDeviceMemory = Navigator & {
+  deviceMemory?: number
+}
+
 function toError(error: unknown) {
   return error instanceof Error ? error : new Error(String(error))
+}
+
+function readQualityCapabilities() {
+  const browserNavigator = navigator as NavigatorWithDeviceMemory
+
+  return {
+    deviceMemory: browserNavigator.deviceMemory,
+    hardwareConcurrency: browserNavigator.hardwareConcurrency,
+    devicePixelRatio: window.devicePixelRatio,
+  }
+}
+
+function applyRenderQuality(engine: Engine, tier: QualityTier) {
+  const devicePixelRatio =
+    Number.isFinite(window.devicePixelRatio) && window.devicePixelRatio > 0
+      ? window.devicePixelRatio
+      : 1
+  const cappedDpr = Math.min(devicePixelRatio, QUALITY_SETTINGS[tier].dprCap)
+
+  engine.setHardwareScalingLevel(1 / cappedDpr)
 }
 
 export async function createSchoolEscapeRuntime(
@@ -30,10 +61,30 @@ export async function createSchoolEscapeRuntime(
   let disposed = false
   let paused = false
   let failed = false
+  let qualityState = createQualityPolicyState(
+    chooseInitialQuality(readQualityCapabilities()),
+  )
+  let previousFrameAt = performance.now()
+
+  applyRenderQuality(engine, qualityState.tier)
 
   const renderFrame = () => {
     if (disposed || paused || failed) {
       return
+    }
+
+    const frameAt = performance.now()
+    const frameTimeMs = Math.max(0, frameAt - previousFrameAt)
+    previousFrameAt = frameAt
+    const previousTier = qualityState.tier
+
+    qualityState = updateQualityPolicy(qualityState, {
+      frameTimeMs,
+      dt: frameTimeMs / 1000,
+    })
+
+    if (qualityState.tier !== previousTier) {
+      applyRenderQuality(engine, qualityState.tier)
     }
 
     try {
