@@ -3,9 +3,17 @@ const OPEN = 1
 const CONNECTING = 0
 const WAKE_PAYLOAD = JSON.stringify({ type: 'wake', version: 1 })
 const MAX_SEEN_WAKE_IDS = 64
-const MAX_WAKE_DIAGNOSTICS = 64
+const MAX_WAKE_DIAGNOSTICS = 96
 
 export const POC_NOSTR_WAKE_COOLDOWN_MS = 1_500
+
+export type PocTrysteroObservedMessageKind =
+  | 'announcement'
+  | 'nudge'
+  | 'offer'
+  | 'answer'
+  | 'candidate'
+  | 'unknown'
 
 export type PocNostrWakeDiagnostic = {
   at: string
@@ -15,6 +23,8 @@ export type PocNostrWakeDiagnostic = {
     | 'root-subscription-sent'
     | 'root-subscription-ready'
     | 'root-subscription-closed'
+    | 'trystero-message-received'
+    | 'trystero-message-published'
     | 'guest-wake-armed'
     | 'guest-wake-sent'
     | 'host-wake-listener-armed'
@@ -24,6 +34,7 @@ export type PocNostrWakeDiagnostic = {
     | 'host-announcement-sent'
   relayUrl?: string
   openRelayCount?: number
+  messageKind?: PocTrysteroObservedMessageKind
 }
 
 const wakeDiagnostics: PocNostrWakeDiagnostic[] = []
@@ -34,7 +45,10 @@ export function resetPocNostrWakeDiagnostics() {
 
 export function recordPocNostrWakeDiagnostic(
   stage: PocNostrWakeDiagnostic['stage'],
-  details: Pick<PocNostrWakeDiagnostic, 'relayUrl' | 'openRelayCount'> = {},
+  details: Pick<
+    PocNostrWakeDiagnostic,
+    'relayUrl' | 'openRelayCount' | 'messageKind'
+  > = {},
 ) {
   wakeDiagnostics.push({
     at: new Date().toISOString(),
@@ -43,6 +57,7 @@ export function recordPocNostrWakeDiagnostic(
     ...(details.openRelayCount === undefined
       ? {}
       : { openRelayCount: details.openRelayCount }),
+    ...(details.messageKind ? { messageKind: details.messageKind } : {}),
   })
   if (wakeDiagnostics.length > MAX_WAKE_DIAGNOSTICS) {
     wakeDiagnostics.splice(0, wakeDiagnostics.length - MAX_WAKE_DIAGNOSTICS)
