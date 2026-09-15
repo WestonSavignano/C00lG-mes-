@@ -134,7 +134,9 @@ export async function sendPocNostrGuestWake({
   }
 
   return {
-    openRelays,
+    // Retain the existing POC-page field name; it now counts relays that were
+    // already open when their bounded post-open wake was scheduled.
+    sentImmediately: openRelays,
     waitingForOpen,
     settleMs: POC_NOSTR_WAKE_SUBSCRIPTION_SETTLE_MS,
   }
