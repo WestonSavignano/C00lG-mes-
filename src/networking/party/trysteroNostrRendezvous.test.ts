@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import * as transportModule from './trysteroNostrTransport'
 import {
   TrysteroNostrTransport,
   type TrysteroNostrModuleLike,
@@ -91,6 +92,14 @@ function diagnosticsFrom(spy: ReturnType<typeof vi.spyOn>) {
 }
 
 describe('event-driven production Nostr rendezvous', () => {
+  it('matches Trystero 0.25.4 root-topic encoding exactly', async () => {
+    const deriveRootTopic = Reflect.get(transportModule, 'deriveTrysteroRootTopic')
+    expect(deriveRootTopic).toBeTypeOf('function')
+    await expect(deriveRootTopic('coolgamesplus-party-v2', 'party-a')).resolves.toBe(
+      '3k2t364z352n5d4g3wt5t3g132d1c2r4s5p305a',
+    )
+  })
+
   it('wakes an already-running host only after the guest root subscription is ready', async () => {
     const info = vi.spyOn(console, 'info').mockImplementation(() => undefined)
     try {
