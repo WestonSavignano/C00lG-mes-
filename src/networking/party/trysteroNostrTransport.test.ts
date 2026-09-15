@@ -29,9 +29,24 @@ function createFakeRoom(input: { leaveRejects?: boolean; peerState?: RTCPeerConn
   return { room, action, sent }
 }
 
-function createModule(room: TrysteroRoomLike) {
+function createModule(
+  room: TrysteroRoomLike,
+  relayStates: Record<string, number> = {
+    'wss://relay02.lnfi.network': 1,
+    'wss://nostr.data.haus': 1,
+    'wss://relay-can.zombi.cloudrodion.com': 0,
+    'wss://yabu.me/v2': 3,
+  },
+) {
   const joinRoom = vi.fn(() => room)
-  return { module: { joinRoom } as TrysteroNostrModuleLike, joinRoom }
+  const getRelaySockets = vi.fn(() => Object.fromEntries(
+    Object.entries(relayStates).map(([url, readyState]) => [url, { readyState }]),
+  ))
+  return {
+    module: { joinRoom, getRelaySockets } as unknown as TrysteroNostrModuleLike,
+    joinRoom,
+    getRelaySockets,
+  }
 }
 
 describe('TrysteroNostrTransport', () => {
@@ -83,7 +98,7 @@ describe('TrysteroNostrTransport', () => {
     expect(guestModule.joinRoom.mock.calls[0]?.[0]).toMatchObject({ passive: true })
   })
 
-  it('emits privacy-safe diagnostics across transport, handshake, join-error, and peer-join boundaries', async () => {
+  it('emits privacy-safe timing, relay health, ICE mode, and classified join diagnostics', async () => {
     const info = vi.spyOn(console, 'info').mockImplementation(() => undefined)
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
     try {
@@ -108,16 +123,27 @@ describe('TrysteroNostrTransport', () => {
         async () => ({ data: 'ignored' }),
         false,
       )
-      callbacks?.onJoinError?.({ error: 'handshake timed out', peerId: 'peer-secret' })
+      callbacks?.onJoinError?.({
+        error: 'could not connect to peer peer-secret after exchanging SDP; configure TURN servers with turnConfig or rtcConfig.iceServers',
+        peerId: 'peer-secret',
+      })
       fake.room.onPeerJoin?.('peer-secret')
 
       const output = JSON.stringify([...info.mock.calls, ...warn.mock.calls])
       expect(output).toContain('transport-started')
+      expect(output).toContain('relay-health')
       expect(output).toContain('handshake-started')
       expect(output).toContain('handshake-accepted')
       expect(output).toContain('join-error')
       expect(output).toContain('peer-joined')
-      expect(output).toContain('handshake timed out')
+      expect(output).toContain('sdp-connectivity-failed')
+      expect(output).toContain('"trickleIce":false')
+      expect(output).toContain('"turnConfigured":false')
+      expect(output).toContain('"relayCount":4')
+      expect(output).toContain('"connecting":1')
+      expect(output).toContain('"open":2')
+      expect(output).toContain('"closed":1')
+      expect(output).toContain('"elapsedMs":')
       expect(output).not.toContain('peer-secret')
       expect(output).not.toContain('party-secret')
       expect(output).not.toContain('rendezvous-secret')
