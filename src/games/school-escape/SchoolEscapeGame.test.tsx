@@ -12,6 +12,7 @@ vi.mock('./schoolEscapeRuntime', () => ({
 
 function createRuntimeController() {
   return {
+    setPaintMix: vi.fn(),
     resize: vi.fn(),
     pause: vi.fn(),
     resume: vi.fn(),
@@ -93,5 +94,112 @@ describe('SchoolEscapeGame', () => {
       expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     })
     expect(runtimeMock.create).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows camouflage controls only near cover with nonnumeric world-first feedback', async () => {
+    const runtime = createRuntimeController()
+    let publishUiSnapshot: ((snapshot: unknown) => void) | null = null
+
+    runtimeMock.create.mockImplementation(async (options) => {
+      publishUiSnapshot = options.onUiSnapshot
+      return runtime
+    })
+
+    render(<SchoolEscapeGame runtimeEnabled />)
+    await waitFor(() => expect(runtimeMock.create).toHaveBeenCalledTimes(1))
+
+    expect(screen.queryByRole('group', { name: 'Mix paint' })).not.toBeInTheDocument()
+
+    act(() => {
+      publishUiSnapshot?.({
+        nearbySurfaceId: 'locker-blue',
+        matchScore: 0.86,
+        teacherAlert: 'suspicious',
+        subtitle: 'Come back here!',
+        phase: 'playing',
+      })
+    })
+
+    expect(screen.getByRole('group', { name: 'Mix paint' })).toBeInTheDocument()
+    for (const label of ['Red', 'Yellow', 'Blue', 'White', 'Black', 'Clean paint']) {
+      expect(screen.getByRole('button', { name: label })).toBeInTheDocument()
+    }
+    expect(screen.getByLabelText('Paint match strong')).toBeInTheDocument()
+    expect(screen.getByLabelText('Teacher noticed something')).toBeInTheDocument()
+    expect(screen.getByText('Come back here!')).toBeInTheDocument()
+
+    expect(document.body.textContent).not.toMatch(/POOR|CLOSE|BLENDED|PATROL|SEARCH|CHASE/)
+    expect(document.body.textContent).not.toMatch(/minimap|waypoint/i)
+    expect(document.body.textContent).not.toContain('86%')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clean paint' }))
+    await waitFor(() => {
+      expect(runtime.setPaintMix).toHaveBeenLastCalledWith({
+        red: 0,
+        yellow: 0,
+        blue: 0,
+        white: 0,
+        black: 0,
+      })
+    })
+
+    act(() => {
+      publishUiSnapshot?.({
+        nearbySurfaceId: null,
+        matchScore: null,
+        teacherAlert: 'none',
+        subtitle: null,
+        phase: 'playing',
+      })
+    })
+
+    expect(screen.queryByRole('group', { name: 'Mix paint' })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Teacher noticed something')).not.toBeInTheDocument()
+  })
+
+  it('shows concise caught and completion actions without exposing debug HUD', async () => {
+    const runtime = createRuntimeController()
+    let publishUiSnapshot: ((snapshot: unknown) => void) | null = null
+
+    runtimeMock.create.mockImplementation(async (options) => {
+      publishUiSnapshot = options.onUiSnapshot
+      return runtime
+    })
+
+    render(<SchoolEscapeGame runtimeEnabled />)
+    await waitFor(() => expect(runtimeMock.create).toHaveBeenCalledTimes(1))
+
+    act(() => {
+      publishUiSnapshot?.({
+        nearbySurfaceId: null,
+        matchScore: null,
+        teacherAlert: 'alert',
+        subtitle: null,
+        phase: 'caught',
+      })
+    })
+
+    expect(screen.getByRole('heading', { name: 'Caught' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Return to Games' })).toHaveAttribute(
+      'href',
+      '/games',
+    )
+
+    act(() => {
+      publishUiSnapshot?.({
+        nearbySurfaceId: null,
+        matchScore: null,
+        teacherAlert: 'none',
+        subtitle: null,
+        phase: 'complete',
+      })
+    })
+
+    expect(
+      screen.getByRole('heading', { name: 'Golden slice complete' }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Play again' })).toBeInTheDocument()
+    expect(document.body.textContent).not.toMatch(/PATROL|SEARCH|CHASE/)
   })
 })
