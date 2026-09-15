@@ -19,16 +19,26 @@ describe('Trystero POC rendezvous strategy selection', () => {
     expect(getPocModuleUrl('torrent')).toBe('https://esm.run/@trystero-p2p/torrent@0.25.4')
   })
 
-  it('keeps active-host/passive-guest and trickle ICE equivalent across strategies', () => {
-    expect(buildPocStrategyConfig('host', 'secret')).toMatchObject({
+  it('keeps active-host/passive-guest behavior equivalent while respecting each strategy ICE mode', () => {
+    expect(buildPocStrategyConfig('nostr', 'host', 'secret')).toMatchObject({
       password: 'secret',
       passive: false,
       trickleIce: true,
     })
-    expect(buildPocStrategyConfig('guest', 'secret')).toMatchObject({
+    expect(buildPocStrategyConfig('nostr', 'guest', 'secret')).toMatchObject({
       password: 'secret',
       passive: true,
       trickleIce: true,
+    })
+    expect(buildPocStrategyConfig('torrent', 'host', 'secret')).toMatchObject({
+      password: 'secret',
+      passive: false,
+      trickleIce: false,
+    })
+    expect(buildPocStrategyConfig('torrent', 'guest', 'secret')).toMatchObject({
+      password: 'secret',
+      passive: true,
+      trickleIce: false,
     })
   })
 
