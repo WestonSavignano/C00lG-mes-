@@ -40,9 +40,9 @@ function createSocket(initialState = WebSocket.OPEN) {
 }
 
 describe('event-driven Nostr late-guest wake', () => {
-  it('derives the normal Trystero root topic and a private wake topic bound to the rendezvous secret', async () => {
+  it('derives Trystero 0.25.4 root-topic encoding and a private wake topic bound to the rendezvous secret', async () => {
     await expect(derivePocNostrRootTopic(TRYSTERO_POC_APP_ID, 'party-a'))
-      .resolves.toBe('443c959e0473622f81aeb337362aac8a0ea01d58')
+      .resolves.toBe('1w1o454e4372q1b3l4u4z1j1i164s3ue4gt2g')
 
     const first = await derivePocNostrWakeTopic(TRYSTERO_POC_APP_ID, 'party-a', 'secret-a')
     const second = await derivePocNostrWakeTopic(TRYSTERO_POC_APP_ID, 'party-a', 'secret-b')
