@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import SchoolEscapeGame from './SchoolEscapeGame'
 
 const runtimeMock = vi.hoisted(() => ({
@@ -24,6 +24,10 @@ function createRuntimeController() {
 describe('SchoolEscapeGame', () => {
   beforeEach(() => {
     runtimeMock.create.mockReset()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('renders first-class touch movement, look, sprint, and jump controls', () => {
@@ -124,7 +128,10 @@ describe('SchoolEscapeGame', () => {
     for (const label of ['Red', 'Yellow', 'Blue', 'White', 'Black', 'Clean paint']) {
       expect(screen.getByRole('button', { name: label })).toBeInTheDocument()
     }
-    expect(screen.getByLabelText('Paint match strong')).toBeInTheDocument()
+    const matchRing = screen.getByLabelText('Paint match strong')
+    expect(matchRing).toBeInTheDocument()
+    expect(matchRing.getAttribute('style')).toContain('--match-progress: 86%')
+    expect(screen.getByLabelText('Current paint color')).toBeInTheDocument()
     expect(screen.getByLabelText('Teacher noticed something')).toBeInTheDocument()
     expect(screen.getByText('Come back here!')).toBeInTheDocument()
 
@@ -155,6 +162,88 @@ describe('SchoolEscapeGame', () => {
 
     expect(screen.queryByRole('group', { name: 'Mix paint' })).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Teacher noticed something')).not.toBeInTheDocument()
+  })
+
+  it('adds pigment at 0.35 units per second while held and clamps channels to one', async () => {
+    const runtime = createRuntimeController()
+    let publishUiSnapshot: ((snapshot: unknown) => void) | null = null
+
+    runtimeMock.create.mockImplementation(async (options) => {
+      publishUiSnapshot = options.onUiSnapshot
+      return runtime
+    })
+
+    render(<SchoolEscapeGame runtimeEnabled />)
+    await waitFor(() => expect(runtimeMock.create).toHaveBeenCalledTimes(1))
+
+    act(() => {
+      publishUiSnapshot?.({
+        nearbySurfaceId: 'locker-blue',
+        matchScore: 0.4,
+        teacherAlert: 'none',
+        subtitle: null,
+        phase: 'playing',
+      })
+    })
+
+    const red = screen.getByRole('button', { name: 'Red' })
+    vi.useFakeTimers()
+
+    act(() => {
+      fireEvent.pointerDown(red, { pointerId: 1 })
+      vi.advanceTimersByTime(1000)
+    })
+
+    const afterOneSecond = runtime.setPaintMix.mock.calls.at(-1)?.[0]
+    expect(afterOneSecond?.red).toBeCloseTo(0.35, 5)
+
+    act(() => {
+      vi.advanceTimersByTime(3000)
+      fireEvent.pointerUp(red, { pointerId: 1 })
+    })
+
+    const afterFourSeconds = runtime.setPaintMix.mock.calls.at(-1)?.[0]
+    expect(afterFourSeconds?.red).toBe(1)
+  })
+
+  it('supports keyboard paint hold without turning Space into Jump', async () => {
+    const runtime = createRuntimeController()
+    let publishUiSnapshot: ((snapshot: unknown) => void) | null = null
+    let runtimeInput: { consumePress(action: string): boolean } | null = null
+
+    runtimeMock.create.mockImplementation(async (options) => {
+      publishUiSnapshot = options.onUiSnapshot
+      runtimeInput = options.input
+      return runtime
+    })
+
+    render(<SchoolEscapeGame runtimeEnabled />)
+    await waitFor(() => expect(runtimeMock.create).toHaveBeenCalledTimes(1))
+
+    act(() => {
+      publishUiSnapshot?.({
+        nearbySurfaceId: 'locker-blue',
+        matchScore: 0.4,
+        teacherAlert: 'none',
+        subtitle: null,
+        phase: 'playing',
+      })
+    })
+
+    const blue = screen.getByRole('button', { name: 'Blue' })
+    blue.focus()
+    vi.useFakeTimers()
+
+    act(() => {
+      fireEvent.keyDown(blue, { code: 'Space', key: ' ' })
+      vi.advanceTimersByTime(1000)
+    })
+
+    const afterOneSecond = runtime.setPaintMix.mock.calls.at(-1)?.[0]
+    expect(afterOneSecond?.blue).toBeCloseTo(0.35, 5)
+    expect(runtimeInput?.consumePress('jump')).toBe(false)
+
+    fireEvent.keyUp(blue, { code: 'Space', key: ' ' })
   })
 
   it('shows concise caught and completion actions without exposing debug HUD', async () => {
