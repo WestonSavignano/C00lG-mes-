@@ -1,4 +1,13 @@
-import { useEffect, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
+} from 'react'
 import ActionButton from '../shared/input/ActionButton'
 import DirectionalControl from '../shared/input/DirectionalControl'
 import useSemanticInput from '../shared/input/useSemanticInput'
@@ -8,6 +17,7 @@ import {
   schoolEscapeKeyboardBindings,
   type SchoolEscapeAction,
 } from './schoolEscapeInput'
+import { displayedClothingColor } from './schoolEscapeLogic'
 import {
   createSchoolEscapeRuntime,
   type SchoolEscapeRuntimeController,
@@ -24,6 +34,13 @@ type SchoolEscapeGameProps = {
   runtimeEnabled?: boolean
 }
 
+type PigmentHoldButtonProps = Readonly<{
+  pigment: PaintPigment
+  label: string
+  active: boolean
+  onAdd(pigment: PaintPigment, amount: number): void
+}>
+
 const INITIAL_UI_SNAPSHOT: SchoolEscapeUiSnapshot = {
   nearbySurfaceId: null,
   matchScore: null,
@@ -31,6 +48,12 @@ const INITIAL_UI_SNAPSHOT: SchoolEscapeUiSnapshot = {
   subtitle: null,
   phase: 'playing',
 }
+
+const PIGMENT_RATE_PER_SECOND = 0.35
+const PIGMENT_HOLD_INTERVAL_MS = 50
+const PIGMENT_HOLD_STEP =
+  PIGMENT_RATE_PER_SECOND * (PIGMENT_HOLD_INTERVAL_MS / 1000)
+const PIGMENT_CLICK_STEP = PIGMENT_RATE_PER_SECOND * 0.2
 
 const PIGMENTS: readonly Readonly<{
   id: PaintPigment
@@ -65,6 +88,174 @@ function paintMatchLabel(score: number | null) {
   }
 
   return 'Paint match weak'
+}
+
+function cssColorForMix(mix: PaintMix) {
+  const color = displayedClothingColor(mix)
+  const channel = (value: number) => Math.round(Math.max(0, Math.min(1, value)) * 255)
+
+  return `rgb(${channel(color.r)} ${channel(color.g)} ${channel(color.b)})`
+}
+
+function PigmentHoldButton({
+  pigment,
+  label,
+  active,
+  onAdd,
+}: PigmentHoldButtonProps) {
+  const intervalRef = useRef<number | null>(null)
+  const ownerPointerIdRef = useRef<number | null>(null)
+  const keyboardHeldRef = useRef(false)
+  const suppressClickRef = useRef(false)
+
+  const stopInterval = useCallback(() => {
+    if (intervalRef.current !== null) {
+      window.clearInterval(intervalRef.current)
+      intervalRef.current = null
+    }
+  }, [])
+
+  const syncInterval = useCallback(() => {
+    const held = ownerPointerIdRef.current !== null || keyboardHeldRef.current
+
+    if (!held) {
+      stopInterval()
+      return
+    }
+
+    if (intervalRef.current === null) {
+      intervalRef.current = window.setInterval(() => {
+        onAdd(pigment, PIGMENT_HOLD_STEP)
+      }, PIGMENT_HOLD_INTERVAL_MS)
+    }
+  }, [onAdd, pigment, stopInterval])
+
+  const clearPointerHold = useCallback(() => {
+    ownerPointerIdRef.current = null
+    syncInterval()
+  }, [syncInterval])
+
+  const clearKeyboardHold = useCallback(() => {
+    keyboardHeldRef.current = false
+    syncInterval()
+  }, [syncInterval])
+
+  const handlePointerDown = useCallback(
+    (event: ReactPointerEvent<HTMLButtonElement>) => {
+      if (ownerPointerIdRef.current !== null) {
+        return
+      }
+
+      ownerPointerIdRef.current = event.pointerId
+      suppressClickRef.current = true
+      event.preventDefault()
+
+      try {
+        event.currentTarget.setPointerCapture(event.pointerId)
+      } catch {
+        // Pointer capture is not available in every browser/test environment.
+      }
+
+      syncInterval()
+    },
+    [syncInterval],
+  )
+
+  const handlePointerUp = useCallback(
+    (event: ReactPointerEvent<HTMLButtonElement>) => {
+      if (ownerPointerIdRef.current !== event.pointerId) {
+        return
+      }
+
+      clearPointerHold()
+
+      try {
+        event.currentTarget.releasePointerCapture(event.pointerId)
+      } catch {
+        // Capture may already have been released by the browser.
+      }
+    },
+    [clearPointerHold],
+  )
+
+  const handlePointerCancel = useCallback(
+    (event: ReactPointerEvent<HTMLButtonElement>) => {
+      if (ownerPointerIdRef.current === event.pointerId) {
+        clearPointerHold()
+      }
+    },
+    [clearPointerHold],
+  )
+
+  const handleKeyDown = useCallback(
+    (event: ReactKeyboardEvent<HTMLButtonElement>) => {
+      if (event.code !== 'Space' && event.code !== 'Enter') {
+        return
+      }
+
+      event.preventDefault()
+      suppressClickRef.current = true
+
+      if (!keyboardHeldRef.current) {
+        keyboardHeldRef.current = true
+        syncInterval()
+      }
+    },
+    [syncInterval],
+  )
+
+  const handleKeyUp = useCallback(
+    (event: ReactKeyboardEvent<HTMLButtonElement>) => {
+      if (event.code !== 'Space' && event.code !== 'Enter') {
+        return
+      }
+
+      event.preventDefault()
+      clearKeyboardHold()
+    },
+    [clearKeyboardHold],
+  )
+
+  const handleClick = useCallback(
+    (event: ReactMouseEvent<HTMLButtonElement>) => {
+      if (suppressClickRef.current) {
+        suppressClickRef.current = false
+        return
+      }
+
+      if (event.detail === 0 || event.detail > 0) {
+        onAdd(pigment, PIGMENT_CLICK_STEP)
+      }
+    },
+    [onAdd, pigment],
+  )
+
+  useEffect(
+    () => () => {
+      ownerPointerIdRef.current = null
+      keyboardHeldRef.current = false
+      stopInterval()
+    },
+    [stopInterval],
+  )
+
+  return (
+    <button
+      aria-label={label}
+      aria-pressed={active}
+      className="school-escape__pigment"
+      data-pigment={pigment}
+      onBlur={clearKeyboardHold}
+      onClick={handleClick}
+      onKeyDown={handleKeyDown}
+      onKeyUp={handleKeyUp}
+      onLostPointerCapture={clearPointerHold}
+      onPointerCancel={handlePointerCancel}
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      type="button"
+    />
+  )
 }
 
 function attachRuntimeLifecycle(runtime: SchoolEscapeRuntimeController) {
@@ -190,12 +381,23 @@ function SchoolEscapeGame({
     })
   }
 
-  const addPigment = (pigment: PaintPigment) => {
-    setPaintMix((current) => ({
-      ...current,
-      [pigment]: Math.min(1, current[pigment] + 0.1),
-    }))
-  }
+  const addPigment = useCallback((pigment: PaintPigment, amount: number) => {
+    setPaintMix((current) => {
+      const nextValue = Math.min(
+        1,
+        current[pigment] + Math.max(0, Number.isFinite(amount) ? amount : 0),
+      )
+
+      if (nextValue === current[pigment]) {
+        return current
+      }
+
+      return {
+        ...current,
+        [pigment]: nextValue,
+      }
+    })
+  }, [])
 
   const cleanPaint = () => {
     setPaintMix(freshEmptyPaintMix())
@@ -206,6 +408,15 @@ function SchoolEscapeGame({
   const matchLabel = showPaintControls
     ? paintMatchLabel(uiSnapshot.matchScore)
     : null
+  const matchProgress = Math.round(
+    Math.max(0, Math.min(1, uiSnapshot.matchScore ?? 0)) * 100,
+  )
+  const matchRingStyle = {
+    '--match-progress': `${matchProgress}%`,
+  } as CSSProperties
+  const currentPaintStyle = {
+    backgroundColor: cssColorForMix(paintMix),
+  }
   const teacherAlertLabel =
     uiSnapshot.teacherAlert === 'suspicious'
       ? 'Teacher noticed something'
@@ -285,32 +496,39 @@ function SchoolEscapeGame({
               >
                 <div className="school-escape__pigments">
                   {PIGMENTS.map(({ id, label }) => (
-                    <button
-                      aria-label={label}
-                      aria-pressed={paintMix[id] > 0}
-                      className="school-escape__pigment"
-                      data-pigment={id}
+                    <PigmentHoldButton
+                      active={paintMix[id] > 0}
                       key={id}
-                      onClick={() => addPigment(id)}
-                      type="button"
+                      label={label}
+                      onAdd={addPigment}
+                      pigment={id}
                     />
                   ))}
-                  <button
-                    aria-label="Clean paint"
-                    className="school-escape__paint-clean"
-                    onClick={cleanPaint}
-                    type="button"
-                  >
-                    Clean
-                  </button>
+                  <div className="school-escape__paint-center">
+                    {matchLabel ? (
+                      <div
+                        aria-label={matchLabel}
+                        className="school-escape__paint-match"
+                        role="img"
+                        style={matchRingStyle}
+                      />
+                    ) : null}
+                    <div
+                      aria-label="Current paint color"
+                      className="school-escape__paint-swatch"
+                      role="img"
+                      style={currentPaintStyle}
+                    />
+                  </div>
                 </div>
-                {matchLabel ? (
-                  <div
-                    aria-label={matchLabel}
-                    className="school-escape__paint-match"
-                    role="img"
-                  />
-                ) : null}
+                <button
+                  aria-label="Clean paint"
+                  className="school-escape__paint-clean"
+                  onClick={cleanPaint}
+                  type="button"
+                >
+                  Clean
+                </button>
               </div>
             ) : null}
 
