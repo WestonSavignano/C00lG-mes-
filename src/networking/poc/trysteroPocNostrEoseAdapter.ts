@@ -5,6 +5,7 @@ const ROOT_KIND = 'root'
 const ANNOUNCE_KIND = 'announce'
 const DEFAULT_REDUNDANCY = 5
 const STEADY_ANNOUNCE_INTERVAL_MS = 60_000
+const OPEN = 1
 
 type SocketLike = {
   readonly readyState: number
@@ -72,6 +73,14 @@ export type PocNostrModule = {
   defaultRelayUrls: string[]
 }
 
+export type PocTrysteroMessageKind =
+  | 'announcement'
+  | 'nudge'
+  | 'offer'
+  | 'answer'
+  | 'candidate'
+  | 'unknown'
+
 export type PocNostrAdapterObservation = {
   stage:
     | 'relay-open'
@@ -79,7 +88,10 @@ export type PocNostrAdapterObservation = {
     | 'root-subscription-sent'
     | 'root-subscription-ready'
     | 'root-subscription-closed'
+    | 'trystero-message-received'
+    | 'trystero-message-published'
   relayUrl: string
+  messageKind?: PocTrysteroMessageKind
 }
 
 export type PocNostrRootReadyEvent = {
@@ -120,6 +132,37 @@ function stringifyMessage(message: unknown) {
   return typeof message === 'string' ? message : JSON.stringify(message)
 }
 
+function parseMessagePayload(message: unknown): Record<string, unknown> | null {
+  if (typeof message === 'string') {
+    try {
+      const parsed = JSON.parse(message)
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+        ? parsed as Record<string, unknown>
+        : null
+    } catch {
+      return null
+    }
+  }
+
+  return message && typeof message === 'object' && !Array.isArray(message)
+    ? message as Record<string, unknown>
+    : null
+}
+
+function classifyTrysteroMessage(
+  message: unknown,
+  noSignalKind: 'announcement' | 'nudge',
+): PocTrysteroMessageKind {
+  const payload = parseMessagePayload(message)
+  if (!payload) return 'unknown'
+
+  if (typeof payload.offer === 'string' && payload.offer) return 'offer'
+  if (typeof payload.answer === 'string' && payload.answer) return 'answer'
+  if (typeof payload.candidate === 'string' && payload.candidate) return 'candidate'
+  if (typeof payload.peerId === 'string' && payload.peerId) return noSignalKind
+  return 'unknown'
+}
+
 export function createPocNostrEoseModule({
   core,
   nostr,
@@ -136,7 +179,12 @@ export function createPocNostrEoseModule({
   const observeStage = (
     stage: PocNostrAdapterObservation['stage'],
     relayUrl: string,
-  ) => observe?.({ stage, relayUrl })
+    messageKind?: PocTrysteroMessageKind,
+  ) => observe?.({
+    stage,
+    relayUrl,
+    ...(messageKind ? { messageKind } : {}),
+  })
 
   const recordsFor = (client: SocketClientLike) => {
     let records = subscriptions.get(client)
@@ -190,6 +238,15 @@ export function createPocNostrEoseModule({
 
     const event = payload as EventPayload
     if (typeof event.content !== 'string' || !hasTopicTag(event, record.topic)) return
+
+    observeStage(
+      'trystero-message-received',
+      client.url,
+      classifyTrysteroMessage(
+        event.content,
+        record.kind === ROOT_KIND ? 'announcement' : 'nudge',
+      ),
+    )
     void record.onMessage(record.topic, event.content)
   }
 
@@ -245,7 +302,18 @@ export function createPocNostrEoseModule({
       }
 
       const event = await nostr.createEvent(topic, stringifyMessage(message))
+      const didSend = client.socket.readyState === OPEN
       client.send(event)
+
+      if (didSend) {
+        observeStage(
+          'trystero-message-published',
+          client.url,
+          context.kind === ANNOUNCE_KIND
+            ? 'announcement'
+            : classifyTrysteroMessage(message, 'nudge'),
+        )
+      }
 
       return context.kind === ANNOUNCE_KIND
         ? { nextAnnounceMs: STEADY_ANNOUNCE_INTERVAL_MS }
