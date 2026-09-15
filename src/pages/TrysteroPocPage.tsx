@@ -21,6 +21,7 @@ import {
   type PocNostrModule,
 } from '../networking/poc/trysteroPocNostrEoseAdapter'
 import {
+  createPocHostInviteReadinessTracker,
   recordPocNostrWakeDiagnostic,
   resetPocNostrWakeDiagnostics,
   startPocNostrGuestWake,
@@ -299,6 +300,11 @@ export function TrysteroPocPage() {
     let refreshTimer: ReturnType<typeof setInterval> | null = null
     let room: TrysteroRoom | null = null
     let wakeListener: { stop(): void } | null = null
+    const hostInviteReadiness = strategy === 'nostr-wake' && route.role === 'host'
+      ? createPocHostInviteReadinessTracker(() => {
+          if (!disposed) addLog('HOST READY — paste/open the guest invite now')
+        })
+      : null
     const peerAppIdentity = peerAppIdentityRef.current
     const guestPeerByIdentity = guestPeerByIdentityRef.current
     const peerConnectedAt = peerConnectedAtRef.current
@@ -385,6 +391,9 @@ export function TrysteroPocPage() {
       const trystero = await loadTrystero(strategy, (observation) => {
         if (disposed) return
         recordPocNostrWakeDiagnostic(observation.stage, { relayUrl: observation.relayUrl })
+        if (observation.stage === 'root-subscription-ready') {
+          hostInviteReadiness?.markRootReady(observation.relayUrl)
+        }
         addLog(observationLogMessage(observation))
       })
       if (disposed) {
@@ -473,6 +482,7 @@ export function TrysteroPocPage() {
             createEvent: trystero.createEvent,
             subscribe: trystero.subscribe,
             sockets,
+            onWakeListenerReady: (relayUrl) => hostInviteReadiness?.markWakeReady(relayUrl),
           })
           if (!disposed) addLog('event-driven guest wake listener armed')
         } else {
@@ -702,7 +712,7 @@ export function TrysteroPocPage() {
       {route.role === 'host' && guestInvite ? (
         <section className="trystero-poc__card" aria-labelledby="guest-invite-heading">
           <h2 id="guest-invite-heading">Guest invite</h2>
-          <p>Open this single link on another device. For a late-join trial, leave the host running before opening it.</p>
+          <p>For a late-join trial, wait for “HOST READY — paste/open the guest invite now” in the Evidence log, then open this single link on the guest device/browser.</p>
           <textarea className="trystero-poc__invite" readOnly rows={4} value={guestInvite} aria-label="Guest invite URL" />
           <button className="trystero-poc__button" type="button" onClick={() => void copyText(guestInvite, 'Guest invite copied.')}>
             Copy guest invite
