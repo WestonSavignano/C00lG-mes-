@@ -11,7 +11,8 @@ type AppShellProps = {
 
 function AppShell({ children }: AppShellProps) {
   const location = useLocation()
-  const isGameRoute = Boolean(getGameByRoute(location.pathname))
+  const isSchoolEscapePreview = location.pathname === '/game-preview/school-escape'
+  const isGameRoute = Boolean(getGameByRoute(location.pathname)) || isSchoolEscapePreview
 
   return (
     <div className="app-shell" data-game-route={isGameRoute ? 'true' : 'false'}>
