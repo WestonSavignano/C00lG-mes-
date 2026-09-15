@@ -38,6 +38,7 @@ import {
 } from './PartySession'
 import {
   TrysteroNostrTransport,
+  type PartyDiagnosticSource,
   type TrysteroNostrTransportOptions,
 } from './trysteroNostrTransport'
 import type { PartyRoute } from './partyTypes'
@@ -134,8 +135,10 @@ export function createBrowserPartySessionFactory(dependencies: Dependencies = {}
         authority,
         onAuthenticated: (authenticated) => session?.handleAuthenticated(authenticated),
       })
+      const diagnosticSource: PartyDiagnosticSource = mode === 'new' ? 'start-host' : 'restore-host'
       const transport = transportFactory({
         role: 'host',
+        diagnosticSource,
         partyId,
         rendezvousCapability: authority.state.rendezvousCapability,
         onPeerHandshake: handshake,
@@ -166,6 +169,7 @@ export function createBrowserPartySessionFactory(dependencies: Dependencies = {}
     record: ReturnType<typeof createInitialGuestPartyRecord>
     admissionCapability?: string
     scrubInviteAfterConnect: boolean
+    diagnosticSource: Extract<PartyDiagnosticSource, 'join-invite' | 'restore-guest'>
   }): Promise<PartySessionStart> {
     const replica = new GuestPartyReplica(input.record)
     const deferred = new DeferredTransport()
@@ -178,6 +182,7 @@ export function createBrowserPartySessionFactory(dependencies: Dependencies = {}
     })
     const transport = transportFactory({
       role: 'guest',
+      diagnosticSource: input.diagnosticSource,
       partyId: input.record.partyId,
       rendezvousCapability: input.record.rendezvousCapability,
       onPeerHandshake: handshake,
@@ -217,6 +222,7 @@ export function createBrowserPartySessionFactory(dependencies: Dependencies = {}
           record: existing,
           admissionCapability: admitted ? undefined : route.admissionCapability,
           scrubInviteAfterConnect: true,
+          diagnosticSource: 'join-invite',
         })
       }
 
@@ -232,6 +238,7 @@ export function createBrowserPartySessionFactory(dependencies: Dependencies = {}
         record,
         admissionCapability: route.admissionCapability,
         scrubInviteAfterConnect: true,
+        diagnosticSource: 'join-invite',
       })
     },
     restoreGuest: async (partyId) => {
@@ -239,7 +246,11 @@ export function createBrowserPartySessionFactory(dependencies: Dependencies = {}
       if (!record) {
         throw new Error('This browser no longer has valid member credentials for that Chat party.')
       }
-      return createGuestSession({ record, scrubInviteAfterConnect: false })
+      return createGuestSession({
+        record,
+        scrubInviteAfterConnect: false,
+        diagnosticSource: 'restore-guest',
+      })
     },
   }
 }
