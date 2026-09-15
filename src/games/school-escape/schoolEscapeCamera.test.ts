@@ -60,7 +60,7 @@ describe('SchoolEscapeCameraController', () => {
       2.2,
     )
     expect(occluded.distance).toBeLessThan(4.5)
-    expect(occluded.distance).toBeLessThanOrEqual(1.95)
+    expect(occluded.distance).toBeCloseTo(1.95, 6)
 
     let clear = occluded
     for (let index = 0; index < 90; index += 1) {
