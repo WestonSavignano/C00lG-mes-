@@ -120,7 +120,12 @@ describe('ChatPage client-only party UX', () => {
     await waitFor(() => expect(sessionFactory.startHost).toHaveBeenCalledTimes(1))
     expect(screen.getByRole('heading', { name: /your chat/i })).toBeInTheDocument()
     expect(screen.getByDisplayValue(/coolgamesplus\.com\/chat#v=2/)).toBeInTheDocument()
-    expect(screen.getByTestId('location')).toHaveTextContent('/chat#v=2&party=party-a&role=host')
+    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/chat#v=2&party=party-a&role=host'))
+    await act(async () => {
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    expect(sessionFactory.restoreHost).not.toHaveBeenCalled()
   })
 
   it('keeps invite capabilities in the fragment until admission succeeds, then scrubs to a durable guest route', async () => {
