@@ -6,6 +6,8 @@ const ANNOUNCE_KIND = 'announce'
 const OPEN = 1
 const DEFAULT_REDUNDANCY = 5
 const STEADY_ANNOUNCE_INTERVAL_MS = 60_000
+const MAX_RELAY_BACKOFF_MS = 15 * 60_000
+const RELAY_ACK_TIMEOUT_MS = 5_333
 const WAKE_PAYLOAD = JSON.stringify({ type: 'wake', version: 1 })
 const MAX_SEEN_WAKE_IDS = 64
 const HOST_WAKE_COOLDOWN_MS = 1_500
@@ -48,7 +50,11 @@ type TopicAdapter = {
     topic: string,
     message: unknown,
     context: TopicPublishContext,
-  ): Promise<undefined | { nextAnnounceMs: number }>
+  ): Promise<
+    | undefined
+    | { nextAnnounceMs: number }
+    | { stopAnnouncing: true }
+  >
 }
 
 type RelayManagerLike = {
@@ -107,6 +113,11 @@ type EventPayload = {
   tags?: unknown
 }
 
+type RelayBackoffState = {
+  delayMs: number
+  untilMs: number
+}
+
 export type RendezvousDiagnostic = {
   stage:
     | 'host-rendezvous-ready'
@@ -141,6 +152,15 @@ function stringifyMessage(message: unknown) {
   return typeof message === 'string' ? message : JSON.stringify(message)
 }
 
+function parsePublishedEventId(event: string) {
+  const parsed = parseRelayMessage(event)
+  if (!parsed || parsed[0] !== EVENT) return null
+  const payload = parsed[1]
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return null
+  const id = (payload as { id?: unknown }).id
+  return typeof id === 'string' && id ? id : null
+}
+
 export function createEventDrivenNostrModule({
   core,
   nostr,
@@ -151,6 +171,66 @@ export function createEventDrivenNostrModule({
   const relayManager = core.createRelayManager((client) => client.socket)
   const subscriptions = new Map<SocketClientLike, Map<string, SubscriptionRecord>>()
   const rootReadyListeners = new Set<(event: RootReadyEvent) => void>()
+  const relayBackoffs = new WeakMap<SocketClientLike, RelayBackoffState>()
+  const retiredRelays = new WeakSet<SocketClientLike>()
+  const pendingAnnouncementAcks = new WeakMap<
+    SocketClientLike,
+    { eventIds: Set<string>; timer: ReturnType<typeof setTimeout> }
+  >()
+
+  const backoffRelay = (client: SocketClientLike) => {
+    const previous = relayBackoffs.get(client)
+    const delayMs = Math.min(
+      previous?.delayMs
+        ? Math.max(STEADY_ANNOUNCE_INTERVAL_MS, previous.delayMs * 2)
+        : STEADY_ANNOUNCE_INTERVAL_MS,
+      MAX_RELAY_BACKOFF_MS,
+    )
+    relayBackoffs.set(client, { delayMs, untilMs: Date.now() + delayMs })
+    return delayMs
+  }
+
+  const getRelayBackoffMs = (client: SocketClientLike) => {
+    const state = relayBackoffs.get(client)
+    if (!state) return 0
+    return Math.max(0, state.untilMs - Date.now())
+  }
+
+  const clearPendingAnnouncementAck = (client: SocketClientLike) => {
+    const pending = pendingAnnouncementAcks.get(client)
+    if (!pending) return
+    clearTimeout(pending.timer)
+    pendingAnnouncementAcks.delete(client)
+  }
+
+  const retireRelay = (client: SocketClientLike) => {
+    if (retiredRelays.has(client)) return false
+    clearPendingAnnouncementAck(client)
+    retiredRelays.add(client)
+    relayBackoffs.delete(client)
+    client.isClosed = true
+    client.close?.()
+    return true
+  }
+
+  const trackAnnouncementAck = (client: SocketClientLike, eventId: string) => {
+    const pending = pendingAnnouncementAcks.get(client)
+    if (pending) clearTimeout(pending.timer)
+    const eventIds = pending?.eventIds ?? new Set<string>()
+    eventIds.add(eventId)
+    const timer = setTimeout(() => {
+      pendingAnnouncementAcks.delete(client)
+    }, RELAY_ACK_TIMEOUT_MS)
+    pendingAnnouncementAcks.set(client, { eventIds, timer })
+  }
+
+  const acknowledgeAnnouncement = (client: SocketClientLike, eventId: string) => {
+    const pending = pendingAnnouncementAcks.get(client)
+    if (!pending?.eventIds.has(eventId)) return false
+    clearTimeout(pending.timer)
+    pendingAnnouncementAcks.delete(client)
+    return true
+  }
 
   const recordsFor = (client: SocketClientLike) => {
     let records = subscriptions.get(client)
@@ -177,8 +257,28 @@ export function createEventDrivenNostrModule({
     const parsed = parseRelayMessage(data)
     if (!parsed || typeof parsed[0] !== 'string' || typeof parsed[1] !== 'string') return
 
-    const [messageType, subscriptionId, payload] = parsed
-    const record = subscriptions.get(client)?.get(subscriptionId)
+    const [messageType, messageId, payload, relayMessage] = parsed
+
+    if (messageType === 'OK' && typeof payload === 'boolean') {
+      const didAcknowledgeAnnouncement = acknowledgeAnnouncement(client, messageId)
+      if (!didAcknowledgeAnnouncement) return
+
+      if (payload) {
+        relayBackoffs.delete(client)
+        return
+      }
+
+      const reason = typeof relayMessage === 'string' ? relayMessage : ''
+      if (reason.startsWith('rate-limited:')) {
+        backoffRelay(client)
+        return
+      }
+      if (reason.startsWith('duplicate:')) return
+      retireRelay(client)
+      return
+    }
+
+    const record = subscriptions.get(client)?.get(messageId)
     if (!record) return
 
     if (messageType === EOSE) {
@@ -188,6 +288,7 @@ export function createEventDrivenNostrModule({
 
     if (messageType === CLOSED) {
       if (record.kind === ROOT_KIND) record.ready = false
+      retireRelay(client)
       return
     }
 
@@ -240,16 +341,31 @@ export function createEventDrivenNostrModule({
     },
 
     publishTopic: async (client, topic, message, context) => {
-      if (client.isClosed) {
+      if (retiredRelays.has(client) || client.isClosed) {
         return context.kind === ANNOUNCE_KIND
-          ? { nextAnnounceMs: STEADY_ANNOUNCE_INTERVAL_MS }
+          ? { stopAnnouncing: true }
           : undefined
       }
 
-      client.send(await nostr.createEvent(topic, stringifyMessage(message)))
-      return context.kind === ANNOUNCE_KIND
-        ? { nextAnnounceMs: STEADY_ANNOUNCE_INTERVAL_MS }
-        : undefined
+      if (context.kind === ANNOUNCE_KIND) {
+        const remainingBackoffMs = getRelayBackoffMs(client)
+        if (remainingBackoffMs > 0) {
+          return {
+            nextAnnounceMs: Math.max(STEADY_ANNOUNCE_INTERVAL_MS, remainingBackoffMs),
+          }
+        }
+      }
+
+      const event = await nostr.createEvent(topic, stringifyMessage(message))
+      const didSend = client.socket.readyState === OPEN
+      client.send(event)
+
+      if (context.kind !== ANNOUNCE_KIND) return undefined
+      if (!didSend) return { nextAnnounceMs: backoffRelay(client) }
+
+      const eventId = parsePublishedEventId(event)
+      if (eventId) trackAnnouncementAck(client, eventId)
+      return { nextAnnounceMs: STEADY_ANNOUNCE_INTERVAL_MS }
     },
   }
 
