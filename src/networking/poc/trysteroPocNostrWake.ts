@@ -3,8 +3,43 @@ const OPEN = 1
 const CONNECTING = 0
 const WAKE_PAYLOAD = JSON.stringify({ type: 'wake', version: 1 })
 const MAX_SEEN_WAKE_IDS = 64
+const MAX_WAKE_DIAGNOSTICS = 32
 
 export const POC_NOSTR_WAKE_COOLDOWN_MS = 1_500
+
+export type PocNostrWakeDiagnostic = {
+  at: string
+  stage:
+    | 'guest-wake-sent'
+    | 'host-wake-listener-armed'
+    | 'host-wake-received'
+    | 'host-announcement-sent'
+  openRelayCount?: number
+}
+
+const wakeDiagnostics: PocNostrWakeDiagnostic[] = []
+
+function resetWakeDiagnostics() {
+  wakeDiagnostics.length = 0
+}
+
+function recordWakeDiagnostic(
+  stage: PocNostrWakeDiagnostic['stage'],
+  openRelayCount?: number,
+) {
+  wakeDiagnostics.push({
+    at: new Date().toISOString(),
+    stage,
+    ...(openRelayCount === undefined ? {} : { openRelayCount }),
+  })
+  if (wakeDiagnostics.length > MAX_WAKE_DIAGNOSTICS) {
+    wakeDiagnostics.splice(0, wakeDiagnostics.length - MAX_WAKE_DIAGNOSTICS)
+  }
+}
+
+export function getPocNostrWakeDiagnostics() {
+  return wakeDiagnostics.map((entry) => ({ ...entry }))
+}
 
 type SocketLike = {
   readonly readyState: number
@@ -37,9 +72,19 @@ export function derivePocNostrWakeTopic(
   return hash('SHA-256', `CoolGamesPlusWake@${appId}@${roomId}@${rendezvousSecret}`)
 }
 
-function sendOnceWhenOpen(socket: SocketLike, payload: string) {
-  if (socket.readyState === OPEN) {
+function sendOnceWhenOpen(
+  socket: SocketLike,
+  payload: string,
+  onSent?: () => void,
+) {
+  const send = () => {
     socket.send(payload)
+    recordWakeDiagnostic('guest-wake-sent')
+    onSent?.()
+  }
+
+  if (socket.readyState === OPEN) {
+    send()
     return 'sent' as const
   }
 
@@ -49,7 +94,7 @@ function sendOnceWhenOpen(socket: SocketLike, payload: string) {
 
   const onOpen: EventListener = () => {
     socket.removeEventListener('open', onOpen)
-    if (socket.readyState === OPEN) socket.send(payload)
+    if (socket.readyState === OPEN) send()
   }
   socket.addEventListener('open', onOpen)
   return 'waiting' as const
@@ -61,20 +106,23 @@ export async function sendPocNostrGuestWake({
   rendezvousSecret,
   createEvent,
   sockets,
+  onWakeSent,
 }: {
   appId: string
   roomId: string
   rendezvousSecret: string
   createEvent: CreateEvent
   sockets: Record<string, SocketLike>
+  onWakeSent?: () => void
 }) {
+  resetWakeDiagnostics()
   const wakeTopic = await derivePocNostrWakeTopic(appId, roomId, rendezvousSecret)
   const event = await createEvent(wakeTopic, WAKE_PAYLOAD)
   let sentImmediately = 0
   let waitingForOpen = 0
 
   for (const socket of Object.values(sockets)) {
-    const result = sendOnceWhenOpen(socket, event)
+    const result = sendOnceWhenOpen(socket, event, onWakeSent)
     if (result === 'sent') sentImmediately += 1
     if (result === 'waiting') waitingForOpen += 1
   }
@@ -117,6 +165,8 @@ export async function startPocNostrHostWakeListener({
   sockets,
   createSubscriptionId = () => crypto.randomUUID(),
   now = () => Date.now(),
+  onWakeReceived,
+  onAnnouncementSent,
 }: {
   appId: string
   roomId: string
@@ -127,7 +177,10 @@ export async function startPocNostrHostWakeListener({
   sockets: Record<string, SocketLike>
   createSubscriptionId?: () => string
   now?: () => number
+  onWakeReceived?: () => void
+  onAnnouncementSent?: (openRelayCount: number) => void
 }) {
+  resetWakeDiagnostics()
   const [wakeTopic, rootTopic] = await Promise.all([
     derivePocNostrWakeTopic(appId, roomId, rendezvousSecret),
     derivePocNostrRootTopic(appId, roomId),
@@ -152,9 +205,15 @@ export async function startPocNostrHostWakeListener({
       JSON.stringify({ peerId }),
     )
     if (stopped) return
+    let openRelayCount = 0
     for (const socket of Object.values(sockets)) {
-      if (socket.readyState === OPEN) socket.send(announcement)
+      if (socket.readyState === OPEN) {
+        socket.send(announcement)
+        openRelayCount += 1
+      }
     }
+    recordWakeDiagnostic('host-announcement-sent', openRelayCount)
+    onAnnouncementSent?.(openRelayCount)
   }
 
   const onWake = (data: unknown) => {
@@ -166,6 +225,8 @@ export async function startPocNostrHostWakeListener({
     const current = now()
     if (current - lastWakeAt < POC_NOSTR_WAKE_COOLDOWN_MS) return
     lastWakeAt = current
+    recordWakeDiagnostic('host-wake-received')
+    onWakeReceived?.()
     void announceHost()
   }
 
@@ -190,6 +251,8 @@ export async function startPocNostrHostWakeListener({
       cleanups.push(() => socket.removeEventListener('open', onOpen))
     }
   }
+
+  recordWakeDiagnostic('host-wake-listener-armed')
 
   return {
     stop() {
