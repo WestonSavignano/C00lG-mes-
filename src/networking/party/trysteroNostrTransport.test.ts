@@ -35,7 +35,7 @@ function createModule(room: TrysteroRoomLike) {
 }
 
 describe('TrysteroNostrTransport', () => {
-  it('uses the reviewed active-host/passive-guest Nostr configuration with no TURN', async () => {
+  it('uses the reviewed active-host/passive-guest Nostr configuration with a pinned relay pool and no TURN', async () => {
     const hostRoom = createFakeRoom()
     const hostModule = createModule(hostRoom.room)
     const host = new TrysteroNostrTransport({
@@ -54,7 +54,12 @@ describe('TrysteroNostrTransport', () => {
         passive: false,
         trickleIce: true,
         relayConfig: {
-          redundancy: 5,
+          urls: [
+            'wss://relay02.lnfi.network',
+            'wss://nostr.data.haus',
+            'wss://relay-can.zombi.cloudrodion.com',
+            'wss://yabu.me/v2',
+          ],
           manualReconnection: false,
           warnOnRelayFailure: true,
         },
@@ -63,7 +68,7 @@ describe('TrysteroNostrTransport', () => {
       expect.any(Object),
     )
     expect(hostModule.joinRoom.mock.calls[0]?.[0]).not.toHaveProperty('turnConfig')
-    expect(hostModule.joinRoom.mock.calls[0]?.[0].relayConfig).not.toHaveProperty('urls')
+    expect(hostModule.joinRoom.mock.calls[0]?.[0].relayConfig).not.toHaveProperty('redundancy')
 
     const guestRoom = createFakeRoom()
     const guestModule = createModule(guestRoom.room)
@@ -174,7 +179,7 @@ describe('TrysteroNostrTransport', () => {
       partyId: 'party-a',
       rendezvousCapability: 'rendezvous-a',
       loadModule: async () => module.module,
-      poisonRegistry,
+      poisonRegistry: new Set(),
     })
     await transport.start()
 
